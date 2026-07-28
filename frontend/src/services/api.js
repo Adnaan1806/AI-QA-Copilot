@@ -69,11 +69,11 @@ export async function listProjects() {
   return handleResponse(response);
 }
 
-export async function createProject({ name, description }) {
+export async function createProject({ name, description, base_url }) {
   const response = await fetch(`${API_BASE_URL}/projects`, {
     method: "POST",
     headers: authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ name, description }),
+    body: JSON.stringify({ name, description, base_url }),
   });
   return handleResponse(response);
 }
@@ -81,6 +81,15 @@ export async function createProject({ name, description }) {
 export async function getProject(projectId) {
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
     headers: authHeaders(),
+  });
+  return handleResponse(response);
+}
+
+export async function updateProject(projectId, patch) {
+  const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
+    method: "PATCH",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(patch),
   });
   return handleResponse(response);
 }
