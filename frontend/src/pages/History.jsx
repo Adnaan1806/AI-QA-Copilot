@@ -84,7 +84,7 @@ export default function History() {
                   <Link
                     key={r.id}
                     to={`/requirements/${r.id}`}
-                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-indigo-500/40 dark:hover:bg-slate-800/60"
+                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50/40 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-teal-500/40 dark:hover:bg-slate-800/60"
                   >
                     <div className="min-w-0 pr-4">
                       <p className="truncate font-medium text-gray-900 dark:text-white">

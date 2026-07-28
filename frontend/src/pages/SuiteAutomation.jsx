@@ -34,7 +34,7 @@ function RequirementRow({ r, generating, onGenerate }) {
             type="button"
             onClick={onGenerate}
             disabled={generating}
-            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-teal-600/25 disabled:cursor-not-allowed disabled:opacity-40"
           >
             {generating && <Spinner className="h-3.5 w-3.5" />}
             {generating
@@ -113,7 +113,7 @@ export default function SuiteAutomation() {
     <div className="mx-auto max-w-5xl p-8">
       <Link
         to={`/suites/${suiteId}`}
-        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:underline dark:text-teal-400"
       >
         ← Back to suite
       </Link>

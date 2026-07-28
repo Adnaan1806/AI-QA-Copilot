@@ -29,7 +29,7 @@ const TYPE_OPTIONS = ["functional", "negative", "edge_case", "security"];
 const PRIORITY_OPTIONS = ["high", "medium", "low"];
 
 const editInputClass =
-  "w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-900 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:bg-slate-950 dark:focus:ring-indigo-500/20";
+  "w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-900 focus:border-teal-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-100 dark:focus:border-teal-500 dark:focus:bg-slate-950 dark:focus:ring-teal-500/20";
 
 function TypeBadge({ label }) {
   const ref = usePulseOnChange(label);
@@ -109,7 +109,7 @@ function EditableRow({ tc, onSave, onCancel }) {
   }
 
   return (
-    <tr ref={rowRef} className="align-top bg-indigo-50/30 dark:bg-slate-800/40">
+    <tr ref={rowRef} className="align-top bg-teal-50/30 dark:bg-slate-800/40">
       <td className="px-4 py-3.5">
         <input className={editInputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
       </td>

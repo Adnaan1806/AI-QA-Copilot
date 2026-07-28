@@ -44,8 +44,8 @@ const ICONS = {
 
 const THEMES = {
   requirements: {
-    border: "border-indigo-200 dark:border-indigo-500/20",
-    badge: "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400",
+    border: "border-teal-200 dark:border-teal-500/20",
+    badge: "bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400",
   },
   risks: {
     border: "border-red-200 dark:border-red-500/20",

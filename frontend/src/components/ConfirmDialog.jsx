@@ -105,7 +105,7 @@ export default function ConfirmDialog({
             className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
               danger
                 ? "bg-red-600 hover:bg-red-700"
-                : "bg-gradient-to-r from-indigo-600 to-violet-600 hover:opacity-90"
+                : "bg-gradient-to-r from-teal-600 to-emerald-500 hover:opacity-90"
             }`}
           >
             {confirming && <Spinner className="h-3.5 w-3.5" />}

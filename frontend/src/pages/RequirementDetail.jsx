@@ -70,7 +70,7 @@ function EditableName({ name, onSave }) {
           required
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 text-xl font-bold text-gray-900 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-slate-950 dark:focus:ring-indigo-500/20"
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 text-xl font-bold text-gray-900 focus:border-teal-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:border-teal-500 dark:focus:bg-slate-950 dark:focus:ring-teal-500/20"
         />
         <button
           ref={savePress.ref}
@@ -136,14 +136,14 @@ function ModuleLinkCard({ to, icon, title, subtitle, disabled }) {
       className={`flex aspect-square h-full flex-col items-center justify-center gap-3 rounded-2xl border p-6 text-center shadow-sm transition-all duration-200 ${
         disabled
           ? "cursor-not-allowed border-dashed border-gray-300 bg-gray-50/60 dark:border-slate-700 dark:bg-slate-900/40"
-          : "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50/40 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500/40 dark:hover:bg-slate-800/60"
+          : "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-teal-300 hover:bg-teal-50/40 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-teal-500/40 dark:hover:bg-slate-800/60"
       }`}
     >
       <span
         className={`grid h-12 w-12 shrink-0 place-items-center rounded-full ${
           disabled
             ? "bg-gray-200 text-gray-400 dark:bg-slate-800 dark:text-gray-500"
-            : "bg-indigo-50 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400"
+            : "bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400"
         }`}
       >
         <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6">
@@ -214,7 +214,7 @@ function RequirementDetailContent({ requirement, id, totalCount, approvedCount, 
     <div className="mx-auto max-w-5xl p-8">
       <Link
         to={`/suites/${requirement.suite_id}`}
-        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:underline dark:text-teal-400"
       >
         ← Back to suite
       </Link>

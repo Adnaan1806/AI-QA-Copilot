@@ -24,7 +24,7 @@ export default function Navbar() {
     <nav className="sticky top-0 z-10 border-b border-gray-200/80 bg-white/80 backdrop-blur-md dark:border-slate-800/80 dark:bg-slate-950/80">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-8 py-3.5">
         <Link to="/" className="flex items-center gap-2.5">
-          <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white shadow-sm shadow-indigo-600/30">
+          <div className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-teal-500 to-emerald-500 text-sm font-bold text-white shadow-sm shadow-teal-600/30">
             Q
           </div>
           <span className="font-semibold text-gray-900 dark:text-white">

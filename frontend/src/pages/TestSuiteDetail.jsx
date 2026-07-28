@@ -72,7 +72,7 @@ export default function TestSuiteDetail() {
     <div className="mx-auto max-w-5xl p-8">
       <Link
         to={`/projects/${suite.project_id}`}
-        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:underline dark:text-teal-400"
       >
         ← Back to project
       </Link>
@@ -102,14 +102,14 @@ export default function TestSuiteDetail() {
         className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
       >
         <textarea
-          className="h-32 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-indigo-500 dark:focus:bg-slate-950 dark:focus:ring-indigo-500/20"
+          className="h-32 w-full resize-none rounded-xl border border-gray-200 bg-gray-50 p-3.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-teal-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-100 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-teal-500 dark:focus:bg-slate-950 dark:focus:ring-teal-500/20"
           placeholder="Paste a user story, requirement, or acceptance criteria..."
           value={text}
           disabled={!!file}
           onChange={(e) => setText(e.target.value)}
         />
 
-        <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-500 transition-colors hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-400 dark:hover:border-indigo-500/40">
+        <label className="flex cursor-pointer items-center justify-between rounded-xl border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm text-gray-500 transition-colors hover:border-teal-300 hover:bg-teal-50/40 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-400 dark:hover:border-teal-500/40">
           <span className="flex items-center gap-2">
             <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5 shrink-0">
               <path
@@ -147,7 +147,7 @@ export default function TestSuiteDetail() {
           {...submitPress.handlers}
           type="submit"
           disabled={submitting || (!text.trim() && !file)}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-600/25 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {submitting && <Spinner className="h-4 w-4" />}
           {submitting ? "Analyzing & drafting test cases..." : "Add & Analyze Requirement"}
@@ -175,7 +175,7 @@ export default function TestSuiteDetail() {
             <Link
               key={r.id}
               to={`/requirements/${r.id}`}
-              className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm transition-colors hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500/40 dark:hover:bg-slate-800/60"
+              className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-teal-500/40 dark:hover:bg-slate-800/60"
             >
               <div className="min-w-0 pr-4">
                 <p className="truncate font-medium text-gray-900 dark:text-white">{r.name}</p>

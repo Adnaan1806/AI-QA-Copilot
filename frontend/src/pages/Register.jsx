@@ -7,7 +7,7 @@ import Spinner from "../motion/Spinner";
 import { useButtonPress } from "../motion/useButtonPress";
 
 const inputClass =
-  "w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-indigo-500 dark:focus:bg-slate-950 dark:focus:ring-indigo-500/20";
+  "w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-teal-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-teal-500 dark:focus:bg-slate-950 dark:focus:ring-teal-500/20";
 
 export default function Register() {
   const { register } = useAuth();
@@ -45,7 +45,7 @@ export default function Register() {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center p-8">
       <div ref={logoRef} className="mb-8 flex items-center justify-center gap-2.5">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-base font-bold text-white shadow-sm shadow-indigo-600/30">
+        <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-500 text-base font-bold text-white shadow-sm shadow-teal-600/30">
           Q
         </div>
         <span className="text-lg font-semibold text-gray-900 dark:text-white">
@@ -93,7 +93,7 @@ export default function Register() {
           {...submitPress.handlers}
           type="submit"
           disabled={loading}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-teal-600/25 disabled:cursor-not-allowed disabled:opacity-40"
         >
           {loading && <Spinner className="h-4 w-4" />}
           {loading ? "Creating account..." : "Create account"}
@@ -109,7 +109,7 @@ export default function Register() {
           Already have an account?{" "}
           <Link
             to="/login"
-            className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+            className="font-medium text-teal-600 hover:underline dark:text-teal-400"
           >
             Log in
           </Link>
