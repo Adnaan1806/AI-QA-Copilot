@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user
 from app.database.connection import get_db
 from app.database.models import Project, User
-from app.schemas.project import ProjectCreateRequest, ProjectResponse
+from app.schemas.project import ProjectCreateRequest, ProjectResponse, ProjectUpdateRequest
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -16,9 +16,21 @@ def _to_response(project: Project) -> ProjectResponse:
         id=project.id,
         name=project.name,
         description=project.description,
+        base_url=project.base_url,
         created_at=project.created_at,
         test_suite_count=len(project.test_suites),
     )
+
+
+def _get_owned_project(project_id: uuid.UUID, current_user: User, db: Session) -> Project:
+    project = (
+        db.query(Project)
+        .filter(Project.id == project_id, Project.user_id == current_user.id)
+        .first()
+    )
+    if project is None:
+        raise HTTPException(404, "Project not found")
+    return project
 
 
 @router.get("", response_model=list[ProjectResponse])
@@ -41,7 +53,10 @@ def create_project(
     db: Session = Depends(get_db),
 ):
     project = Project(
-        user_id=current_user.id, name=payload.name, description=payload.description or ""
+        user_id=current_user.id,
+        name=payload.name,
+        description=payload.description or "",
+        base_url=payload.base_url or "",
     )
     db.add(project)
     db.commit()
@@ -54,11 +69,27 @@ def get_project(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = (
-        db.query(Project)
-        .filter(Project.id == project_id, Project.user_id == current_user.id)
-        .first()
-    )
-    if project is None:
-        raise HTTPException(404, "Project not found")
+    project = _get_owned_project(project_id, current_user, db)
+    return _to_response(project)
+
+
+@router.patch("/{project_id}", response_model=ProjectResponse)
+def update_project(
+    project_id: uuid.UUID,
+    payload: ProjectUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project = _get_owned_project(project_id, current_user, db)
+    if payload.name is not None:
+        name = payload.name.strip()
+        if not name:
+            raise HTTPException(400, "Project name cannot be empty")
+        project.name = name
+    if payload.description is not None:
+        project.description = payload.description
+    if payload.base_url is not None:
+        project.base_url = payload.base_url.strip()
+    db.commit()
+    db.refresh(project)
     return _to_response(project)

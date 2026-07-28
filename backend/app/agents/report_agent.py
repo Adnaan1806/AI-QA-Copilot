@@ -18,8 +18,12 @@ Respond with a JSON object matching exactly this shape:
 Rules:
 - Ground every statement in the provided data -- do not invent test cases or risks not implied by it.
 - If very few test cases are approved/automated relative to the requirement's scope, say so plainly in quality_risks.
-- The input includes exact "approved_test_case_count" and "automated_test_case_count" numbers. Use those
-  exact figures whenever you state a count -- do not count list items yourself, and never state a different number.
+- The input includes exact "approved_test_case_count", "automated_test_case_count", "passed_test_case_count",
+  and "needs_review_test_case_count" numbers. Use those exact figures whenever you state a count -- do not
+  count list items yourself, and never state a different number.
+- Automation scripts marked "needs_review" failed execution after automated self-healing attempts and were
+  NOT verified to pass -- treat these as unverified, not as working coverage, and factor this into
+  quality_risks and release_recommendation.
 - Do not include markdown, commentary, or text outside the JSON object.
 """
 
@@ -35,6 +39,8 @@ class ReportAgent:
         test_cases: list[dict[str, Any]],
         automation_scripts: list[dict[str, Any]],
     ) -> dict:
+        passed = [s for s in automation_scripts if s.get("status", "passed") == "passed"]
+        needs_review = [s for s in automation_scripts if s.get("status") == "needs_review"]
         user_prompt = json.dumps(
             {
                 "requirement": requirement_text,
@@ -42,9 +48,12 @@ class ReportAgent:
                 "approved_test_cases": test_cases,
                 "approved_test_case_count": len(test_cases),
                 "automation_scripts": [
-                    {"test_case_id": s["test_case_id"]} for s in automation_scripts
+                    {"test_case_id": s["test_case_id"], "status": s.get("status", "passed")}
+                    for s in automation_scripts
                 ],
                 "automated_test_case_count": len(automation_scripts),
+                "passed_test_case_count": len(passed),
+                "needs_review_test_case_count": len(needs_review),
             },
             indent=2,
         )

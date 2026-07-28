@@ -1,7 +1,8 @@
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Text, UniqueConstraint
+from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.connection import Base
@@ -30,6 +31,7 @@ class Project(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
     name: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[str] = mapped_column(Text, default="")
+    base_url: Mapped[str] = mapped_column(Text, default="")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -131,6 +133,9 @@ class AutomationScript(Base):
     )
     framework: Mapped[str] = mapped_column(Text, nullable=False, default="playwright")
     code: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, default="passed")
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    last_output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

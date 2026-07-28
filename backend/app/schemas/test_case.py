@@ -32,3 +32,6 @@ class AutomationScriptItem(BaseModel):
     test_case_id: uuid.UUID
     framework: str
     code: str
+    status: str
+    attempts: int
+    last_output: Optional[str] = None

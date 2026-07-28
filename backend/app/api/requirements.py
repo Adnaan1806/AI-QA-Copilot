@@ -91,6 +91,9 @@ def _to_detail_response(requirement: Requirement) -> RequirementDetailResponse:
                 test_case_id=tc.automation_script.test_case_id,
                 framework=tc.automation_script.framework,
                 code=tc.automation_script.code,
+                status=tc.automation_script.status,
+                attempts=tc.automation_script.attempts,
+                last_output=tc.automation_script.last_output,
             )
             for tc in requirement.test_cases
             if tc.automation_script is not None
@@ -257,6 +260,11 @@ def generate_automation_and_report(
         raise HTTPException(
             400, "All test cases must be accepted before generating automation -- accept all test cases first"
         )
+    base_url = requirement.suite.project.base_url
+    if not base_url:
+        raise HTTPException(
+            400, "Set a base URL on this project before generating automation"
+        )
     approved = requirement.test_cases
 
     approved_payload = [
@@ -282,6 +290,7 @@ def generate_automation_and_report(
                 "testing_considerations": analysis.testing_considerations,
             },
             "approved_test_cases": approved_payload,
+            "base_url": base_url,
         },
     )
 
@@ -290,15 +299,17 @@ def generate_automation_and_report(
         test_case = approved_by_id.get(script.get("test_case_id"))
         if test_case is None:
             continue
+        fields = {
+            "code": script.get("code", ""),
+            "status": script.get("status", "passed"),
+            "attempts": script.get("attempts", 1),
+            "last_output": script.get("last_output"),
+        }
         if test_case.automation_script is not None:
-            test_case.automation_script.code = script.get("code", "")
+            for key, value in fields.items():
+                setattr(test_case.automation_script, key, value)
         else:
-            db.add(
-                AutomationScript(
-                    test_case_id=test_case.id,
-                    code=script.get("code", ""),
-                )
-            )
+            db.add(AutomationScript(test_case_id=test_case.id, **fields))
 
     report_data = result["report"]
     if requirement.report is not None:
