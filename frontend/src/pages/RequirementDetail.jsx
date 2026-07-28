@@ -1,12 +1,18 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getRequirement, updateRequirementName } from "../services/api";
+import Spinner from "../motion/Spinner";
+import { useButtonPress } from "../motion/useButtonPress";
+import { useMountFade } from "../motion/useMountFade";
+import { useListStagger } from "../motion/useListStagger";
 
 function EditableName({ name, onSave }) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(name);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const fadeRef = useMountFade([editing]);
+  const savePress = useButtonPress();
 
   useEffect(() => {
     setValue(name);
@@ -32,7 +38,7 @@ function EditableName({ name, onSave }) {
 
   if (!editing) {
     return (
-      <div className="flex items-center gap-2">
+      <div ref={fadeRef} className="flex items-center gap-2">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
           {name}
         </h1>
@@ -57,7 +63,7 @@ function EditableName({ name, onSave }) {
   }
 
   return (
-    <div>
+    <div ref={fadeRef}>
       <div className="flex items-center gap-2">
         <input
           autoFocus
@@ -67,11 +73,14 @@ function EditableName({ name, onSave }) {
           className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2 text-xl font-bold text-gray-900 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus:border-indigo-500 dark:focus:bg-slate-950 dark:focus:ring-indigo-500/20"
         />
         <button
+          ref={savePress.ref}
+          {...savePress.handlers}
           type="button"
           onClick={handleSave}
           disabled={saving}
-          className="shrink-0 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-gray-900"
+          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-gray-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-gray-900"
         >
+          {saving && <Spinner className="h-3.5 w-3.5" />}
           {saving ? "Saving..." : "Save"}
         </button>
         <button
@@ -124,10 +133,10 @@ const MODULE_ICONS = {
 function ModuleLinkCard({ to, icon, title, subtitle, disabled }) {
   const card = (
     <div
-      className={`flex aspect-square h-full flex-col items-center justify-center gap-3 rounded-2xl border p-6 text-center shadow-sm transition-colors ${
+      className={`flex aspect-square h-full flex-col items-center justify-center gap-3 rounded-2xl border p-6 text-center shadow-sm transition-all duration-200 ${
         disabled
           ? "cursor-not-allowed border-dashed border-gray-300 bg-gray-50/60 dark:border-slate-700 dark:bg-slate-900/40"
-          : "border-gray-200 bg-white hover:border-indigo-300 hover:bg-indigo-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500/40 dark:hover:bg-slate-800/60"
+          : "border-gray-200 bg-white hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50/40 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-indigo-500/40 dark:hover:bg-slate-800/60"
       }`}
     >
       <span
@@ -173,8 +182,8 @@ export default function RequirementDetail() {
 
   if (loading) {
     return (
-      <p className="mx-auto max-w-5xl p-8 text-sm text-gray-400 dark:text-gray-500">
-        Loading...
+      <p className="mx-auto flex max-w-5xl items-center gap-2 p-8 text-sm text-gray-400 dark:text-gray-500">
+        <Spinner className="h-4 w-4" /> Loading...
       </p>
     );
   }
@@ -195,6 +204,12 @@ export default function RequirementDetail() {
     setRequirement(updated);
   }
 
+  return <RequirementDetailContent requirement={requirement} id={id} totalCount={totalCount} approvedCount={approvedCount} onRenameSave={handleRenameSave} />;
+}
+
+function RequirementDetailContent({ requirement, id, totalCount, approvedCount, onRenameSave }) {
+  const gridRef = useListStagger([requirement.id]);
+
   return (
     <div className="mx-auto max-w-5xl p-8">
       <Link
@@ -204,12 +219,12 @@ export default function RequirementDetail() {
         ← Back to suite
       </Link>
 
-      <EditableName name={requirement.name} onSave={handleRenameSave} />
+      <EditableName name={requirement.name} onSave={onRenameSave} />
       <p className="mt-3 whitespace-pre-wrap rounded-2xl border border-gray-200 bg-white p-4 text-sm text-gray-600 shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:text-gray-300">
         {requirement.content}
       </p>
 
-      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div ref={gridRef} className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <ModuleLinkCard
           to={`/requirements/${id}/test-cases`}
           icon="analysis"

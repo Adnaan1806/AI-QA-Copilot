@@ -1,3 +1,8 @@
+import { useRef } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
+import { DURATION, EASE, STAGGER } from "../motion/constants";
+
 const ICONS = {
   requirements: (
     <path
@@ -87,10 +92,34 @@ function Section({ title, items, emptyLabel, icon }) {
 }
 
 export default function AnalysisResult({ result }) {
+  const containerRef = useRef(null);
+
+  useGSAP(
+    () => {
+      if (!result || !containerRef.current) return;
+      // fromTo (not from) so a re-trigger always lands back at fully
+      // visible, instead of animating from wherever a prior in-flight
+      // tween on the same elements happened to be interrupted.
+      gsap.fromTo(
+        containerRef.current.children,
+        { opacity: 0, y: 10 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: DURATION.page,
+          ease: EASE.out,
+          stagger: STAGGER.item * 2,
+          overwrite: true,
+        },
+      );
+    },
+    { dependencies: [result], scope: containerRef },
+  );
+
   if (!result) return null;
 
   return (
-    <div className="mt-6 grid grid-cols-1 gap-4 text-left md:grid-cols-2">
+    <div ref={containerRef} className="mt-6 grid grid-cols-1 gap-4 text-left md:grid-cols-2">
       <Section
         title="Requirements"
         items={result.requirements}

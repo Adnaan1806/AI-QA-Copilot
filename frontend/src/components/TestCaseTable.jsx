@@ -1,5 +1,11 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import ConfirmDialog from "./ConfirmDialog";
+import { DURATION, EASE, STAGGER } from "../motion/constants";
+import { usePulseOnChange } from "../motion/usePulseOnChange";
+import { useButtonPress } from "../motion/useButtonPress";
+import Spinner from "../motion/Spinner";
 
 const TYPE_STYLES = {
   functional: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
@@ -26,9 +32,11 @@ const editInputClass =
   "w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-900 focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-100 dark:focus:border-indigo-500 dark:focus:bg-slate-950 dark:focus:ring-indigo-500/20";
 
 function TypeBadge({ label }) {
+  const ref = usePulseOnChange(label);
   return (
     <span
-      className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
+      ref={ref}
+      className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium capitalize transition-colors duration-300 ${
         TYPE_STYLES[label] || "bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400"
       }`}
     >
@@ -40,16 +48,20 @@ function TypeBadge({ label }) {
 function PriorityBadge({ label }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-xs font-medium capitalize text-gray-600 dark:text-gray-300">
-      <span className={`h-1.5 w-1.5 rounded-full ${PRIORITY_DOT[label] || PRIORITY_DOT.low}`} />
+      <span
+        className={`h-1.5 w-1.5 rounded-full transition-colors duration-300 ${PRIORITY_DOT[label] || PRIORITY_DOT.low}`}
+      />
       {label}
     </span>
   );
 }
 
 function StatusBadge({ status }) {
+  const ref = usePulseOnChange(status);
   return (
     <span
-      className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
+      ref={ref}
+      className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium capitalize transition-colors duration-300 ${
         STATUS_STYLES[status] || STATUS_STYLES.draft
       }`}
     >
@@ -65,6 +77,18 @@ function EditableRow({ tc, onSave, onCancel }) {
   const [expectedResult, setExpectedResult] = useState(tc.expected_result);
   const [priority, setPriority] = useState(tc.priority);
   const [saving, setSaving] = useState(false);
+  const rowRef = useRef(null);
+  const savePress = useButtonPress();
+  const cancelPress = useButtonPress();
+
+  useGSAP(() => {
+    if (!rowRef.current) return;
+    gsap.fromTo(
+      rowRef.current,
+      { opacity: 0 },
+      { opacity: 1, duration: DURATION.toggle, ease: EASE.out, overwrite: true },
+    );
+  }, []);
 
   async function handleSave() {
     setSaving(true);
@@ -85,7 +109,7 @@ function EditableRow({ tc, onSave, onCancel }) {
   }
 
   return (
-    <tr className="align-top bg-indigo-50/30 dark:bg-slate-800/40">
+    <tr ref={rowRef} className="align-top bg-indigo-50/30 dark:bg-slate-800/40">
       <td className="px-4 py-3.5">
         <input className={editInputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
       </td>
@@ -131,14 +155,19 @@ function EditableRow({ tc, onSave, onCancel }) {
       <td className="px-4 py-3.5 whitespace-nowrap">
         <div className="flex gap-2">
           <button
+            ref={savePress.ref}
+            {...savePress.handlers}
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-gray-900"
+            className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-gray-900"
           >
+            {saving && <Spinner className="h-3 w-3" />}
             {saving ? "Saving..." : "Save"}
           </button>
           <button
+            ref={cancelPress.ref}
+            {...cancelPress.handlers}
             type="button"
             onClick={onCancel}
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-800"
@@ -151,15 +180,114 @@ function EditableRow({ tc, onSave, onCancel }) {
   );
 }
 
+function ReadRow({ tc, onEdit, onRequestDelete, deleting, rowRef }) {
+  const editPress = useButtonPress();
+  const deletePress = useButtonPress();
+
+  return (
+    <tr
+      ref={rowRef}
+      className="align-top transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/40"
+    >
+      <td className="px-4 py-3.5 font-medium text-gray-900 dark:text-white">{tc.title}</td>
+      <td className="px-4 py-3.5">
+        <TypeBadge label={tc.type} />
+      </td>
+      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">
+        <ul className="space-y-1">
+          {tc.steps.map((step, i) => (
+            <li key={i}>{step}</li>
+          ))}
+        </ul>
+      </td>
+      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{tc.expected_result}</td>
+      <td className="px-4 py-3.5">
+        <PriorityBadge label={tc.priority} />
+      </td>
+      <td className="px-4 py-3.5">
+        <StatusBadge status={tc.status} />
+      </td>
+      <td className="px-4 py-3.5 whitespace-nowrap">
+        <div className="flex gap-2">
+          <button
+            ref={editPress.ref}
+            {...editPress.handlers}
+            type="button"
+            onClick={onEdit}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-800"
+          >
+            Edit
+          </button>
+          <button
+            ref={deletePress.ref}
+            {...deletePress.handlers}
+            type="button"
+            onClick={onRequestDelete}
+            disabled={deleting}
+            className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40 dark:border-red-500/20 dark:text-red-400 dark:hover:bg-red-500/10"
+          >
+            {deleting && <Spinner className="h-3 w-3" />}
+            {deleting ? "Deleting..." : "Delete"}
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
 export default function TestCaseTable({ testCases, onUpdate, onDelete }) {
   const [editingId, setEditingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
+  const tbodyRef = useRef(null);
+  const rowRefs = useRef(new Map());
+  const prevCount = useRef(null);
+
+  useGSAP(
+    () => {
+      const rows = Array.from(rowRefs.current.values());
+      if (rows.length === 0) return;
+      const isFirstRunOrCountChange =
+        prevCount.current === null || prevCount.current !== testCases.length;
+      prevCount.current = testCases.length;
+      if (!isFirstRunOrCountChange) return;
+      gsap.fromTo(
+        rows,
+        { opacity: 0, y: 8 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: DURATION.toggle,
+          ease: EASE.out,
+          stagger: Math.min(STAGGER.item, STAGGER.cap / Math.max(rows.length, 1)),
+          overwrite: true,
+        },
+      );
+    },
+    { dependencies: [testCases.length], scope: tbodyRef },
+  );
+
+  function setRowRef(id, el) {
+    if (el) rowRefs.current.set(id, el);
+    else rowRefs.current.delete(id);
+  }
 
   async function confirmDelete() {
     const tc = pendingDelete;
     setPendingDelete(null);
     setDeletingId(tc.id);
+
+    const row = rowRefs.current.get(tc.id);
+    if (row) {
+      await gsap.to(row, {
+        opacity: 0,
+        height: 0,
+        duration: DURATION.toggle,
+        ease: EASE.inOut,
+        overwrite: true,
+      });
+    }
+
     try {
       await onDelete(tc.id);
     } finally {
@@ -189,7 +317,7 @@ export default function TestCaseTable({ testCases, onUpdate, onDelete }) {
             <th className="px-4 py-3 font-medium">Actions</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-100 dark:divide-slate-800">
+        <tbody ref={tbodyRef} className="divide-y divide-gray-100 dark:divide-slate-800">
           {testCases.map((tc) =>
             editingId === tc.id ? (
               <EditableRow
@@ -202,52 +330,14 @@ export default function TestCaseTable({ testCases, onUpdate, onDelete }) {
                 onCancel={() => setEditingId(null)}
               />
             ) : (
-              <tr
+              <ReadRow
                 key={tc.id}
-                className="align-top transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/40"
-              >
-                <td className="px-4 py-3.5 font-medium text-gray-900 dark:text-white">
-                  {tc.title}
-                </td>
-                <td className="px-4 py-3.5">
-                  <TypeBadge label={tc.type} />
-                </td>
-                <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">
-                  <ul className="space-y-1">
-                    {tc.steps.map((step, i) => (
-                      <li key={i}>{step}</li>
-                    ))}
-                  </ul>
-                </td>
-                <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">
-                  {tc.expected_result}
-                </td>
-                <td className="px-4 py-3.5">
-                  <PriorityBadge label={tc.priority} />
-                </td>
-                <td className="px-4 py-3.5">
-                  <StatusBadge status={tc.status} />
-                </td>
-                <td className="px-4 py-3.5 whitespace-nowrap">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setEditingId(tc.id)}
-                      className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-800"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPendingDelete(tc)}
-                      disabled={deletingId === tc.id}
-                      className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40 dark:border-red-500/20 dark:text-red-400 dark:hover:bg-red-500/10"
-                    >
-                      {deletingId === tc.id ? "Deleting..." : "Delete"}
-                    </button>
-                  </div>
-                </td>
-              </tr>
+                tc={tc}
+                rowRef={(el) => setRowRef(tc.id, el)}
+                onEdit={() => setEditingId(tc.id)}
+                onRequestDelete={() => setPendingDelete(tc)}
+                deleting={deletingId === tc.id}
+              />
             ),
           )}
         </tbody>

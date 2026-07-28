@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { createRequirement, getTestSuite } from "../services/api";
+import Spinner from "../motion/Spinner";
+import { useListStagger } from "../motion/useListStagger";
+import { useButtonPress } from "../motion/useButtonPress";
 
 export default function TestSuiteDetail() {
   const { suiteId } = useParams();
@@ -10,6 +13,8 @@ export default function TestSuiteDetail() {
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const listRef = useListStagger([loading, suite?.requirements.length]);
+  const submitPress = useButtonPress();
 
   function load() {
     setLoading(true);
@@ -49,8 +54,8 @@ export default function TestSuiteDetail() {
 
   if (loading) {
     return (
-      <p className="mx-auto max-w-5xl p-8 text-sm text-gray-400 dark:text-gray-500">
-        Loading...
+      <p className="mx-auto flex max-w-5xl items-center gap-2 p-8 text-sm text-gray-400 dark:text-gray-500">
+        <Spinner className="h-4 w-4" /> Loading...
       </p>
     );
   }
@@ -138,10 +143,13 @@ export default function TestSuiteDetail() {
         </label>
 
         <button
+          ref={submitPress.ref}
+          {...submitPress.handlers}
           type="submit"
           disabled={submitting || (!text.trim() && !file)}
-          className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 disabled:cursor-not-allowed disabled:opacity-40"
         >
+          {submitting && <Spinner className="h-4 w-4" />}
           {submitting ? "Analyzing & drafting test cases..." : "Add & Analyze Requirement"}
         </button>
       </form>
@@ -162,7 +170,7 @@ export default function TestSuiteDetail() {
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div ref={listRef} className="space-y-2">
           {suite.requirements.map((r) => (
             <Link
               key={r.id}

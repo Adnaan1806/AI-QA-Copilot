@@ -1,6 +1,58 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { generateAutomationAndReport, getTestSuite } from "../services/api";
+import Reveal from "../motion/Reveal";
+import Spinner from "../motion/Spinner";
+import { useButtonPress } from "../motion/useButtonPress";
+import { useListStagger } from "../motion/useListStagger";
+import AutomationProgressBar from "../components/AutomationProgressBar";
+
+function RequirementRow({ r, generating, onGenerate }) {
+  const generatePress = useButtonPress();
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <div className="flex items-center justify-between px-4 py-3.5">
+        <div className="min-w-0 pr-4">
+          <p className="truncate font-medium text-gray-900 dark:text-white">{r.name}</p>
+          <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+            {r.approved_test_case_count}/{r.test_case_count} accepted
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {r.has_report && (
+            <Link
+              to={`/requirements/${r.id}/automation`}
+              className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-800"
+            >
+              View Results
+            </Link>
+          )}
+          <button
+            ref={generatePress.ref}
+            {...generatePress.handlers}
+            type="button"
+            onClick={onGenerate}
+            disabled={generating}
+            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {generating && <Spinner className="h-3.5 w-3.5" />}
+            {generating
+              ? "Generating..."
+              : r.has_report
+                ? "Regenerate"
+                : "Generate Automation & Report"}
+          </button>
+        </div>
+      </div>
+      <Reveal show={generating}>
+        <div className="border-t border-gray-100 px-4 py-4 dark:border-slate-800/60">
+          <AutomationProgressBar />
+        </div>
+      </Reveal>
+    </div>
+  );
+}
 
 export default function SuiteAutomation() {
   const { suiteId } = useParams();
@@ -8,6 +60,7 @@ export default function SuiteAutomation() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [generatingId, setGeneratingId] = useState(null);
+  const listRef = useListStagger([loading, suite?.requirements.length]);
 
   function load() {
     setLoading(true);
@@ -38,8 +91,8 @@ export default function SuiteAutomation() {
 
   if (loading) {
     return (
-      <p className="mx-auto max-w-5xl p-8 text-sm text-gray-400 dark:text-gray-500">
-        Loading...
+      <p className="mx-auto flex max-w-5xl items-center gap-2 p-8 text-sm text-gray-400 dark:text-gray-500">
+        <Spinner className="h-4 w-4" /> Loading...
       </p>
     );
   }
@@ -79,7 +132,7 @@ export default function SuiteAutomation() {
         </p>
       )}
 
-      <div className="mt-8 space-y-2">
+      <div ref={listRef} className="mt-8 space-y-2">
         {eligible.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center dark:border-slate-700">
             <p className="text-sm text-gray-400 dark:text-gray-500">
@@ -89,39 +142,12 @@ export default function SuiteAutomation() {
           </div>
         ) : (
           eligible.map((r) => (
-            <div
+            <RequirementRow
               key={r.id}
-              className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-            >
-              <div className="min-w-0 pr-4">
-                <p className="truncate font-medium text-gray-900 dark:text-white">{r.name}</p>
-                <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
-                  {r.approved_test_case_count}/{r.test_case_count} accepted
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {r.has_report && (
-                  <Link
-                    to={`/requirements/${r.id}/automation`}
-                    className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-800"
-                  >
-                    View Results
-                  </Link>
-                )}
-                <button
-                  type="button"
-                  onClick={() => handleGenerate(r.id)}
-                  disabled={generatingId === r.id}
-                  className="rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
-                >
-                  {generatingId === r.id
-                    ? "Generating..."
-                    : r.has_report
-                      ? "Regenerate"
-                      : "Generate Automation & Report"}
-                </button>
-              </div>
-            </div>
+              r={r}
+              generating={generatingId === r.id}
+              onGenerate={() => handleGenerate(r.id)}
+            />
           ))
         )}
       </div>

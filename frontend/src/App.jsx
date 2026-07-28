@@ -2,6 +2,7 @@ import { Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Navbar from "./components/Navbar";
+import PageTransition from "./motion/PageTransition";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
@@ -17,18 +18,20 @@ function AppShell() {
   return (
     <>
       <Navbar />
-      <Routes>
-        <Route element={<ProtectedRoute />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/projects/:projectId" element={<ProjectDetail />} />
-          <Route path="/suites/:suiteId" element={<TestSuiteDetail />} />
-          <Route path="/suites/:suiteId/automation" element={<SuiteAutomation />} />
-          <Route path="/requirements/:id" element={<RequirementDetail />} />
-          <Route path="/requirements/:id/test-cases" element={<RequirementTestCases />} />
-          <Route path="/requirements/:id/automation" element={<RequirementAutomation />} />
-          <Route path="/history" element={<History />} />
-        </Route>
-      </Routes>
+      <PageTransition>
+        <Routes>
+          <Route element={<ProtectedRoute />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/projects/:projectId" element={<ProjectDetail />} />
+            <Route path="/suites/:suiteId" element={<TestSuiteDetail />} />
+            <Route path="/suites/:suiteId/automation" element={<SuiteAutomation />} />
+            <Route path="/requirements/:id" element={<RequirementDetail />} />
+            <Route path="/requirements/:id/test-cases" element={<RequirementTestCases />} />
+            <Route path="/requirements/:id/automation" element={<RequirementAutomation />} />
+            <Route path="/history" element={<History />} />
+          </Route>
+        </Routes>
+      </PageTransition>
     </>
   );
 }

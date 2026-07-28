@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useGSAP } from "@gsap/react";
+import gsap from "gsap";
 import { useAuth } from "../context/AuthContext";
+import Spinner from "../motion/Spinner";
+import { useButtonPress } from "../motion/useButtonPress";
 
 const inputClass =
   "w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-indigo-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-indigo-500 dark:focus:bg-slate-950 dark:focus:ring-indigo-500/20";
@@ -12,6 +16,16 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const logoRef = useRef(null);
+  const cardRef = useRef(null);
+  const submitPress = useButtonPress();
+
+  useGSAP(() => {
+    gsap
+      .timeline()
+      .from(logoRef.current, { opacity: 0, y: -8, scale: 0.9, duration: 0.35, ease: "back.out(1.6)" })
+      .from(cardRef.current, { opacity: 0, y: 12, duration: 0.35, ease: "power2.out" }, "-=0.15");
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -29,7 +43,7 @@ export default function Login() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center p-8">
-      <div className="mb-8 flex items-center justify-center gap-2.5">
+      <div ref={logoRef} className="mb-8 flex items-center justify-center gap-2.5">
         <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-base font-bold text-white shadow-sm shadow-indigo-600/30">
           Q
         </div>
@@ -39,6 +53,7 @@ export default function Login() {
       </div>
 
       <form
+        ref={cardRef}
         onSubmit={handleSubmit}
         className="space-y-4 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
       >
@@ -64,10 +79,13 @@ export default function Login() {
         />
 
         <button
+          ref={submitPress.ref}
+          {...submitPress.handlers}
           type="submit"
           disabled={loading}
-          className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+          className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 disabled:cursor-not-allowed disabled:opacity-40"
         >
+          {loading && <Spinner className="h-4 w-4" />}
           {loading ? "Logging in..." : "Log in"}
         </button>
 

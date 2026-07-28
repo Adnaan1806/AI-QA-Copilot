@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import { useAuth } from "../context/AuthContext";
+import { useButtonPress } from "../motion/useButtonPress";
 
 const linkClass = ({ isActive }) =>
   `px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
@@ -12,6 +13,7 @@ const linkClass = ({ isActive }) =>
 export default function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const logoutPress = useButtonPress();
 
   function handleLogout() {
     logout();
@@ -45,6 +47,8 @@ export default function Navbar() {
                 {user.name}
               </span>
               <button
+                ref={logoutPress.ref}
+                {...logoutPress.handlers}
                 type="button"
                 onClick={handleLogout}
                 className="rounded-full px-3.5 py-1.5 text-sm font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-slate-800 dark:hover:text-white"
