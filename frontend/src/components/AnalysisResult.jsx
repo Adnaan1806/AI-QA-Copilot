@@ -1,51 +1,21 @@
 import { useRef } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { ListChecks, TriangleAlert, CircleHelp, FlaskConical } from "lucide-react";
 import { DURATION, EASE, STAGGER } from "../motion/constants";
+import { Card } from "./ui/card";
 
 const ICONS = {
-  requirements: (
-    <path
-      d="M9 12l2 2 4-4m5 2a9 9 0 11-18 0 9 9 0 0118 0z"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
-  risks: (
-    <path
-      d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a1 1 0 00.87 1.5h18.62a1 1 0 00.87-1.5L13.71 3.86a1 1 0 00-1.72 0z"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
-  missing: (
-    <path
-      d="M12 8v4m0 4h.01M12 22a10 10 0 100-20 10 10 0 000 20z"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
-  testing: (
-    <path
-      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  ),
+  requirements: ListChecks,
+  risks: TriangleAlert,
+  missing: CircleHelp,
+  testing: FlaskConical,
 };
 
 const THEMES = {
   requirements: {
-    border: "border-teal-200 dark:border-teal-500/20",
-    badge: "bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400",
+    border: "border-primary/20",
+    badge: "bg-primary/10 text-primary",
   },
   risks: {
     border: "border-red-200 dark:border-red-500/20",
@@ -63,31 +33,28 @@ const THEMES = {
 
 function Section({ title, items, emptyLabel, icon }) {
   const theme = THEMES[icon];
+  const Icon = ICONS[icon];
   return (
-    <div
-      className={`rounded-2xl border bg-white p-4 shadow-sm dark:bg-slate-900 ${theme.border}`}
-    >
+    <Card className={`border p-4 ring-0 ${theme.border}`}>
       <div className="mb-3 flex items-center gap-2.5">
         <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${theme.badge}`}>
-          <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-            {ICONS[icon]}
-          </svg>
+          <Icon className="size-4" />
         </span>
-        <h3 className="font-semibold text-gray-800 dark:text-gray-100">{title}</h3>
+        <h3 className="font-semibold text-foreground">{title}</h3>
       </div>
       {items.length === 0 ? (
-        <p className="text-sm italic text-gray-400 dark:text-gray-500">{emptyLabel}</p>
+        <p className="text-sm italic text-muted-foreground">{emptyLabel}</p>
       ) : (
-        <ul className="space-y-1.5 text-sm text-gray-600 dark:text-gray-300">
+        <ul className="space-y-1.5 text-sm text-muted-foreground">
           {items.map((item, i) => (
             <li key={i} className="flex gap-2">
-              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-gray-300 dark:bg-slate-600" />
+              <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/40" />
               {item}
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </Card>
   );
 }
 

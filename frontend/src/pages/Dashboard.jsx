@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Plus } from "lucide-react";
 import { createProject, listProjects } from "../services/api";
 import Reveal from "../motion/Reveal";
 import Spinner from "../motion/Spinner";
 import { useListStagger } from "../motion/useListStagger";
-import { useButtonPress } from "../motion/useButtonPress";
-
-const inputClass =
-  "w-full rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 transition-colors focus:border-teal-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-teal-500 dark:focus:bg-slate-950 dark:focus:ring-teal-500/20";
+import { useSetBreadcrumbs } from "../context/BreadcrumbContext";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
+import { Label } from "../components/ui/label";
+import { Card, CardContent } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
 
 export default function Dashboard() {
   const [projects, setProjects] = useState([]);
@@ -19,8 +23,8 @@ export default function Dashboard() {
   const [baseUrl, setBaseUrl] = useState("");
   const [creating, setCreating] = useState(false);
   const listRef = useListStagger([loading, projects.length]);
-  const newProjectPress = useButtonPress();
-  const createPress = useButtonPress();
+
+  useSetBreadcrumbs([{ label: "Projects" }]);
 
   function load() {
     setLoading(true);
@@ -54,93 +58,92 @@ export default function Dashboard() {
     <div className="mx-auto max-w-5xl p-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-            Projects
-          </h1>
-          <p className="mt-1 text-gray-500 dark:text-gray-400">
-            Organize your QA work by project.
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Projects</h1>
+          <p className="mt-1 text-muted-foreground">Organize your QA work by project.</p>
         </div>
-        <button
-          ref={newProjectPress.ref}
-          {...newProjectPress.handlers}
-          type="button"
+        <Button
           onClick={() => setShowForm((s) => !s)}
-          className="rounded-xl bg-gradient-to-r from-teal-600 to-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-teal-600/25"
+          className="gap-1.5 bg-linear-to-r from-primary to-emerald-500 text-white shadow-sm shadow-primary/25 hover:opacity-90"
         >
+          {!showForm && <Plus className="size-4" />}
           {showForm ? "Cancel" : "New Project"}
-        </button>
+        </Button>
       </div>
 
       <Reveal show={showForm} className="mt-6">
-        <form
-          onSubmit={handleCreate}
-          className="space-y-3 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900"
-        >
-          <input
-            required
-            placeholder="Project name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={inputClass}
-          />
-          <textarea
-            placeholder="Description (optional)"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            className={`h-20 resize-none ${inputClass}`}
-          />
-          <input
-            type="url"
-            placeholder="Base URL (e.g. https://your-app.com) — needed to generate automation"
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
-            className={inputClass}
-          />
-          <button
-            ref={createPress.ref}
-            {...createPress.handlers}
-            type="submit"
-            disabled={creating}
-            className="flex items-center gap-2 rounded-xl bg-gray-900 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-40 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-100"
-          >
-            {creating && <Spinner className="h-4 w-4" />}
-            {creating ? "Creating..." : "Create Project"}
-          </button>
-        </form>
+        <Card>
+          <CardContent>
+            <form onSubmit={handleCreate} className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="project-name">Project name</Label>
+                <Input
+                  id="project-name"
+                  required
+                  placeholder="Project name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="project-description">Description (optional)</Label>
+                <Textarea
+                  id="project-description"
+                  placeholder="Description (optional)"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="h-20 resize-none"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="project-base-url">Base URL</Label>
+                <Input
+                  id="project-base-url"
+                  type="url"
+                  placeholder="https://your-app.com — needed to generate automation"
+                  value={baseUrl}
+                  onChange={(e) => setBaseUrl(e.target.value)}
+                />
+              </div>
+              <Button type="submit" disabled={creating} className="gap-2">
+                {creating && <Spinner className="h-4 w-4" />}
+                {creating ? "Creating..." : "Create Project"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       </Reveal>
 
-      {error && <p className="mt-4 text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && (
+        <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
+          {error}
+        </p>
+      )}
 
       <div ref={listRef} className="mt-6 space-y-2">
         {loading ? (
-          <p className="flex items-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Spinner className="h-4 w-4" /> Loading...
           </p>
         ) : projects.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center dark:border-slate-700">
-            <p className="text-sm text-gray-400 dark:text-gray-500">
+          <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+            <p className="text-sm text-muted-foreground">
               No projects yet. Create your first one to get started.
             </p>
           </div>
         ) : (
           projects.map((p) => (
-            <Link
-              key={p.id}
-              to={`/projects/${p.id}`}
-              className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-4 py-3.5 shadow-sm transition-colors hover:border-teal-300 hover:bg-teal-50/40 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-teal-500/40 dark:hover:bg-slate-800/60"
-            >
-              <div className="min-w-0 pr-4">
-                <p className="truncate font-medium text-gray-900 dark:text-white">{p.name}</p>
-                {p.description && (
-                  <p className="truncate text-sm text-gray-500 dark:text-gray-400">
-                    {p.description}
-                  </p>
-                )}
-              </div>
-              <span className="whitespace-nowrap rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-500 dark:bg-slate-800 dark:text-gray-400">
-                {p.test_suite_count} suite{p.test_suite_count === 1 ? "" : "s"}
-              </span>
+            <Link key={p.id} to={`/projects/${p.id}`} className="block">
+              <Card className="flex-row items-center justify-between px-4 py-3.5 transition-colors hover:bg-primary/5 hover:ring-primary/40">
+                <div className="min-w-0 pr-4">
+                  <p className="truncate font-medium text-foreground">{p.name}</p>
+                  {p.description && (
+                    <p className="truncate text-sm text-muted-foreground">{p.description}</p>
+                  )}
+                </div>
+                <Badge variant="secondary" className="shrink-0">
+                  {p.test_suite_count} suite{p.test_suite_count === 1 ? "" : "s"}
+                </Badge>
+              </Card>
             </Link>
           ))
         )}

@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { AlertDialog as AlertDialogPrimitive } from "radix-ui";
 import { DURATION, EASE } from "../motion/constants";
-import { useButtonPress } from "../motion/useButtonPress";
+import { cn } from "../lib/utils";
+import { Button } from "./ui/button";
 import Spinner from "../motion/Spinner";
 
 export default function ConfirmDialog({
@@ -17,42 +19,43 @@ export default function ConfirmDialog({
   onCancel,
 }) {
   const [mounted, setMounted] = useState(open);
-  const backdropRef = useRef(null);
-  const panelRef = useRef(null);
-  const cancelPress = useButtonPress();
-  const confirmPress = useButtonPress();
+  const overlayRef = useRef(null);
+  const contentRef = useRef(null);
 
-  useEffect(() => {
-    if (!open) return;
-    function handleKeyDown(e) {
-      if (e.key === "Escape") onCancel();
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [open, onCancel]);
-
+  // `open` drives Radix's real focus-trap/ESC/scroll-lock behavior immediately.
+  // `mounted` (plus forceMount below) keeps the DOM around just long enough
+  // for the exit tween to finish before React actually removes it.
   useGSAP(() => {
     if (open) {
       setMounted(true);
-    } else if (mounted) {
-      gsap.to(backdropRef.current, { opacity: 0, duration: DURATION.exit, ease: EASE.in });
-      gsap.to(panelRef.current, {
-        opacity: 0,
-        scale: 0.95,
-        y: 6,
-        duration: DURATION.exit,
-        ease: EASE.in,
-        onComplete: () => setMounted(false),
-      });
+      return;
     }
+    if (!mounted) return;
+    if (!overlayRef.current || !contentRef.current) {
+      setMounted(false);
+      return;
+    }
+    gsap.to(overlayRef.current, { opacity: 0, duration: DURATION.exit, ease: EASE.in });
+    gsap.to(contentRef.current, {
+      opacity: 0,
+      scale: 0.95,
+      y: 6,
+      duration: DURATION.exit,
+      ease: EASE.in,
+      onComplete: () => setMounted(false),
+    });
   }, [open]);
 
   useGSAP(
     () => {
-      if (!open || !backdropRef.current || !panelRef.current) return;
-      gsap.fromTo(backdropRef.current, { opacity: 0 }, { opacity: 1, duration: DURATION.toggle, ease: EASE.out });
+      if (!open || !overlayRef.current || !contentRef.current) return;
       gsap.fromTo(
-        panelRef.current,
+        overlayRef.current,
+        { opacity: 0 },
+        { opacity: 1, duration: DURATION.toggle, ease: EASE.out },
+      );
+      gsap.fromTo(
+        contentRef.current,
         { opacity: 0, scale: 0.95, y: 6 },
         { opacity: 1, scale: 1, y: 0, duration: DURATION.toggle, ease: EASE.out },
       );
@@ -60,59 +63,58 @@ export default function ConfirmDialog({
     { dependencies: [mounted] },
   );
 
-  if (!mounted) return null;
-
   return (
-    <div
-      ref={backdropRef}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-sm dark:bg-black/70"
-      style={{ opacity: 0 }}
-      onClick={onCancel}
+    <AlertDialogPrimitive.Root
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onCancel();
+      }}
     >
-      <div
-        ref={panelRef}
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="confirm-dialog-title"
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-sm rounded-2xl border border-gray-200 bg-white p-6 shadow-xl dark:border-slate-700 dark:bg-slate-900"
-        style={{ opacity: 0 }}
-      >
-        <h2
-          id="confirm-dialog-title"
-          className="text-lg font-semibold text-gray-900 dark:text-white"
-        >
-          {title}
-        </h2>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{message}</p>
+      {mounted && (
+        <AlertDialogPrimitive.Portal forceMount>
+          <AlertDialogPrimitive.Overlay
+            ref={overlayRef}
+            forceMount
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            style={{ opacity: 0 }}
+          />
+          <AlertDialogPrimitive.Content
+            ref={contentRef}
+            forceMount
+            className="fixed top-1/2 left-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-card p-6 text-card-foreground shadow-xl outline-none"
+            style={{ opacity: 0 }}
+          >
+            <AlertDialogPrimitive.Title className="text-lg font-semibold">
+              {title}
+            </AlertDialogPrimitive.Title>
+            <AlertDialogPrimitive.Description className="mt-2 text-sm text-muted-foreground">
+              {message}
+            </AlertDialogPrimitive.Description>
 
-        <div className="mt-6 flex justify-end gap-2">
-          <button
-            ref={cancelPress.ref}
-            {...cancelPress.handlers}
-            type="button"
-            onClick={onCancel}
-            className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-800"
-          >
-            {cancelLabel}
-          </button>
-          <button
-            ref={confirmPress.ref}
-            {...confirmPress.handlers}
-            type="button"
-            onClick={onConfirm}
-            disabled={confirming}
-            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-              danger
-                ? "bg-red-600 hover:bg-red-700"
-                : "bg-gradient-to-r from-teal-600 to-emerald-500 hover:opacity-90"
-            }`}
-          >
-            {confirming && <Spinner className="h-3.5 w-3.5" />}
-            {confirming ? "Working..." : confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <AlertDialogPrimitive.Cancel asChild>
+                <Button type="button" variant="outline" onClick={onCancel}>
+                  {cancelLabel}
+                </Button>
+              </AlertDialogPrimitive.Cancel>
+              <Button
+                type="button"
+                onClick={onConfirm}
+                disabled={confirming}
+                className={cn(
+                  "gap-2 text-white hover:text-white",
+                  danger
+                    ? "bg-destructive hover:bg-destructive/90"
+                    : "bg-linear-to-r from-primary to-emerald-500 hover:opacity-90",
+                )}
+              >
+                {confirming && <Spinner className="h-3.5 w-3.5" />}
+                {confirming ? "Working..." : confirmLabel}
+              </Button>
+            </div>
+          </AlertDialogPrimitive.Content>
+        </AlertDialogPrimitive.Portal>
+      )}
+    </AlertDialogPrimitive.Root>
   );
 }

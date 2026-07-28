@@ -69,34 +69,31 @@ export default function AutomationProgressBar() {
   }, []);
 
   return (
-    <div className="rounded-2xl border border-teal-200 bg-teal-50/60 p-5 dark:border-teal-500/20 dark:bg-teal-500/10">
+    <div className="rounded-2xl border border-primary/20 bg-primary/10 p-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-teal-500 opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-teal-600" />
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
           </span>
-          <span
-            ref={labelRef}
-            className="truncate text-sm font-medium text-teal-800 dark:text-teal-200"
-          >
+          <span ref={labelRef} className="truncate text-sm font-medium text-primary">
             {stage.label}
           </span>
         </div>
-        <span className="shrink-0 font-mono text-xs text-teal-500 dark:text-teal-300">
+        <span className="shrink-0 font-mono text-xs text-primary/70">
           {formatElapsed(elapsed)}
         </span>
       </div>
 
-      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-teal-100 dark:bg-teal-500/10">
+      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-primary/15">
         <div
           ref={barRef}
-          className="h-full w-full rounded-full bg-[length:200%_100%] bg-[linear-gradient(90deg,transparent_0%,#14b8a6_50%,transparent_100%)] dark:bg-[linear-gradient(90deg,transparent_0%,#2dd4bf_50%,transparent_100%)]"
+          className="h-full w-full rounded-full bg-[length:200%_100%] bg-[linear-gradient(90deg,transparent_0%,var(--color-primary)_50%,transparent_100%)]"
         />
       </div>
 
       {overtime && (
-        <p className="mt-3 text-xs text-teal-500 dark:text-teal-300">
+        <p className="mt-3 text-xs text-primary/70">
           Still working — requirements with more test cases can take a little longer.
         </p>
       )}

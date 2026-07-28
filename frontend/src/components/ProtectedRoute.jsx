@@ -6,9 +6,7 @@ export default function ProtectedRoute() {
 
   if (loading) {
     return (
-      <p className="mx-auto max-w-5xl p-8 text-sm text-gray-400 dark:text-gray-500">
-        Loading...
-      </p>
+      <p className="mx-auto max-w-5xl p-8 text-sm text-muted-foreground">Loading...</p>
     );
   }
 

@@ -3,38 +3,32 @@ import { Link, useParams } from "react-router-dom";
 import { generateAutomationAndReport, getTestSuite } from "../services/api";
 import Reveal from "../motion/Reveal";
 import Spinner from "../motion/Spinner";
-import { useButtonPress } from "../motion/useButtonPress";
 import { useListStagger } from "../motion/useListStagger";
+import { useSetBreadcrumbs } from "../context/BreadcrumbContext";
 import AutomationProgressBar from "../components/AutomationProgressBar";
+import { Button } from "../components/ui/button";
+import { Card } from "../components/ui/card";
 
 function RequirementRow({ r, generating, onGenerate }) {
-  const generatePress = useButtonPress();
-
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
+    <Card className="py-0">
       <div className="flex items-center justify-between px-4 py-3.5">
         <div className="min-w-0 pr-4">
-          <p className="truncate font-medium text-gray-900 dark:text-white">{r.name}</p>
-          <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+          <p className="truncate font-medium text-foreground">{r.name}</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             {r.approved_test_case_count}/{r.test_case_count} accepted
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {r.has_report && (
-            <Link
-              to={`/requirements/${r.id}/automation`}
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm transition-colors hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-gray-200 dark:hover:bg-slate-800"
-            >
-              View Results
-            </Link>
+            <Button variant="outline" asChild>
+              <Link to={`/requirements/${r.id}/automation`}>View Results</Link>
+            </Button>
           )}
-          <button
-            ref={generatePress.ref}
-            {...generatePress.handlers}
-            type="button"
+          <Button
             onClick={onGenerate}
             disabled={generating}
-            className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-teal-600 to-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-teal-600/25 disabled:cursor-not-allowed disabled:opacity-40"
+            className="gap-1.5 bg-linear-to-r from-primary to-emerald-500 text-white shadow-sm shadow-primary/25 hover:opacity-90"
           >
             {generating && <Spinner className="h-3.5 w-3.5" />}
             {generating
@@ -42,15 +36,15 @@ function RequirementRow({ r, generating, onGenerate }) {
               : r.has_report
                 ? "Regenerate"
                 : "Generate Automation & Report"}
-          </button>
+          </Button>
         </div>
       </div>
       <Reveal show={generating}>
-        <div className="border-t border-gray-100 px-4 py-4 dark:border-slate-800/60">
+        <div className="border-t border-border px-4 py-4">
           <AutomationProgressBar />
         </div>
       </Reveal>
-    </div>
+    </Card>
   );
 }
 
@@ -61,6 +55,16 @@ export default function SuiteAutomation() {
   const [error, setError] = useState(null);
   const [generatingId, setGeneratingId] = useState(null);
   const listRef = useListStagger([loading, suite?.requirements.length]);
+
+  useSetBreadcrumbs(
+    suite
+      ? [
+          { label: "Projects", to: "/" },
+          { label: suite.name, to: `/suites/${suiteId}` },
+          { label: "Test Automation" },
+        ]
+      : [],
+  );
 
   function load() {
     setLoading(true);
@@ -91,7 +95,7 @@ export default function SuiteAutomation() {
 
   if (loading) {
     return (
-      <p className="mx-auto flex max-w-5xl items-center gap-2 p-8 text-sm text-gray-400 dark:text-gray-500">
+      <p className="mx-auto flex max-w-5xl items-center gap-2 p-8 text-sm text-muted-foreground">
         <Spinner className="h-4 w-4" /> Loading...
       </p>
     );
@@ -99,7 +103,7 @@ export default function SuiteAutomation() {
 
   if (error && !suite) {
     return (
-      <p className="mx-auto max-w-5xl rounded-2xl border border-red-200 bg-red-50 p-8 text-sm text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+      <p className="mx-auto max-w-5xl rounded-2xl border border-destructive/20 bg-destructive/10 p-8 text-sm text-destructive">
         {error}
       </p>
     );
@@ -111,31 +115,22 @@ export default function SuiteAutomation() {
 
   return (
     <div className="mx-auto max-w-5xl p-8">
-      <Link
-        to={`/suites/${suiteId}`}
-        className="mb-4 inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:underline dark:text-teal-400"
-      >
-        ← Back to suite
-      </Link>
-
-      <h1 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white">
-        Test Automation
-      </h1>
-      <p className="mt-1 text-gray-500 dark:text-gray-400">
+      <h1 className="text-2xl font-bold tracking-tight text-foreground">Test Automation</h1>
+      <p className="mt-1 text-muted-foreground">
         {suite.name} · Playwright scripts and release reports for requirements with accepted
         test cases
       </p>
 
       {error && (
-        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+        <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
           {error}
         </p>
       )}
 
       <div ref={listRef} className="mt-8 space-y-2">
         {eligible.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center dark:border-slate-700">
-            <p className="text-sm text-gray-400 dark:text-gray-500">
+          <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+            <p className="text-sm text-muted-foreground">
               No requirements with accepted test cases yet. Open a requirement, accept its test
               cases, then come back here to generate automation.
             </p>

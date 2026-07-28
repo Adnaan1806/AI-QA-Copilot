@@ -2,9 +2,14 @@ import { useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
 import ConfirmDialog from "./ConfirmDialog";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Input } from "./ui/input";
+import { Textarea } from "./ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { DURATION, EASE, STAGGER } from "../motion/constants";
 import { usePulseOnChange } from "../motion/usePulseOnChange";
-import { useButtonPress } from "../motion/useButtonPress";
 import Spinner from "../motion/Spinner";
 
 const TYPE_STYLES = {
@@ -17,37 +22,34 @@ const TYPE_STYLES = {
 const PRIORITY_DOT = {
   high: "bg-red-500",
   medium: "bg-amber-500",
-  low: "bg-gray-400 dark:bg-slate-500",
+  low: "bg-muted-foreground/50",
 };
 
 const STATUS_STYLES = {
-  draft: "bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400",
+  draft: "bg-muted text-muted-foreground",
   approved: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
 };
 
 const TYPE_OPTIONS = ["functional", "negative", "edge_case", "security"];
 const PRIORITY_OPTIONS = ["high", "medium", "low"];
 
-const editInputClass =
-  "w-full rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-sm text-gray-900 focus:border-teal-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-teal-100 dark:border-slate-700 dark:bg-slate-950 dark:text-gray-100 dark:focus:border-teal-500 dark:focus:bg-slate-950 dark:focus:ring-teal-500/20";
-
 function TypeBadge({ label }) {
   const ref = usePulseOnChange(label);
   return (
-    <span
+    <Badge
       ref={ref}
-      className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium capitalize transition-colors duration-300 ${
-        TYPE_STYLES[label] || "bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-gray-400"
+      className={`capitalize transition-colors duration-300 ${
+        TYPE_STYLES[label] || "bg-muted text-muted-foreground"
       }`}
     >
       {label.replace("_", " ")}
-    </span>
+    </Badge>
   );
 }
 
 function PriorityBadge({ label }) {
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs font-medium capitalize text-gray-600 dark:text-gray-300">
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium capitalize text-muted-foreground">
       <span
         className={`h-1.5 w-1.5 rounded-full transition-colors duration-300 ${PRIORITY_DOT[label] || PRIORITY_DOT.low}`}
       />
@@ -59,14 +61,14 @@ function PriorityBadge({ label }) {
 function StatusBadge({ status }) {
   const ref = usePulseOnChange(status);
   return (
-    <span
+    <Badge
       ref={ref}
-      className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-medium capitalize transition-colors duration-300 ${
+      className={`capitalize transition-colors duration-300 ${
         STATUS_STYLES[status] || STATUS_STYLES.draft
       }`}
     >
       {status}
-    </span>
+    </Badge>
   );
 }
 
@@ -78,8 +80,6 @@ function EditableRow({ tc, onSave, onCancel }) {
   const [priority, setPriority] = useState(tc.priority);
   const [saving, setSaving] = useState(false);
   const rowRef = useRef(null);
-  const savePress = useButtonPress();
-  const cancelPress = useButtonPress();
 
   useGSAP(() => {
     if (!rowRef.current) return;
@@ -109,129 +109,111 @@ function EditableRow({ tc, onSave, onCancel }) {
   }
 
   return (
-    <tr ref={rowRef} className="align-top bg-teal-50/30 dark:bg-slate-800/40">
-      <td className="px-4 py-3.5">
-        <input className={editInputClass} value={title} onChange={(e) => setTitle(e.target.value)} />
-      </td>
-      <td className="px-4 py-3.5">
-        <select className={editInputClass} value={type} onChange={(e) => setType(e.target.value)}>
-          {TYPE_OPTIONS.map((t) => (
-            <option key={t} value={t}>
-              {t.replace("_", " ")}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-4 py-3.5">
-        <textarea
-          className={`h-28 resize-none ${editInputClass}`}
+    <TableRow ref={rowRef} className="align-top bg-primary/5 hover:bg-primary/5">
+      <TableCell className="whitespace-normal py-3.5">
+        <Input value={title} onChange={(e) => setTitle(e.target.value)} />
+      </TableCell>
+      <TableCell className="py-3.5">
+        <Select value={type} onValueChange={setType}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {TYPE_OPTIONS.map((t) => (
+              <SelectItem key={t} value={t}>
+                {t.replace("_", " ")}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell className="whitespace-normal py-3.5">
+        <Textarea
+          className="h-28 resize-none"
           value={steps}
           onChange={(e) => setSteps(e.target.value)}
         />
-      </td>
-      <td className="px-4 py-3.5">
-        <textarea
-          className={`h-28 resize-none ${editInputClass}`}
+      </TableCell>
+      <TableCell className="whitespace-normal py-3.5">
+        <Textarea
+          className="h-28 resize-none"
           value={expectedResult}
           onChange={(e) => setExpectedResult(e.target.value)}
         />
-      </td>
-      <td className="px-4 py-3.5">
-        <select
-          className={editInputClass}
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-        >
-          {PRIORITY_OPTIONS.map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
-      </td>
-      <td className="px-4 py-3.5">
+      </TableCell>
+      <TableCell className="py-3.5">
+        <Select value={priority} onValueChange={setPriority}>
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {PRIORITY_OPTIONS.map((p) => (
+              <SelectItem key={p} value={p}>
+                {p}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell className="py-3.5">
         <StatusBadge status={tc.status} />
-      </td>
-      <td className="px-4 py-3.5 whitespace-nowrap">
+      </TableCell>
+      <TableCell className="whitespace-nowrap py-3.5">
         <div className="flex gap-2">
-          <button
-            ref={savePress.ref}
-            {...savePress.handlers}
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-gray-900"
-          >
+          <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
             {saving && <Spinner className="h-3 w-3" />}
             {saving ? "Saving..." : "Save"}
-          </button>
-          <button
-            ref={cancelPress.ref}
-            {...cancelPress.handlers}
-            type="button"
-            onClick={onCancel}
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-800"
-          >
+          </Button>
+          <Button size="sm" variant="outline" onClick={onCancel}>
             Cancel
-          </button>
+          </Button>
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
 function ReadRow({ tc, onEdit, onRequestDelete, deleting, rowRef }) {
-  const editPress = useButtonPress();
-  const deletePress = useButtonPress();
-
   return (
-    <tr
-      ref={rowRef}
-      className="align-top transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/40"
-    >
-      <td className="px-4 py-3.5 font-medium text-gray-900 dark:text-white">{tc.title}</td>
-      <td className="px-4 py-3.5">
+    <TableRow ref={rowRef} className="align-top">
+      <TableCell className="whitespace-normal font-medium text-foreground">{tc.title}</TableCell>
+      <TableCell>
         <TypeBadge label={tc.type} />
-      </td>
-      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">
+      </TableCell>
+      <TableCell className="whitespace-normal text-muted-foreground">
         <ul className="space-y-1">
           {tc.steps.map((step, i) => (
             <li key={i}>{step}</li>
           ))}
         </ul>
-      </td>
-      <td className="px-4 py-3.5 text-gray-600 dark:text-gray-300">{tc.expected_result}</td>
-      <td className="px-4 py-3.5">
+      </TableCell>
+      <TableCell className="whitespace-normal text-muted-foreground">
+        {tc.expected_result}
+      </TableCell>
+      <TableCell>
         <PriorityBadge label={tc.priority} />
-      </td>
-      <td className="px-4 py-3.5">
+      </TableCell>
+      <TableCell>
         <StatusBadge status={tc.status} />
-      </td>
-      <td className="px-4 py-3.5 whitespace-nowrap">
+      </TableCell>
+      <TableCell className="whitespace-nowrap">
         <div className="flex gap-2">
-          <button
-            ref={editPress.ref}
-            {...editPress.handlers}
-            type="button"
-            onClick={onEdit}
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:text-gray-300 dark:hover:bg-slate-800"
-          >
+          <Button size="sm" variant="outline" onClick={onEdit}>
             Edit
-          </button>
-          <button
-            ref={deletePress.ref}
-            {...deletePress.handlers}
-            type="button"
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
             onClick={onRequestDelete}
             disabled={deleting}
-            className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-40 dark:border-red-500/20 dark:text-red-400 dark:hover:bg-red-500/10"
+            className="gap-1.5"
           >
             {deleting && <Spinner className="h-3 w-3" />}
             {deleting ? "Deleting..." : "Delete"}
-          </button>
+          </Button>
         </div>
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -297,27 +279,27 @@ export default function TestCaseTable({ testCases, onUpdate, onDelete }) {
 
   if (testCases.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-gray-300 p-8 text-center dark:border-slate-700">
-        <p className="text-sm italic text-gray-400 dark:text-gray-500">No test cases yet.</p>
+      <div className="rounded-2xl border border-dashed border-border p-8 text-center">
+        <p className="text-sm italic text-muted-foreground">No test cases yet.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900">
-      <table className="w-full text-left text-sm">
-        <thead className="bg-gray-50 text-xs uppercase text-gray-500 dark:bg-slate-950/60 dark:text-gray-400">
-          <tr>
-            <th className="px-4 py-3 font-medium">Title</th>
-            <th className="px-4 py-3 font-medium">Type</th>
-            <th className="px-4 py-3 font-medium">Steps</th>
-            <th className="px-4 py-3 font-medium">Expected Result</th>
-            <th className="px-4 py-3 font-medium">Priority</th>
-            <th className="px-4 py-3 font-medium">Status</th>
-            <th className="px-4 py-3 font-medium">Actions</th>
-          </tr>
-        </thead>
-        <tbody ref={tbodyRef} className="divide-y divide-gray-100 dark:divide-slate-800">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Title</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Steps</TableHead>
+            <TableHead>Expected Result</TableHead>
+            <TableHead>Priority</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody ref={tbodyRef}>
           {testCases.map((tc) =>
             editingId === tc.id ? (
               <EditableRow
@@ -340,8 +322,8 @@ export default function TestCaseTable({ testCases, onUpdate, onDelete }) {
               />
             ),
           )}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
 
       <ConfirmDialog
         open={pendingDelete !== null}

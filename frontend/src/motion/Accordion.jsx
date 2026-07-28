@@ -1,35 +1,28 @@
 import { useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { Accordion as AccordionPrimitive } from "radix-ui";
+import { ChevronRight } from "lucide-react";
 import { DURATION, EASE } from "./constants";
 
 export function ChevronIcon({ open, className = "h-4 w-4 shrink-0" }) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
+    <ChevronRight
       className={`${className} transition-transform duration-300 ${open ? "rotate-90" : ""}`}
-    >
-      <path
-        d="M9 6l6 6-6 6"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    />
   );
 }
 
-// Height/opacity-animated replacement for native <details>/<summary>.
-// `summary` can be a node, or a function of `open` for full control over
-// layout (e.g. placing the chevron and other badges alongside a title).
+// Height/opacity-animated collapsible built on Radix Accordion (real ARIA +
+// keyboard handling) for accessibility, with the existing GSAP height
+// choreography kept via forceMount instead of Radix's CSS-var default.
+// Each usage is an independent single-item accordion, not a connected group.
 export default function Accordion({
   summary,
   children,
   defaultOpen = false,
   className = "",
-  buttonClassName = "flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-gray-800 dark:text-gray-100",
+  buttonClassName = "flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-foreground",
   bodyClassName = "",
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -70,15 +63,27 @@ export default function Accordion({
   );
 
   return (
-    <div className={className}>
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className={buttonClassName}>
-        {typeof summary === "function" ? summary(open) : summary}
-      </button>
-      <div ref={wrapRef} style={{ height: open ? "auto" : 0, overflow: "hidden" }}>
-        <div ref={contentRef} className={bodyClassName} style={{ opacity: open ? 1 : 0 }}>
-          {children}
-        </div>
-      </div>
-    </div>
+    <AccordionPrimitive.Root
+      type="single"
+      collapsible
+      value={open ? "item" : ""}
+      onValueChange={(v) => setOpen(v === "item")}
+      className={className}
+    >
+      <AccordionPrimitive.Item value="item">
+        <AccordionPrimitive.Header className="flex">
+          <AccordionPrimitive.Trigger className={buttonClassName}>
+            {typeof summary === "function" ? summary(open) : summary}
+          </AccordionPrimitive.Trigger>
+        </AccordionPrimitive.Header>
+        <AccordionPrimitive.Content forceMount>
+          <div ref={wrapRef} style={{ height: open ? "auto" : 0, overflow: "hidden" }}>
+            <div ref={contentRef} className={bodyClassName} style={{ opacity: open ? 1 : 0 }}>
+              {children}
+            </div>
+          </div>
+        </AccordionPrimitive.Content>
+      </AccordionPrimitive.Item>
+    </AccordionPrimitive.Root>
   );
 }
