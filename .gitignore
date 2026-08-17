@@ -8,4 +8,5 @@ dist/
 build/
 .DS_Store
 backend/chroma_db/
+backend/traces/
 .claude/settings.local.json

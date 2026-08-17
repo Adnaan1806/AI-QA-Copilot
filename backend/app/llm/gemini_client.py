@@ -8,12 +8,16 @@ from google.genai import types
 from app.llm.client import LLMClient
 
 GEMINI_MODEL = "gemini-3.6-flash"
+REQUEST_TIMEOUT_MS = 60_000
 
 
 class GeminiClient(LLMClient):
     def __init__(self, api_key: Optional[str] = None):
         api_key = api_key or os.environ["GEMINI_API_KEY"]
-        self._client = genai.Client(api_key=api_key)
+        self._client = genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_MS),
+        )
 
     def generate_json(self, system_prompt: str, user_prompt: str) -> dict:
         response = self._client.models.generate_content(

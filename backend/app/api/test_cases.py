@@ -1,6 +1,8 @@
+import os
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
@@ -92,3 +94,21 @@ def delete_test_case(
     test_case = _get_owned_test_case(test_case_id, current_user, db)
     db.delete(test_case)
     db.commit()
+
+
+@router.get("/{test_case_id}/trace")
+def get_test_case_trace(
+    test_case_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    test_case = _get_owned_test_case(test_case_id, current_user, db)
+    script = test_case.automation_script
+    if script is None or not script.trace_path or not os.path.isfile(script.trace_path):
+        raise HTTPException(404, "No trace recorded for this test case's latest run")
+
+    return FileResponse(
+        script.trace_path,
+        media_type="application/zip",
+        filename=f"trace-{test_case_id}.zip",
+    )

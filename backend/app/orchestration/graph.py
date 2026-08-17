@@ -5,6 +5,7 @@ from langgraph.graph import END, StateGraph
 from app.agents.qa_agent import QAAgent
 from app.agents.report_agent import ReportAgent
 from app.agents.requirement_agent import RequirementAgent
+from app.automation import progress
 from app.automation.codegen_agent import CodegenAgent
 from app.automation.explorer_agent import ExplorerAgent
 from app.automation.runner import automate_test_case
@@ -48,6 +49,7 @@ analysis_qa_graph = _analysis_qa_builder.compile()
 
 
 class AutomationReportState(TypedDict):
+    requirement_id: str
     requirement_text: str
     analysis: dict[str, Any]
     approved_test_cases: list[dict[str, Any]]
@@ -57,14 +59,33 @@ class AutomationReportState(TypedDict):
 
 
 def _automation_node(state: AutomationReportState) -> dict:
+    requirement_id = state.get("requirement_id")
+    total = len(state["approved_test_cases"])
     results = [
-        automate_test_case(tc, state["base_url"], _explorer_agent, _codegen_agent)
-        for tc in state["approved_test_cases"]
+        automate_test_case(
+            tc,
+            state["base_url"],
+            _explorer_agent,
+            _codegen_agent,
+            requirement_id=requirement_id,
+            test_case_index=i,
+            test_case_total=total,
+        )
+        for i, tc in enumerate(state["approved_test_cases"], start=1)
     ]
     return {"automation_scripts": results}
 
 
 def _report_node(state: AutomationReportState) -> dict:
+    requirement_id = state.get("requirement_id")
+    if requirement_id:
+        progress.set_progress(
+            requirement_id,
+            stage="compiling_report",
+            test_case_index=len(state["approved_test_cases"]),
+            test_case_total=len(state["approved_test_cases"]),
+            test_case_title="",
+        )
     report = _report_agent.generate(
         requirement_text=state["requirement_text"],
         analysis=state["analysis"],

@@ -6,6 +6,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.api.test_suites import _get_owned_suite
+from app.automation import progress
 from app.auth.dependencies import get_current_user
 from app.database.connection import get_db
 from app.database.models import (
@@ -94,6 +95,7 @@ def _to_detail_response(requirement: Requirement) -> RequirementDetailResponse:
                 status=tc.automation_script.status,
                 attempts=tc.automation_script.attempts,
                 last_output=tc.automation_script.last_output,
+                has_trace=tc.automation_script.trace_path is not None,
             )
             for tc in requirement.test_cases
             if tc.automation_script is not None
@@ -279,20 +281,24 @@ def generate_automation_and_report(
         for tc in approved
     ]
     analysis = requirement.analysis_result
-    result = _invoke_graph(
-        automation_report_graph,
-        {
-            "requirement_text": requirement.content,
-            "analysis": {
-                "requirements": analysis.requirements,
-                "risks": analysis.risks,
-                "missing_info": analysis.missing_info,
-                "testing_considerations": analysis.testing_considerations,
+    try:
+        result = _invoke_graph(
+            automation_report_graph,
+            {
+                "requirement_id": str(requirement_id),
+                "requirement_text": requirement.content,
+                "analysis": {
+                    "requirements": analysis.requirements,
+                    "risks": analysis.risks,
+                    "missing_info": analysis.missing_info,
+                    "testing_considerations": analysis.testing_considerations,
+                },
+                "approved_test_cases": approved_payload,
+                "base_url": base_url,
             },
-            "approved_test_cases": approved_payload,
-            "base_url": base_url,
-        },
-    )
+        )
+    finally:
+        progress.clear_progress(str(requirement_id))
 
     approved_by_id = {str(tc.id): tc for tc in approved}
     for script in result["automation_scripts"]:
@@ -304,6 +310,7 @@ def generate_automation_and_report(
             "status": script.get("status", "passed"),
             "attempts": script.get("attempts", 1),
             "last_output": script.get("last_output"),
+            "trace_path": script.get("trace_path"),
         }
         if test_case.automation_script is not None:
             for key, value in fields.items():
@@ -328,6 +335,16 @@ def generate_automation_and_report(
     db.refresh(requirement)
 
     return _to_detail_response(requirement)
+
+
+@router.get("/requirements/{requirement_id}/automation/progress")
+def get_automation_progress(
+    requirement_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _get_owned_requirement(requirement_id, current_user, db)
+    return progress.get_progress(str(requirement_id)) or {"stage": None}
 
 
 @router.get("/requirements/{requirement_id}/test-cases/export")

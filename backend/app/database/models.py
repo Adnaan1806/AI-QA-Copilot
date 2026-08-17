@@ -136,6 +136,7 @@ class AutomationScript(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, default="passed")
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     last_output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    trace_path: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

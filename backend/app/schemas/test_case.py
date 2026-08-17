@@ -35,3 +35,4 @@ class AutomationScriptItem(BaseModel):
     status: str
     attempts: int
     last_output: Optional[str] = None
+    has_trace: bool = False

@@ -166,6 +166,14 @@ export async function generateAutomationAndReport(requirementId) {
   return handleResponse(response);
 }
 
+export async function getAutomationProgress(requirementId) {
+  const response = await fetch(
+    `${API_BASE_URL}/requirements/${requirementId}/automation/progress`,
+    { headers: authHeaders() },
+  );
+  return handleResponse(response);
+}
+
 export async function exportTestCases(requirementId) {
   const response = await fetch(
     `${API_BASE_URL}/requirements/${requirementId}/test-cases/export`,
@@ -182,6 +190,27 @@ export async function exportTestCases(requirementId) {
   const link = document.createElement("a");
   link.href = url;
   link.download = `test-cases-${requirementId}.xlsx`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function downloadTestCaseTrace(testCaseId) {
+  const response = await fetch(`${API_BASE_URL}/test-cases/${testCaseId}/trace`, {
+    headers: authHeaders(),
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || `Request failed with status ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `trace-${testCaseId}.zip`;
   document.body.appendChild(link);
   link.click();
   link.remove();

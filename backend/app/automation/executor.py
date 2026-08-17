@@ -1,21 +1,48 @@
+import glob
 import os
+import shutil
 import signal
 import subprocess
 import sys
 import tempfile
 import uuid
+from typing import Optional
+
+from app.automation.browser_config import is_headless
 
 EXECUTION_TIMEOUT_SECONDS = 60
 
+# backend/app/automation/executor.py -> backend/traces
+TRACES_DIR = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "traces"
+)
 
-def execute_script(code: str) -> dict:
+
+def _find_trace(output_dir: str) -> Optional[str]:
+    matches = glob.glob(os.path.join(output_dir, "**", "trace.zip"), recursive=True)
+    return matches[0] if matches else None
+
+
+def execute_script(code: str, test_case_id: Optional[str] = None) -> dict:
     with tempfile.TemporaryDirectory() as tmp_dir:
         script_path = os.path.join(tmp_dir, f"test_{uuid.uuid4().hex}.py")
         with open(script_path, "w") as f:
             f.write(code)
 
+        args = [sys.executable, "-m", "pytest", script_path, "-v", "--tb=short", "-q"]
+        if not is_headless():
+            args.append("--headed")
+
+        trace_output_dir = None
+        if test_case_id:
+            # Overwrite on each attempt -- only the latest run's trace matters.
+            trace_output_dir = os.path.join(TRACES_DIR, str(test_case_id))
+            shutil.rmtree(trace_output_dir, ignore_errors=True)
+            os.makedirs(trace_output_dir, exist_ok=True)
+            args += ["--tracing=on", f"--output={trace_output_dir}"]
+
         proc = subprocess.Popen(
-            [sys.executable, "-m", "pytest", script_path, "-v", "--tb=short", "-q"],
+            args,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
@@ -23,7 +50,8 @@ def execute_script(code: str) -> dict:
         )
         try:
             output, _ = proc.communicate(timeout=EXECUTION_TIMEOUT_SECONDS)
-            return {"passed": proc.returncode == 0, "output": output}
+            trace_path = _find_trace(trace_output_dir) if trace_output_dir else None
+            return {"passed": proc.returncode == 0, "output": output, "trace_path": trace_path}
         except subprocess.TimeoutExpired:
             try:
                 os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
@@ -33,4 +61,5 @@ def execute_script(code: str) -> dict:
             return {
                 "passed": False,
                 "output": f"TIMEOUT: script did not finish within {EXECUTION_TIMEOUT_SECONDS}s",
+                "trace_path": None,
             }

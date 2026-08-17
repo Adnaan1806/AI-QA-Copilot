@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { generateAutomationAndReport, getRequirement } from "../services/api";
+import { Download } from "lucide-react";
+import {
+  downloadTestCaseTrace,
+  generateAutomationAndReport,
+  getRequirement,
+} from "../services/api";
 import Accordion, { ChevronIcon } from "../motion/Accordion";
 import Reveal from "../motion/Reveal";
 import Spinner from "../motion/Spinner";
@@ -36,6 +41,7 @@ export default function RequirementAutomation() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [downloadingTraceId, setDownloadingTraceId] = useState(null);
   const scriptsRef = useListStagger([requirement?.automation_scripts.length]);
   const reportFadeRef = useMountFade([!!requirement?.report]);
 
@@ -73,6 +79,18 @@ export default function RequirementAutomation() {
       setError(err.message);
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function handleDownloadTrace(testCaseId) {
+    setDownloadingTraceId(testCaseId);
+    setError(null);
+    try {
+      await downloadTestCaseTrace(testCaseId);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDownloadingTraceId(null);
     }
   }
 
@@ -129,7 +147,7 @@ export default function RequirementAutomation() {
       )}
 
       <Reveal show={generating} className="mt-6">
-        <AutomationProgressBar />
+        <AutomationProgressBar requirementId={id} />
       </Reveal>
 
       {!generating && requirement.automation_scripts.length === 0 && !requirement.report ? (
@@ -190,6 +208,24 @@ export default function RequirementAutomation() {
                             </span>
                           </>
                         )}
+                        headerActions={
+                          script.has_trace && (
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label="Download Playwright trace"
+                              title="Download Playwright trace (open with npx playwright show-trace, or drop it into trace.playwright.dev)"
+                              disabled={downloadingTraceId === script.test_case_id}
+                              onClick={() => handleDownloadTrace(script.test_case_id)}
+                            >
+                              {downloadingTraceId === script.test_case_id ? (
+                                <Spinner className="size-4" />
+                              ) : (
+                                <Download className="size-4" />
+                              )}
+                            </Button>
+                          )
+                        }
                       >
                         <pre className="overflow-x-auto bg-zinc-900 p-4 text-xs text-zinc-100">
                           <code>{script.code}</code>

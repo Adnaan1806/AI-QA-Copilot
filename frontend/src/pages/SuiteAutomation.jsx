@@ -41,7 +41,7 @@ function RequirementRow({ r, generating, onGenerate }) {
       </div>
       <Reveal show={generating}>
         <div className="border-t border-border px-4 py-4">
-          <AutomationProgressBar />
+          <AutomationProgressBar requirementId={r.id} />
         </div>
       </Reveal>
     </Card>

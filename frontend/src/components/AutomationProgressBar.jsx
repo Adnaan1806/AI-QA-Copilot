@@ -1,19 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { getAutomationProgress } from "../services/api";
 
-// Heuristic stage schedule, not tied to real backend events (the backend
-// runs one long awaited call with no progress channel). Durations are
-// rough guesses at where a typical run spends its time — if a run runs
-// long, the panel just sits on the last stage with the elapsed counter
-// still climbing, rather than lying about being "almost done".
-const STAGES = [
-  { label: "Launching a headless browser…", at: 0 },
-  { label: "Exploring the app's flows…", at: 4000 },
-  { label: "Generating Playwright scripts…", at: 12000 },
-  { label: "Running the generated tests…", at: 28000 },
-  { label: "Compiling the release report…", at: 45000 },
-];
+// Verb shown per real backend stage (see backend/app/automation/progress.py
+// and runner.py for where these are reported).
+const STAGE_VERBS = {
+  exploring: "Exploring the app to ground",
+  generating_script: "Generating a Playwright script for",
+  running_tests: "Running the generated test for",
+  healing: "Fixing a failed run for",
+};
 
 function formatElapsed(ms) {
   const totalSeconds = Math.floor(ms / 1000);
@@ -22,14 +19,26 @@ function formatElapsed(ms) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
+function describeStage(progress) {
+  if (!progress || !progress.stage) return "Starting up…";
+  if (progress.stage === "compiling_report") return "Compiling the release report…";
+
+  const { stage, test_case_index, test_case_total, test_case_title, attempt } = progress;
+  const verb = STAGE_VERBS[stage] || "Working on";
+  const countSuffix = test_case_total ? ` (test ${test_case_index}/${test_case_total})` : "";
+  const attemptSuffix = attempt ? `, attempt ${attempt}` : "";
+  return `${verb} "${test_case_title}"${countSuffix}${attemptSuffix}…`;
+}
+
 // Mounted only while a generation run is active (parent gates it with
-// <Reveal>). Runs its own elapsed-time clock for as long as it stays
-// mounted — it doesn't need to know when the run actually finishes.
-export default function AutomationProgressBar() {
+// <Reveal>). Polls the backend's real per-stage progress (not a heuristic
+// guess) so this never lies about being "almost done" when it isn't.
+export default function AutomationProgressBar({ requirementId }) {
   const [elapsed, setElapsed] = useState(0);
+  const [progress, setProgress] = useState(null);
   const labelRef = useRef(null);
   const barRef = useRef(null);
-  const prevStageIndex = useRef(-1);
+  const prevLabel = useRef(null);
 
   useEffect(() => {
     const start = performance.now();
@@ -37,24 +46,44 @@ export default function AutomationProgressBar() {
     return () => clearInterval(id);
   }, []);
 
-  const stageIndex = STAGES.reduce((acc, stage, i) => (elapsed >= stage.at ? i : acc), 0);
-  const stage = STAGES[stageIndex];
+  useEffect(() => {
+    if (!requirementId) return;
+    let cancelled = false;
+
+    async function poll() {
+      try {
+        const data = await getAutomationProgress(requirementId);
+        if (!cancelled) setProgress(data);
+      } catch {
+        // Transient poll failure — keep showing the last known stage.
+      }
+    }
+
+    poll();
+    const id = setInterval(poll, 1500);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [requirementId]);
+
+  const label = describeStage(progress);
   const overtime = elapsed > 60000;
 
   useGSAP(
     () => {
-      if (prevStageIndex.current === stageIndex || !labelRef.current) {
-        prevStageIndex.current = stageIndex;
+      if (prevLabel.current === label || !labelRef.current) {
+        prevLabel.current = label;
         return;
       }
-      prevStageIndex.current = stageIndex;
+      prevLabel.current = label;
       gsap.fromTo(
         labelRef.current,
         { opacity: 0, y: 4 },
         { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" },
       );
     },
-    { dependencies: [stageIndex] },
+    { dependencies: [label] },
   );
 
   useGSAP(() => {
@@ -77,7 +106,7 @@ export default function AutomationProgressBar() {
             <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
           </span>
           <span ref={labelRef} className="truncate text-sm font-medium text-primary">
-            {stage.label}
+            {label}
           </span>
         </div>
         <span className="shrink-0 font-mono text-xs text-primary/70">

@@ -2,6 +2,7 @@ import json
 
 from playwright.sync_api import sync_playwright
 
+from app.automation.browser_config import is_headless
 from app.automation.dom_serializer import serialize_page
 from app.llm.client import LLMClient
 
@@ -43,7 +44,7 @@ class ExplorerAgent:
 
     def explore(self, test_case: dict, base_url: str) -> dict:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
+            browser = p.chromium.launch(headless=is_headless())
             try:
                 context = browser.new_context(base_url=base_url)
                 page = context.new_page()

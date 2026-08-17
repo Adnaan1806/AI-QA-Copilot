@@ -24,6 +24,10 @@ export default function Accordion({
   className = "",
   buttonClassName = "flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left text-sm font-medium text-foreground",
   bodyClassName = "",
+  // Rendered as a sibling of the trigger button (not inside it), so it can
+  // hold its own interactive elements (e.g. a download link) without
+  // nesting a button inside a button or toggling the accordion on click.
+  headerActions,
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const wrapRef = useRef(null);
@@ -71,10 +75,15 @@ export default function Accordion({
       className={className}
     >
       <AccordionPrimitive.Item value="item">
-        <AccordionPrimitive.Header className="flex">
-          <AccordionPrimitive.Trigger className={buttonClassName}>
+        <AccordionPrimitive.Header className="flex items-center">
+          <AccordionPrimitive.Trigger className={`${buttonClassName} min-w-0 flex-1`}>
             {typeof summary === "function" ? summary(open) : summary}
           </AccordionPrimitive.Trigger>
+          {headerActions && (
+            <div className="shrink-0 pr-2" onClick={(e) => e.stopPropagation()}>
+              {typeof headerActions === "function" ? headerActions(open) : headerActions}
+            </div>
+          )}
         </AccordionPrimitive.Header>
         <AccordionPrimitive.Content forceMount>
           <div ref={wrapRef} style={{ height: open ? "auto" : 0, overflow: "hidden" }}>
