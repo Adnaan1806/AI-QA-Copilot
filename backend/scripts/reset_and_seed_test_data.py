@@ -8,6 +8,10 @@ Run from backend/ with the venv active:
     python scripts/reset_and_seed_test_data.py
 """
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from app.database.connection import SessionLocal
 from app.database.models import (
     AnalysisResult,

@@ -9,13 +9,13 @@ from app.automation import progress
 from app.automation.codegen_agent import CodegenAgent
 from app.automation.explorer_agent import ExplorerAgent
 from app.automation.runner import automate_test_case
-from app.llm.gemini_client import GeminiClient
+from app.llm.factory import get_llm_client
 
-_requirement_agent = RequirementAgent(GeminiClient())
-_qa_agent = QAAgent(GeminiClient())
-_explorer_agent = ExplorerAgent(GeminiClient())
-_codegen_agent = CodegenAgent(GeminiClient())
-_report_agent = ReportAgent(GeminiClient())
+_requirement_agent = RequirementAgent(get_llm_client())
+_qa_agent = QAAgent(get_llm_client())
+_explorer_agent = ExplorerAgent(get_llm_client())
+_codegen_agent = CodegenAgent(get_llm_client())
+_report_agent = ReportAgent(get_llm_client())
 
 
 class AnalysisQAState(TypedDict):
