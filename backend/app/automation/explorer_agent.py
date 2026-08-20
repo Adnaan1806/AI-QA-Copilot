@@ -1,4 +1,7 @@
+import asyncio
 import json
+import sys
+import threading
 
 from playwright.sync_api import sync_playwright
 
@@ -9,6 +12,15 @@ from app.llm.client import LLMClient
 MAX_TURNS_PER_STEP = 6
 MAX_TOTAL_TURNS = 25
 ACTION_TIMEOUT_MS = 5000
+
+# uvicorn forces WindowsSelectorEventLoopPolicy on Windows (needed for its own
+# sockets), but that policy's event loop can't spawn subprocesses -- and
+# Playwright's sync API spawns its driver as one via asyncio.new_event_loop().
+# Called from a FastAPI request thread that inherits uvicorn's policy, this
+# blows up with "NotImplementedError" the moment the browser tries to launch.
+# Forcing the Proactor policy (which does support subprocesses) for the
+# duration of this blocking call, then restoring whatever was set, fixes it.
+_policy_lock = threading.Lock()
 
 EXPLORE_SYSTEM_PROMPT = """You are driving a real web browser step by step to execute one manual QA \
 test case. On each turn you are shown the current page URL/title, a numbered list of visible \
@@ -43,6 +55,17 @@ class ExplorerAgent:
         self._llm_client = llm_client
 
     def explore(self, test_case: dict, base_url: str) -> dict:
+        if sys.platform == "win32":
+            with _policy_lock:
+                previous_policy = asyncio.get_event_loop_policy()
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                try:
+                    return self._explore(test_case, base_url)
+                finally:
+                    asyncio.set_event_loop_policy(previous_policy)
+        return self._explore(test_case, base_url)
+
+    def _explore(self, test_case: dict, base_url: str) -> dict:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=is_headless())
             try:
