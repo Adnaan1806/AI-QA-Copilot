@@ -88,7 +88,6 @@ Runs at **http://localhost:5173**, expects the backend at `http://localhost:8000
 
 ## 📚 Docs
 
-- [`TEST_GENERATION_APPROACH.md`](https://github.com/Adnaan1806/AI-QA-Copilot/blob/main/TEST_GENERATION_APPROACH.md) — how the generation pipeline actually works under the hood
 - [`AI-QA-COPILOT-ROADMAP.md`](https://github.com/Adnaan1806/AI-QA-Copilot/blob/main/AI-QA-COPILOT-ROADMAP.md) — the original vision, and what's still ahead
 
 ---
