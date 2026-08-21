@@ -11,16 +11,38 @@ from app.llm.client import LLMClient
 
 MAX_TURNS_PER_STEP = 6
 MAX_TOTAL_TURNS = 25
-ACTION_TIMEOUT_MS = 5000
+# Generous enough to absorb CPU/network contention from several concurrent
+# Explorer browsers competing on one machine (see AUTOMATION_CONCURRENCY in
+# orchestration/graph.py) -- 5s was fine for one browser running alone but
+# started causing real navigation timeouts under concurrent load.
+ACTION_TIMEOUT_MS = 15000
 
 # uvicorn forces WindowsSelectorEventLoopPolicy on Windows (needed for its own
 # sockets), but that policy's event loop can't spawn subprocesses -- and
 # Playwright's sync API spawns its driver as one via asyncio.new_event_loop().
 # Called from a FastAPI request thread that inherits uvicorn's policy, this
 # blows up with "NotImplementedError" the moment the browser tries to launch.
-# Forcing the Proactor policy (which does support subprocesses) for the
-# duration of this blocking call, then restoring whatever was set, fixes it.
+#
+# The policy only needs to be Proactor at the instant sync_playwright() creates
+# its event loop -- once created, that loop instance keeps working for the
+# rest of its life regardless of later policy changes, and uvicorn's own
+# already-running loop is unaffected by this process-wide setting too. So this
+# is set once, lazily, and never restored -- NOT wrapped around the whole
+# explore() call, which would otherwise serialize every concurrent automation
+# run through Explorer and defeat the point of running them in parallel.
 _policy_lock = threading.Lock()
+_policy_set = False
+
+
+def _ensure_proactor_policy() -> None:
+    global _policy_set
+    if _policy_set or sys.platform != "win32":
+        return
+    with _policy_lock:
+        if not _policy_set:
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            _policy_set = True
+
 
 EXPLORE_SYSTEM_PROMPT = """You are driving a real web browser step by step to execute one manual QA \
 test case. On each turn you are shown the current page URL/title, a numbered list of visible \
@@ -55,14 +77,7 @@ class ExplorerAgent:
         self._llm_client = llm_client
 
     def explore(self, test_case: dict, base_url: str) -> dict:
-        if sys.platform == "win32":
-            with _policy_lock:
-                previous_policy = asyncio.get_event_loop_policy()
-                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-                try:
-                    return self._explore(test_case, base_url)
-                finally:
-                    asyncio.set_event_loop_policy(previous_policy)
+        _ensure_proactor_policy()
         return self._explore(test_case, base_url)
 
     def _explore(self, test_case: dict, base_url: str) -> dict:

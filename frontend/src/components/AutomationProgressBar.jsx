@@ -12,6 +12,8 @@ const STAGE_VERBS = {
   healing: "Fixing a failed run for",
 };
 
+const DONE_STAGES = new Set(["passed", "needs_review"]);
+
 function formatElapsed(ms) {
   const totalSeconds = Math.floor(ms / 1000);
   const m = Math.floor(totalSeconds / 60);
@@ -19,26 +21,58 @@ function formatElapsed(ms) {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function describeStage(progress) {
-  if (!progress || !progress.stage) return "Starting up…";
-  if (progress.stage === "compiling_report") return "Compiling the release report…";
-
-  const { stage, test_case_index, test_case_total, test_case_title, attempt } = progress;
+function describeItem(item) {
+  const { stage, test_case_title, attempt } = item;
+  if (stage === "passed") return `Passed "${test_case_title}"`;
+  if (stage === "needs_review") return `Needs review: "${test_case_title}"`;
   const verb = STAGE_VERBS[stage] || "Working on";
-  const countSuffix = test_case_total ? ` (test ${test_case_index}/${test_case_total})` : "";
   const attemptSuffix = attempt ? `, attempt ${attempt}` : "";
-  return `${verb} "${test_case_title}"${countSuffix}${attemptSuffix}…`;
+  return `${verb} "${test_case_title}"${attemptSuffix}…`;
+}
+
+function ProgressRow({ item }) {
+  const done = DONE_STAGES.has(item.stage);
+  const rowRef = useRef(null);
+
+  useGSAP(() => {
+    if (!rowRef.current) return;
+    gsap.fromTo(
+      rowRef.current,
+      { opacity: 0, y: 4 },
+      { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" },
+    );
+  }, []);
+
+  return (
+    <div ref={rowRef} className="flex items-center gap-2.5 text-sm">
+      {done ? (
+        <span
+          className={`h-2 w-2 shrink-0 rounded-full ${
+            item.stage === "passed" ? "bg-emerald-500" : "bg-amber-500"
+          }`}
+        />
+      ) : (
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+        </span>
+      )}
+      <span className={`truncate ${done ? "text-muted-foreground" : "font-medium text-primary"}`}>
+        {describeItem(item)}
+      </span>
+    </div>
+  );
 }
 
 // Mounted only while a generation run is active (parent gates it with
-// <Reveal>). Polls the backend's real per-stage progress (not a heuristic
-// guess) so this never lies about being "almost done" when it isn't.
+// <Reveal>). Polls the backend's real per-test-case progress (not a
+// heuristic guess) so this never lies about being "almost done" when it
+// isn't. Test cases automate concurrently on the backend, so this shows one
+// row per test case in flight rather than a single "current" line.
 export default function AutomationProgressBar({ requirementId }) {
   const [elapsed, setElapsed] = useState(0);
   const [progress, setProgress] = useState(null);
-  const labelRef = useRef(null);
   const barRef = useRef(null);
-  const prevLabel = useRef(null);
 
   useEffect(() => {
     const start = performance.now();
@@ -67,24 +101,12 @@ export default function AutomationProgressBar({ requirementId }) {
     };
   }, [requirementId]);
 
-  const label = describeStage(progress);
-  const overtime = elapsed > 60000;
-
-  useGSAP(
-    () => {
-      if (prevLabel.current === label || !labelRef.current) {
-        prevLabel.current = label;
-        return;
-      }
-      prevLabel.current = label;
-      gsap.fromTo(
-        labelRef.current,
-        { opacity: 0, y: 4 },
-        { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" },
-      );
-    },
-    { dependencies: [label] },
+  const items = Object.values(progress?.items || {}).sort(
+    (a, b) => (a.test_case_index || 0) - (b.test_case_index || 0),
   );
+  const doneCount = items.filter((item) => DONE_STAGES.has(item.stage)).length;
+  const total = items[0]?.test_case_total || items.length;
+  const overtime = elapsed > 60000;
 
   useGSAP(() => {
     if (!barRef.current) return;
@@ -100,15 +122,13 @@ export default function AutomationProgressBar({ requirementId }) {
   return (
     <div className="rounded-2xl border border-primary/20 bg-primary/10 p-5">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span className="relative flex h-2.5 w-2.5 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary" />
-          </span>
-          <span ref={labelRef} className="truncate text-sm font-medium text-primary">
-            {label}
-          </span>
-        </div>
+        <span className="text-sm font-medium text-primary">
+          {progress?.report
+            ? "Compiling the release report…"
+            : total
+              ? `Automating test cases (${doneCount}/${total} finished)…`
+              : "Starting up…"}
+        </span>
         <span className="shrink-0 font-mono text-xs text-primary/70">
           {formatElapsed(elapsed)}
         </span>
@@ -120,6 +140,14 @@ export default function AutomationProgressBar({ requirementId }) {
           className="h-full w-full rounded-full bg-[length:200%_100%] bg-[linear-gradient(90deg,transparent_0%,var(--color-primary)_50%,transparent_100%)]"
         />
       </div>
+
+      {items.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {items.map((item) => (
+            <ProgressRow key={item.test_case_index} item={item} />
+          ))}
+        </div>
+      )}
 
       {overtime && (
         <p className="mt-3 text-xs text-primary/70">

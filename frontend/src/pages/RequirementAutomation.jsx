@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Download } from "lucide-react";
+import { Download, RotateCw } from "lucide-react";
 import {
   downloadTestCaseTrace,
   generateAutomationAndReport,
   getRequirement,
+  rerunTestCaseAutomation,
 } from "../services/api";
 import Accordion, { ChevronIcon } from "../motion/Accordion";
 import Reveal from "../motion/Reveal";
@@ -42,6 +43,7 @@ export default function RequirementAutomation() {
   const [error, setError] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [downloadingTraceId, setDownloadingTraceId] = useState(null);
+  const [rerunningId, setRerunningId] = useState(null);
   const scriptsRef = useListStagger([requirement?.automation_scripts.length]);
   const reportFadeRef = useMountFade([!!requirement?.report]);
 
@@ -79,6 +81,19 @@ export default function RequirementAutomation() {
       setError(err.message);
     } finally {
       setGenerating(false);
+    }
+  }
+
+  async function handleRerunTestCase(testCaseId) {
+    setRerunningId(testCaseId);
+    setError(null);
+    try {
+      const updated = await rerunTestCaseAutomation(testCaseId);
+      setRequirement(updated);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRerunningId(null);
     }
   }
 
@@ -209,22 +224,38 @@ export default function RequirementAutomation() {
                           </>
                         )}
                         headerActions={
-                          script.has_trace && (
+                          <>
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              aria-label="Download Playwright trace"
-                              title="Download Playwright trace (open with npx playwright show-trace, or drop it into trace.playwright.dev)"
-                              disabled={downloadingTraceId === script.test_case_id}
-                              onClick={() => handleDownloadTrace(script.test_case_id)}
+                              aria-label="Rerun this test case's automation"
+                              title="Rerun just this test case, without regenerating everything else"
+                              disabled={rerunningId === script.test_case_id}
+                              onClick={() => handleRerunTestCase(script.test_case_id)}
                             >
-                              {downloadingTraceId === script.test_case_id ? (
+                              {rerunningId === script.test_case_id ? (
                                 <Spinner className="size-4" />
                               ) : (
-                                <Download className="size-4" />
+                                <RotateCw className="size-4" />
                               )}
                             </Button>
-                          )
+                            {script.has_trace && (
+                              <Button
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label="Download Playwright trace"
+                                title="Download Playwright trace (open with npx playwright show-trace, or drop it into trace.playwright.dev)"
+                                disabled={downloadingTraceId === script.test_case_id}
+                                onClick={() => handleDownloadTrace(script.test_case_id)}
+                              >
+                                {downloadingTraceId === script.test_case_id ? (
+                                  <Spinner className="size-4" />
+                                ) : (
+                                  <Download className="size-4" />
+                                )}
+                              </Button>
+                            )}
+                          </>
                         }
                       >
                         <pre className="overflow-x-auto bg-zinc-900 p-4 text-xs text-zinc-100">

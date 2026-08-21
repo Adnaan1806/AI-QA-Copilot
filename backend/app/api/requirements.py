@@ -369,7 +369,7 @@ def get_automation_progress(
     db: Session = Depends(get_db),
 ):
     _get_owned_requirement(requirement_id, current_user, db)
-    return progress.get_progress(str(requirement_id)) or {"stage": None}
+    return progress.get_progress(str(requirement_id)) or {"items": {}, "report": None}
 
 
 @router.get("/requirements/{requirement_id}/test-cases/export")

@@ -1,3 +1,5 @@
+import os
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
@@ -16,6 +18,40 @@ _qa_agent = QAAgent(get_llm_client())
 _explorer_agent = ExplorerAgent(get_llm_client())
 _codegen_agent = CodegenAgent(get_llm_client())
 _report_agent = ReportAgent(get_llm_client())
+
+# Each concurrent slot drives its own real browser (Explorer) and pytest
+# subprocess (execution/healing) -- both meaningfully memory/CPU-heavy, so
+# this is capped rather than left unbounded. Override via env var per machine.
+AUTOMATION_CONCURRENCY = int(os.environ.get("AUTOMATION_CONCURRENCY", "3"))
+
+
+def automate_single_test_case(test_case: dict, base_url: str, requirement_id: str) -> dict:
+    """Rerun automation for one test case outside the full graph -- e.g. a
+    targeted retry on a "needs_review" result, without re-running every other
+    already-passing test case in the requirement."""
+    return automate_test_case(
+        test_case,
+        base_url,
+        _explorer_agent,
+        _codegen_agent,
+        requirement_id=requirement_id,
+        test_case_index=1,
+        test_case_total=1,
+    )
+
+
+def generate_report(
+    requirement_text: str,
+    analysis: dict[str, Any],
+    test_cases: list[dict[str, Any]],
+    automation_scripts: list[dict[str, Any]],
+) -> dict:
+    return _report_agent.generate(
+        requirement_text=requirement_text,
+        analysis=analysis,
+        test_cases=test_cases,
+        automation_scripts=automation_scripts,
+    )
 
 
 class AnalysisQAState(TypedDict):
@@ -60,9 +96,11 @@ class AutomationReportState(TypedDict):
 
 def _automation_node(state: AutomationReportState) -> dict:
     requirement_id = state.get("requirement_id")
-    total = len(state["approved_test_cases"])
-    results = [
-        automate_test_case(
+    test_cases = state["approved_test_cases"]
+    total = len(test_cases)
+
+    def run_one(i: int, tc: dict) -> dict:
+        return automate_test_case(
             tc,
             state["base_url"],
             _explorer_agent,
@@ -71,21 +109,16 @@ def _automation_node(state: AutomationReportState) -> dict:
             test_case_index=i,
             test_case_total=total,
         )
-        for i, tc in enumerate(state["approved_test_cases"], start=1)
-    ]
+
+    with ThreadPoolExecutor(max_workers=AUTOMATION_CONCURRENCY) as executor:
+        results = list(executor.map(run_one, range(1, total + 1), test_cases))
     return {"automation_scripts": results}
 
 
 def _report_node(state: AutomationReportState) -> dict:
     requirement_id = state.get("requirement_id")
     if requirement_id:
-        progress.set_progress(
-            requirement_id,
-            stage="compiling_report",
-            test_case_index=len(state["approved_test_cases"]),
-            test_case_total=len(state["approved_test_cases"]),
-            test_case_title="",
-        )
+        progress.set_progress(requirement_id, stage="compiling_report")
     report = _report_agent.generate(
         requirement_text=state["requirement_text"],
         analysis=state["analysis"],

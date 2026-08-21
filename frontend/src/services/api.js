@@ -166,6 +166,14 @@ export async function generateAutomationAndReport(requirementId) {
   return handleResponse(response);
 }
 
+export async function rerunTestCaseAutomation(testCaseId) {
+  const response = await fetch(`${API_BASE_URL}/test-cases/${testCaseId}/automation`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  return handleResponse(response);
+}
+
 export async function getAutomationProgress(requirementId) {
   const response = await fetch(
     `${API_BASE_URL}/requirements/${requirementId}/automation/progress`,

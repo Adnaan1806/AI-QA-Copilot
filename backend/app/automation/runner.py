@@ -21,6 +21,7 @@ def automate_test_case(
         if requirement_id:
             progress.set_progress(
                 requirement_id,
+                test_case.get("id", ""),
                 stage=stage,
                 test_case_index=test_case_index,
                 test_case_total=test_case_total,
@@ -44,6 +45,8 @@ def automate_test_case(
         if attempt < MAX_ATTEMPTS:
             report("healing", attempt=attempt)
             code = codegen.heal(code, result, trace, test_case, attempt)
+
+    report("passed" if result["passed"] else "needs_review", attempt=attempt)
 
     return {
         "test_case_id": test_case.get("id", ""),
