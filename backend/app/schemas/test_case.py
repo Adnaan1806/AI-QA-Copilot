@@ -14,6 +14,14 @@ class TestCaseItem(BaseModel):
     status: str
 
 
+class TestCaseCreateRequest(BaseModel):
+    title: str
+    type: str = "functional"
+    steps: list[str] = []
+    expected_result: str = ""
+    priority: str = "medium"
+
+
 class TestCaseGenerationResponse(BaseModel):
     requirement_id: uuid.UUID
     test_cases: list[TestCaseItem]

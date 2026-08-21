@@ -27,7 +27,7 @@ from app.schemas.requirement import (
     RequirementListItem,
     RequirementUpdateRequest,
 )
-from app.schemas.test_case import AutomationScriptItem, TestCaseItem
+from app.schemas.test_case import AutomationScriptItem, TestCaseCreateRequest, TestCaseItem
 from app.services.document_service import extract_text_from_pdf
 from app.services.export_service import build_test_cases_workbook
 
@@ -244,6 +244,31 @@ def approve_all_test_cases(
         test_case.status = "approved"
     db.commit()
     return [_to_test_case_item(tc) for tc in requirement.test_cases]
+
+
+@router.post("/requirements/{requirement_id}/test-cases", response_model=TestCaseItem)
+def create_test_case(
+    requirement_id: uuid.UUID,
+    payload: TestCaseCreateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    requirement = _get_owned_requirement(requirement_id, current_user, db)
+    if not payload.title.strip():
+        raise HTTPException(400, "Title cannot be empty")
+
+    test_case = TestCase(
+        requirement_id=requirement.id,
+        title=payload.title.strip(),
+        test_type=payload.type,
+        steps=payload.steps,
+        expected_result=payload.expected_result,
+        priority=payload.priority,
+    )
+    db.add(test_case)
+    db.commit()
+    db.refresh(test_case)
+    return _to_test_case_item(test_case)
 
 
 @router.post("/requirements/{requirement_id}/automation", response_model=RequirementDetailResponse)

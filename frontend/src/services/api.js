@@ -227,6 +227,15 @@ export async function approveAllTestCases(requirementId) {
 
 // Test cases
 
+export async function createTestCase(requirementId, testCase) {
+  const response = await fetch(`${API_BASE_URL}/requirements/${requirementId}/test-cases`, {
+    method: "POST",
+    headers: authHeaders({ "Content-Type": "application/json" }),
+    body: JSON.stringify(testCase),
+  });
+  return handleResponse(response);
+}
+
 export async function updateTestCase(testCaseId, patch) {
   const response = await fetch(`${API_BASE_URL}/test-cases/${testCaseId}`, {
     method: "PATCH",

@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import { Download } from "lucide-react";
 import {
   approveAllTestCases,
+  createTestCase,
   deleteTestCase,
   exportTestCases,
   getRequirement,
@@ -61,6 +62,16 @@ export default function RequirementTestCases() {
     try {
       await updateTestCase(testCaseId, patch);
       // Editing content resets just this test case back to draft server-side.
+      await load();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleCreateTestCase(testCase) {
+    setError(null);
+    try {
+      await createTestCase(id, testCase);
       await load();
     } catch (err) {
       setError(err.message);
@@ -167,6 +178,7 @@ export default function RequirementTestCases() {
       <h2 className="mt-8 mb-3 text-lg font-semibold text-foreground">Test Cases</h2>
       <TestCaseTable
         testCases={requirement.test_cases}
+        onCreate={handleCreateTestCase}
         onUpdate={handleUpdateTestCase}
         onDelete={handleDeleteTestCase}
       />

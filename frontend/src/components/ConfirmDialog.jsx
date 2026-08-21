@@ -46,19 +46,28 @@ export default function ConfirmDialog({
     });
   }, [open]);
 
+  // The portal's content ref isn't attached yet in the same commit where `mounted`
+  // just flipped true (Radix portals content into document.body, and refs there
+  // attach a tick after this layout effect runs) -- animating immediately here
+  // silently no-ops on null refs, leaving the dialog permanently stuck at its
+  // initial inline opacity: 0. Deferring one frame guarantees the refs exist.
   useGSAP(
     () => {
-      if (!open || !overlayRef.current || !contentRef.current) return;
-      gsap.fromTo(
-        overlayRef.current,
-        { opacity: 0 },
-        { opacity: 1, duration: DURATION.toggle, ease: EASE.out },
-      );
-      gsap.fromTo(
-        contentRef.current,
-        { opacity: 0, scale: 0.95, y: 6 },
-        { opacity: 1, scale: 1, y: 0, duration: DURATION.toggle, ease: EASE.out },
-      );
+      if (!mounted) return;
+      const raf = requestAnimationFrame(() => {
+        if (!overlayRef.current || !contentRef.current) return;
+        gsap.fromTo(
+          overlayRef.current,
+          { opacity: 0 },
+          { opacity: 1, duration: DURATION.toggle, ease: EASE.out },
+        );
+        gsap.fromTo(
+          contentRef.current,
+          { opacity: 0, scale: 0.95, y: 6 },
+          { opacity: 1, scale: 1, y: 0, duration: DURATION.toggle, ease: EASE.out },
+        );
+      });
+      return () => cancelAnimationFrame(raf);
     },
     { dependencies: [mounted] },
   );

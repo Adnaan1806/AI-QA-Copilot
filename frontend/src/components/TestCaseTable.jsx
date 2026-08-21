@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useGSAP } from "@gsap/react";
 import gsap from "gsap";
+import { Plus } from "lucide-react";
 import ConfirmDialog from "./ConfirmDialog";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
@@ -32,6 +33,15 @@ const STATUS_STYLES = {
 
 const TYPE_OPTIONS = ["functional", "negative", "edge_case", "security"];
 const PRIORITY_OPTIONS = ["high", "medium", "low"];
+
+const BLANK_TEST_CASE = {
+  title: "",
+  type: "functional",
+  steps: [],
+  expected_result: "",
+  priority: "medium",
+  status: "draft",
+};
 
 function TypeBadge({ label }) {
   const ref = usePulseOnChange(label);
@@ -217,10 +227,11 @@ function ReadRow({ tc, onEdit, onRequestDelete, deleting, rowRef }) {
   );
 }
 
-export default function TestCaseTable({ testCases, onUpdate, onDelete }) {
+export default function TestCaseTable({ testCases, onCreate, onUpdate, onDelete }) {
   const [editingId, setEditingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [isAdding, setIsAdding] = useState(false);
   const tbodyRef = useRef(null);
   const rowRefs = useRef(new Map());
   const prevCount = useRef(null);
@@ -256,12 +267,18 @@ export default function TestCaseTable({ testCases, onUpdate, onDelete }) {
 
   async function confirmDelete() {
     const tc = pendingDelete;
+    // Guards a fast double-click on the confirm button: without this, the second
+    // call's fade-out tween on the same row overwrites the first's, and an
+    // overwritten GSAP tween never fires its completion -- so the first call's
+    // `await` on it would hang forever, leaving deletingId stuck until a refresh.
+    if (!tc || deletingId) return;
     setPendingDelete(null);
     setDeletingId(tc.id);
 
+    // Fire-and-forget: a decorative fade-out must never block the real delete.
     const row = rowRefs.current.get(tc.id);
     if (row) {
-      await gsap.to(row, {
+      gsap.to(row, {
         opacity: 0,
         height: 0,
         duration: DURATION.toggle,
@@ -277,10 +294,19 @@ export default function TestCaseTable({ testCases, onUpdate, onDelete }) {
     }
   }
 
-  if (testCases.length === 0) {
+  async function handleCreate(payload) {
+    await onCreate(payload);
+    setIsAdding(false);
+  }
+
+  if (testCases.length === 0 && !isAdding) {
     return (
       <div className="rounded-2xl border border-dashed border-border p-8 text-center">
         <p className="text-sm italic text-muted-foreground">No test cases yet.</p>
+        <Button size="sm" variant="outline" className="mt-4 gap-1.5" onClick={() => setIsAdding(true)}>
+          <Plus className="size-4" />
+          Add Test Case
+        </Button>
       </div>
     );
   }
@@ -322,8 +348,25 @@ export default function TestCaseTable({ testCases, onUpdate, onDelete }) {
               />
             ),
           )}
+          {isAdding && (
+            <EditableRow
+              key="__new__"
+              tc={BLANK_TEST_CASE}
+              onSave={handleCreate}
+              onCancel={() => setIsAdding(false)}
+            />
+          )}
         </TableBody>
       </Table>
+
+      {!isAdding && (
+        <div className="border-t border-border p-3">
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setIsAdding(true)}>
+            <Plus className="size-4" />
+            Add Test Case
+          </Button>
+        </div>
+      )}
 
       <ConfirmDialog
         open={pendingDelete !== null}
