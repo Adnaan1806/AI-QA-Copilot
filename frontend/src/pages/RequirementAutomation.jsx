@@ -15,6 +15,7 @@ import { usePulseOnChange } from "../motion/usePulseOnChange";
 import { useListStagger } from "../motion/useListStagger";
 import { useSetBreadcrumbs } from "../context/BreadcrumbContext";
 import AutomationProgressBar from "../components/AutomationProgressBar";
+import AutomationSummary from "../components/AutomationSummary";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -197,6 +198,13 @@ export default function RequirementAutomation() {
         </div>
       ) : (
         <div className="mt-8 space-y-6">
+          {requirement.automation_scripts.length > 0 && (
+            <AutomationSummary
+              testCases={requirement.test_cases}
+              automationScripts={requirement.automation_scripts}
+            />
+          )}
+
           {requirement.automation_scripts.length > 0 && (
             <>
               <h2 className="mb-3 text-lg font-semibold text-foreground">
