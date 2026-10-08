@@ -20,6 +20,8 @@ from app.services.automation_service import (
     analysis_payload,
     replace_report,
     save_automation_script,
+    saved_passing_scripts,
+    script_statuses,
     test_case_payload,
 )
 
@@ -67,6 +69,10 @@ def update_test_case(
     # re-approved before automation can run again. Sibling test cases are unaffected.
     if content_changed and payload.status is None:
         set_review_status(test_case, "draft", current_user)
+    # Re-runs replay the saved script, so a script written for the old steps must
+    # not survive the edit. Run history is kept.
+    if content_changed and test_case.automation_script is not None:
+        db.delete(test_case.automation_script)
 
     db.commit()
     db.refresh(test_case)
@@ -99,9 +105,15 @@ def automate_one_test_case(
         raise HTTPException(400, "Set a base URL on this project before generating automation")
 
     requirement_id = str(requirement.id)
+    previous_status = script_statuses([test_case]).get(str(test_case.id))
     try:
         with llm_errors_as_http():
-            script = automate_single_test_case(test_case_payload(test_case), base_url, requirement_id)
+            script = automate_single_test_case(
+                test_case_payload(test_case),
+                base_url,
+                requirement_id,
+                saved_code=saved_passing_scripts([test_case]).get(str(test_case.id)),
+            )
     finally:
         progress.clear_progress(requirement_id)
 
@@ -110,10 +122,11 @@ def automate_one_test_case(
     db.refresh(requirement)
 
     # Keep the report in sync -- a stale report showing this test case's old
-    # status would be misleading, and regenerating it is a single LLM call.
+    # status would be misleading. If the result didn't change, the report still holds.
     approved = [tc for tc in requirement.test_cases if tc.status == "approved"]
     scripted = [tc for tc in approved if tc.automation_script is not None]
-    if scripted:
+    report_stale = requirement.report is None or script["status"] != previous_status
+    if scripted and report_stale:
         with llm_errors_as_http():
             report_data = generate_report(
                 requirement_text=requirement.content,

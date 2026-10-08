@@ -23,6 +23,7 @@ Choosing verdict:
 - "ready" only if every approved test case passes and no material risk remains.
 
 Rules:
+- Refer to a test case by its "label" (e.g. TC-3), optionally followed by its title.
 - Ground every statement in the provided data -- do not invent test cases or risks not implied by it.
 - If very few test cases are approved/automated relative to the requirement's scope, say so plainly in quality_risks.
 - The input includes exact "approved_test_case_count", "automated_test_case_count", "passed_test_case_count",
@@ -48,14 +49,22 @@ class ReportAgent:
     ) -> dict:
         passed = [s for s in automation_scripts if s.get("status", "passed") == "passed"]
         needs_review = [s for s in automation_scripts if s.get("status") == "needs_review"]
+        # Database ids leak into the prose if the model sees them; it gets the
+        # TC-n labels the UI shows instead.
+        labels = {tc["id"]: tc.get("label") or tc["title"] for tc in test_cases}
         user_prompt = json.dumps(
             {
                 "requirement": requirement_text,
                 "analysis": analysis,
-                "approved_test_cases": test_cases,
+                "approved_test_cases": [
+                    {k: v for k, v in tc.items() if k != "id"} for tc in test_cases
+                ],
                 "approved_test_case_count": len(test_cases),
                 "automation_scripts": [
-                    {"test_case_id": s["test_case_id"], "status": s.get("status", "passed")}
+                    {
+                        "test_case": labels.get(s["test_case_id"], s["test_case_id"]),
+                        "status": s.get("status", "passed"),
+                    }
                     for s in automation_scripts
                 ],
                 "automated_test_case_count": len(automation_scripts),

@@ -42,14 +42,42 @@ def analysis_payload(analysis: AnalysisResult) -> dict[str, Any]:
     }
 
 
+def case_label(tc: TestCase) -> str:
+    """The TC-n number the UI shows: position among all the requirement's cases,
+    rejected ones included (same ordering as caseLabel in frontend/src/lib/qa.js)."""
+    return f"TC-{tc.requirement.test_cases.index(tc) + 1}"
+
+
 def test_case_payload(tc: TestCase) -> dict[str, Any]:
     return {
         "id": str(tc.id),
+        "label": case_label(tc),
         "title": tc.title,
         "type": tc.test_type,
         "steps": tc.steps,
         "expected_result": tc.expected_result,
         "priority": tc.priority,
+    }
+
+
+def saved_passing_scripts(test_cases: list[TestCase]) -> dict[str, str]:
+    """Code of each case's script that passed last time, for re-runs to replay.
+    Failing scripts are left out: those cases are regenerated from scratch."""
+    return {
+        str(tc.id): tc.automation_script.code
+        for tc in test_cases
+        if tc.automation_script is not None
+        and tc.automation_script.status == "passed"
+        and tc.automation_script.code
+    }
+
+
+def script_statuses(test_cases: list[TestCase]) -> dict[str, str]:
+    """Each automated case's latest result -- what the current report describes."""
+    return {
+        str(tc.id): tc.automation_script.status
+        for tc in test_cases
+        if tc.automation_script is not None
     }
 
 

@@ -11,3 +11,6 @@ build/
 backend/chroma_db/
 backend/traces/
 .claude/settings.local.json
+
+# Client reference material (e.g. QA plugins with project domain knowledge)
+reference/

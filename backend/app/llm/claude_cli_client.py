@@ -36,6 +36,9 @@ class ClaudeCliClient(LLMClient):
             ],
             capture_output=True,
             text=True,
+            # The CLI writes UTF-8; without this Windows decodes it as cp1252,
+            # garbling dashes and quotes and crashing on some accented letters.
+            encoding="utf-8",
             timeout=REQUEST_TIMEOUT_S,
         )
         if result.returncode != 0:
