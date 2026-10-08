@@ -1,82 +1,77 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { generateAutomationAndReport, getTestSuite } from "../services/api";
-import Reveal from "../motion/Reveal";
+import { generateAutomationAndReport, getProject, getTestSuite } from "../services/api";
 import Spinner from "../motion/Spinner";
-import { useListStagger } from "../motion/useListStagger";
 import { useSetBreadcrumbs } from "../context/BreadcrumbContext";
+import { useDataVersion } from "../context/DataVersionContext";
 import AutomationProgressBar from "../components/AutomationProgressBar";
+import CaseStrip from "../components/CaseStrip";
+import { VerdictChip } from "../components/QaChips";
 import { Button } from "../components/ui/button";
-import { Card } from "../components/ui/card";
-import { ErrorMessage, PageError, PageLoading } from "../components/StatusMessages";
+import {
+  EmptyState,
+  ErrorMessage,
+  Page,
+  PageError,
+  PageHeader,
+  PageLoading,
+} from "../components/StatusMessages";
+import { plural, readVerdict, readyToAutomate } from "../lib/qa";
 
-function RequirementRow({ r, generating, onGenerate }) {
+function SuiteSummary({ requirements }) {
+  const tones = requirements.map((r) => readVerdict(r.release_recommendation)?.tone);
+  const notReady = tones.filter((t) => t === "fail").length;
+  const ready = tones.filter((t) => t === "pass").length;
+  const noReport = tones.filter((t) => !t).length;
+  const shippable = requirements.length > 0 && ready === requirements.length;
+
   return (
-    <Card className="py-0">
-      <div className="flex items-center justify-between px-4 py-3.5">
-        <div className="min-w-0 pr-4">
-          <p className="truncate font-medium text-foreground">{r.name}</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {r.approved_test_case_count}/{r.test_case_count} accepted
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {r.has_report && (
-            <Button variant="outline" asChild>
-              <Link to={`/requirements/${r.id}/automation`}>View Results</Link>
-            </Button>
-          )}
-          <Button
-            onClick={onGenerate}
-            disabled={generating}
-            className="gap-1.5 bg-linear-to-r from-primary to-emerald-500 text-white shadow-sm shadow-primary/25 hover:opacity-90"
-          >
-            {generating && <Spinner className="h-3.5 w-3.5" />}
-            {generating
-              ? "Generating..."
-              : r.has_report
-                ? "Regenerate"
-                : "Generate Automation & Report"}
-          </Button>
-        </div>
-      </div>
-      <Reveal show={generating}>
-        <div className="border-t border-border px-4 py-4">
-          <AutomationProgressBar requirementId={r.id} />
-        </div>
-      </Reveal>
-    </Card>
+    <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 rounded-lg border border-border bg-card px-5 py-4">
+      <span className={`text-lg font-semibold ${shippable ? "text-pass" : "text-fail"}`}>
+        {shippable ? "Suite ready to release" : "Suite not ready to release"}
+      </span>
+      <span className="tabular flex flex-wrap gap-x-4 text-sm text-muted-foreground">
+        {ready > 0 && <span className="text-pass">{ready} ready</span>}
+        {notReady > 0 && <span className="text-fail">{notReady} not ready</span>}
+        {noReport > 0 && <span>{plural(noReport, "requirement")} without a report</span>}
+      </span>
+    </div>
   );
 }
 
 export default function SuiteAutomation() {
   const { suiteId } = useParams();
+  const { bump } = useDataVersion();
   const [suite, setSuite] = useState(null);
+  const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [generatingId, setGeneratingId] = useState(null);
-  const listRef = useListStagger([loading, suite?.requirements.length]);
 
   useSetBreadcrumbs(
-    suite
+    suite && project
       ? [
           { label: "Projects", to: "/" },
+          { label: project.name, to: `/projects/${project.id}` },
           { label: suite.name, to: `/suites/${suiteId}` },
-          { label: "Test Automation" },
+          { label: "Automation" },
         ]
       : [],
   );
 
   function load() {
-    setLoading(true);
     setError(null);
     return getTestSuite(suiteId)
-      .then(setSuite)
+      .then(async (s) => {
+        setSuite(s);
+        setProject(await getProject(s.project_id));
+      })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }
 
   useEffect(() => {
+    setLoading(true);
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suiteId]);
@@ -86,6 +81,7 @@ export default function SuiteAutomation() {
     setError(null);
     try {
       await generateAutomationAndReport(requirementId);
+      bump();
       await load();
     } catch (err) {
       setError(err.message);
@@ -94,47 +90,95 @@ export default function SuiteAutomation() {
     }
   }
 
-  if (loading) {
-    return <PageLoading />;
-  }
-
-  if (error && !suite) {
-    return <PageError message={error} />;
-  }
-
-  const eligible = suite.requirements.filter(
-    (r) => r.test_case_count > 0 && r.approved_test_case_count === r.test_case_count,
-  );
+  if (loading) return <PageLoading />;
+  if (error && !suite) return <PageError message={error} />;
 
   return (
-    <div className="mx-auto max-w-5xl p-8">
-      <h1 className="text-2xl font-bold tracking-tight text-foreground">Test Automation</h1>
-      <p className="mt-1 text-muted-foreground">
-        {suite.name} · Playwright scripts and release reports for requirements with accepted
-        test cases
-      </p>
+    <Page className="space-y-6">
+      <PageHeader
+        title="Automation overview"
+        subtitle={`Release readiness for every requirement in ${suite.name}`}
+      />
 
-      <ErrorMessage message={error} className="mt-4" />
+      <ErrorMessage message={error} />
 
-      <div ref={listRef} className="mt-8 space-y-2">
-        {eligible.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border p-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              No requirements with accepted test cases yet. Open a requirement, accept its test
-              cases, then come back here to generate automation.
-            </p>
+      {suite.requirements.length === 0 ? (
+        <EmptyState>
+          No requirements in this suite yet.{" "}
+          <Link to={`/suites/${suiteId}`} className="text-primary hover:underline">
+            Add one
+          </Link>
+        </EmptyState>
+      ) : (
+        <>
+          <SuiteSummary requirements={suite.requirements} />
+          <div className="overflow-x-auto rounded-lg border border-border bg-card">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/60 text-left text-xs text-muted-foreground">
+                  <th className="w-[38%] px-4 py-2 font-medium">Requirement</th>
+                  <th className="px-4 py-2 font-medium">Cases</th>
+                  <th className="px-4 py-2 font-medium">Verdict</th>
+                  <th className="px-4 py-2 text-right font-medium">Next step</th>
+                </tr>
+              </thead>
+              <tbody>
+                {suite.requirements.map((r) => {
+                  const counts = r.case_counts;
+                  const ready = readyToAutomate(counts);
+                  const generating = generatingId === r.id;
+                  return (
+                    <Fragment key={r.id}>
+                      <tr className="border-t border-border first:border-t-0">
+                        <td className="px-4 py-2.5">
+                          <Link
+                            to={`/requirements/${r.id}/automation`}
+                            className="font-medium hover:text-primary hover:underline"
+                          >
+                            {r.name}
+                          </Link>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <CaseStrip counts={counts} size="sm" />
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <VerdictChip recommendation={r.release_recommendation} />
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          {ready ? (
+                            <Button
+                              size="sm"
+                              variant={r.has_report ? "outline" : "default"}
+                              disabled={generatingId !== null}
+                              onClick={() => handleGenerate(r.id)}
+                            >
+                              {generating && <Spinner className="size-3" />}
+                              {r.has_report ? "Re-run automation" : "Generate automation"}
+                            </Button>
+                          ) : (
+                            <Link to={`/requirements/${r.id}`} className="text-sm text-primary hover:underline">
+                              {counts.draft > 0
+                                ? `Review ${plural(counts.draft, "draft case")}`
+                                : "Add test cases"}
+                            </Link>
+                          )}
+                        </td>
+                      </tr>
+                      {generating && (
+                        <tr>
+                          <td colSpan={4} className="px-4 pb-4">
+                            <AutomationProgressBar requirementId={r.id} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        ) : (
-          eligible.map((r) => (
-            <RequirementRow
-              key={r.id}
-              r={r}
-              generating={generatingId === r.id}
-              onGenerate={() => handleGenerate(r.id)}
-            />
-          ))
-        )}
-      </div>
-    </div>
+        </>
+      )}
+    </Page>
   );
 }

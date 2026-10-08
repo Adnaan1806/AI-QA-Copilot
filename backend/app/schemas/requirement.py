@@ -12,6 +12,18 @@ class RequirementUpdateRequest(BaseModel):
     name: str
 
 
+class CaseCounts(BaseModel):
+    """Where each test case of a requirement stands. Every case is in exactly one bucket:
+    approved means approved but not automated yet; passed/needs_review are approved
+    cases with an automation result."""
+
+    draft: int = 0
+    approved: int = 0
+    rejected: int = 0
+    passed: int = 0
+    needs_review: int = 0
+
+
 class RequirementListItem(BaseModel):
     id: uuid.UUID
     suite_id: uuid.UUID
@@ -23,6 +35,8 @@ class RequirementListItem(BaseModel):
     created_at: datetime
     has_analysis: bool
     test_case_count: int
+    case_counts: CaseCounts
+    release_recommendation: Optional[str] = None
 
 
 class RequirementDetailResponse(BaseModel):

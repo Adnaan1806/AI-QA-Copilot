@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_owned_project, get_owned_suite
+from app.api.serializers import to_case_counts
 from app.auth.dependencies import get_current_user
 from app.database.connection import get_db
 from app.database.models import TestSuite, User
@@ -79,6 +80,8 @@ def get_test_suite(
                 1 for tc in r.test_cases if tc.status == "approved"
             ),
             has_report=r.report is not None,
+            case_counts=to_case_counts(r),
+            release_recommendation=r.report.release_recommendation if r.report else None,
         )
         for r in sorted(suite.requirements, key=lambda r: r.created_at, reverse=True)
     ]

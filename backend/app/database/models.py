@@ -74,8 +74,11 @@ class Requirement(Base):
     analysis_result: Mapped["AnalysisResult"] = relationship(
         back_populates="requirement", uselist=False, cascade="all, delete-orphan"
     )
+    # Ordered so the UI's case numbers (TC-1, TC-2, ...) stay stable across reloads.
     test_cases: Mapped[list["TestCase"]] = relationship(
-        back_populates="requirement", cascade="all, delete-orphan"
+        back_populates="requirement",
+        cascade="all, delete-orphan",
+        order_by="TestCase.created_at",
     )
     report: Mapped["Report"] = relationship(
         back_populates="requirement", uselist=False, cascade="all, delete-orphan"
