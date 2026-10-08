@@ -32,6 +32,7 @@ class RequirementSummary(BaseModel):
     has_report: bool
     case_counts: CaseCounts
     release_recommendation: Optional[str] = None
+    release_verdict: Optional[str] = None
 
 
 class TestSuiteDetailResponse(BaseModel):

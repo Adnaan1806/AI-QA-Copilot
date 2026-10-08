@@ -32,6 +32,7 @@ from app.services.automation_service import (
     test_case_payload,
 )
 from app.services.document_service import extract_text_from_pdf
+from app.services.review_service import set_review_status
 from app.services.export_service import build_test_cases_workbook
 
 router = APIRouter(tags=["requirements"])
@@ -126,6 +127,7 @@ def list_my_requirements(
             test_case_count=len(r.test_cases),
             case_counts=to_case_counts(r),
             release_recommendation=r.report.release_recommendation if r.report else None,
+            release_verdict=r.report.verdict if r.report else None,
         )
         for r in requirements
     ]
@@ -169,7 +171,8 @@ def approve_all_test_cases(
 ):
     requirement = get_owned_requirement(requirement_id, current_user, db)
     for test_case in active_test_cases(requirement):
-        test_case.status = "approved"
+        if test_case.status != "approved":
+            set_review_status(test_case, "approved", current_user)
     db.commit()
     return [to_test_case_item(tc) for tc in requirement.test_cases]
 

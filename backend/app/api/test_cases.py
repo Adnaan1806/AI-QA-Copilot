@@ -15,6 +15,7 @@ from app.database.models import User
 from app.orchestration.graph import automate_single_test_case, generate_report
 from app.schemas.requirement import RequirementDetailResponse
 from app.schemas.test_case import TestCaseItem, TestCaseUpdateRequest
+from app.services.review_service import set_review_status
 from app.services.automation_service import (
     analysis_payload,
     replace_report,
@@ -50,7 +51,7 @@ def update_test_case(
     if payload.status is not None:
         if payload.status not in VALID_STATUSES:
             raise HTTPException(400, f"status must be one of {sorted(VALID_STATUSES)}")
-        test_case.status = payload.status
+        set_review_status(test_case, payload.status, current_user, payload.reject_reason)
     if payload.title is not None:
         test_case.title = payload.title
     if payload.type is not None:
@@ -65,7 +66,7 @@ def update_test_case(
     # Its automation script (if any) was generated from the old content, so it must be
     # re-approved before automation can run again. Sibling test cases are unaffected.
     if content_changed and payload.status is None:
-        test_case.status = "draft"
+        set_review_status(test_case, "draft", current_user)
 
     db.commit()
     db.refresh(test_case)

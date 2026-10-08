@@ -116,13 +116,26 @@ class TestCase(Base):
     expected_result: Mapped[str] = mapped_column(Text, nullable=False)
     priority: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="draft")
+    # Who approved or rejected the case, and when. Cleared when it returns to draft.
+    reviewed_by_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id"), nullable=True
+    )
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    reject_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
     requirement: Mapped["Requirement"] = relationship(back_populates="test_cases")
+    reviewed_by: Mapped[Optional["User"]] = relationship()
     automation_script: Mapped["AutomationScript"] = relationship(
         back_populates="test_case", uselist=False, cascade="all, delete-orphan"
+    )
+    # Every automation run of this case, newest first; the script row holds only the latest.
+    automation_runs: Mapped[list["AutomationRun"]] = relationship(
+        back_populates="test_case",
+        cascade="all, delete-orphan",
+        order_by="AutomationRun.created_at.desc()",
     )
 
 
@@ -147,6 +160,25 @@ class AutomationScript(Base):
     test_case: Mapped["TestCase"] = relationship(back_populates="automation_script")
 
 
+class AutomationRun(Base):
+    """One execution of a test case's automation, kept so flaky cases can be spotted."""
+
+    __tablename__ = "automation_runs"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    test_case_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("test_cases.id"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    test_case: Mapped["TestCase"] = relationship(back_populates="automation_runs")
+
+
 class Report(Base):
     __tablename__ = "reports"
     __table_args__ = (UniqueConstraint("requirement_id"),)
@@ -159,6 +191,9 @@ class Report(Base):
     coverage_analysis: Mapped[list] = mapped_column(JSON, default=list)
     quality_risks: Mapped[list] = mapped_column(JSON, default=list)
     release_recommendation: Mapped[str] = mapped_column(Text, nullable=False)
+    # One of RELEASE_VERDICTS (see services/automation_service.py); null only on
+    # reports written before verdicts were structured and not yet backfilled.
+    verdict: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
