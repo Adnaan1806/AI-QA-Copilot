@@ -36,15 +36,21 @@ def automate_test_case(
                 **extra,
             )
 
-    # A failed replay counts as a try, so "Tries" stays the number of script runs.
-    replays = 0
+    # Every script run, in order, so reviewers can see what healing changed.
+    # len(tries) is the "Tries" count; a failed replay counts as one.
+    tries: list[dict] = []
+
+    def run(code: str, kind: str, reason: str = "") -> dict:
+        report("running_tests", attempt=len(tries) + 1)
+        result = execute_script(code, test_case_id=test_case.get("id"))
+        tries.append(_try(kind, code, result, reason))
+        return result
+
     if saved_code:
-        replays = 1
-        report("running_tests", attempt=1)
-        result = execute_script(saved_code, test_case_id=test_case.get("id"))
+        result = run(saved_code, "replayed")
         if result["passed"]:
             report("passed", attempt=1)
-            return _outcome(test_case, saved_code, result, attempts=1)
+            return _outcome(test_case, saved_code, result, tries)
 
     report("exploring")
     trace = explorer.explore(test_case, base_url)
@@ -52,37 +58,42 @@ def automate_test_case(
     report("generating_script")
     code = codegen.generate(trace, test_case)
 
-    result = {"passed": False, "output": "", "trace_path": None}
-    attempt = 0
-    for attempt in range(1, MAX_ATTEMPTS + 1):
-        report("running_tests", attempt=replays + attempt)
-        result = execute_script(code, test_case_id=test_case.get("id"))
+    result = run(code, "generated")
+    for attempt in range(1, MAX_ATTEMPTS):
         if result["passed"]:
             break
-        if attempt < MAX_ATTEMPTS:
-            report("healing", attempt=replays + attempt)
-            healed = codegen.heal(code, result, trace, test_case, attempt)
-            if not healed["fixable"]:
-                # The page doesn't meet the expected result; healing further would
-                # only weaken the test. Leave the failure for a person to review.
-                reason = healed["reason"] or "the page does not meet the expected result"
-                result = {
-                    **result,
-                    "output": f"Healing stopped: {reason}\n\n{result['output']}",
-                }
-                break
-            code = healed["code"]
+        report("healing", attempt=len(tries))
+        healed = codegen.heal(code, result, trace, test_case, attempt)
+        if not healed["fixable"]:
+            # The page doesn't meet the expected result; healing further would
+            # only weaken the test. Leave the failure for a person to review.
+            reason = healed["reason"] or "the page does not meet the expected result"
+            tries[-1]["stop_reason"] = reason
+            result = {**result, "output": f"Healing stopped: {reason}\n\n{result['output']}"}
+            break
+        code = healed["code"]
+        result = run(code, "healed", healed["reason"])
 
-    report("passed" if result["passed"] else "needs_review", attempt=replays + attempt)
-    return _outcome(test_case, code, result, attempts=replays + attempt)
+    report("passed" if result["passed"] else "needs_review", attempt=len(tries))
+    return _outcome(test_case, code, result, tries)
 
 
-def _outcome(test_case: dict, code: str, result: dict, attempts: int) -> dict:
+# Enough of a failing run's output to see the error without storing whole logs.
+TRY_OUTPUT_LINES = 60
+
+
+def _try(kind: str, code: str, result: dict, reason: str) -> dict:
+    output = "" if result["passed"] else "\n".join(result["output"].splitlines()[-TRY_OUTPUT_LINES:])
+    return {"kind": kind, "passed": result["passed"], "code": code, "output": output, "reason": reason}
+
+
+def _outcome(test_case: dict, code: str, result: dict, tries: list[dict]) -> dict:
     return {
         "test_case_id": test_case.get("id", ""),
         "code": code,
         "status": "passed" if result["passed"] else "needs_review",
-        "attempts": attempts,
+        "attempts": len(tries),
         "last_output": None if result["passed"] else result["output"],
         "trace_path": result.get("trace_path"),
+        "tries": tries,
     }
