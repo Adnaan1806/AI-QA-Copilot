@@ -1,5 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, TypedDict
+from typing import Any, Optional, TypedDict
 
 from langgraph.graph import END, StateGraph
 
@@ -20,7 +20,9 @@ _codegen_agent = CodegenAgent(get_llm_client())
 _report_agent = ReportAgent(get_llm_client())
 
 
-def automate_single_test_case(test_case: dict, base_url: str, requirement_id: str) -> dict:
+def automate_single_test_case(
+    test_case: dict, base_url: str, requirement_id: str, saved_code: Optional[str] = None
+) -> dict:
     """Rerun automation for one test case outside the full graph -- e.g. a
     targeted retry on a "needs_review" result, without re-running every other
     already-passing test case in the requirement."""
@@ -32,6 +34,7 @@ def automate_single_test_case(test_case: dict, base_url: str, requirement_id: st
         requirement_id=requirement_id,
         test_case_index=1,
         test_case_total=1,
+        saved_code=saved_code,
     )
 
 
@@ -85,6 +88,11 @@ class AutomationReportState(TypedDict):
     analysis: dict[str, Any]
     approved_test_cases: list[dict[str, Any]]
     base_url: str
+    # Test case id -> code of its last passing script, replayed before re-exploring.
+    saved_scripts: dict[str, str]
+    # Test case id -> status the current report was written for; empty when the
+    # requirement has no report yet.
+    reported_statuses: dict[str, str]
     automation_scripts: list[dict[str, Any]]
     report: dict[str, Any]
 
@@ -103,11 +111,21 @@ def _automation_node(state: AutomationReportState) -> dict:
             requirement_id=requirement_id,
             test_case_index=i,
             test_case_total=total,
+            saved_code=saved.get(tc["id"]),
         )
 
+    saved = state.get("saved_scripts") or {}
     with ThreadPoolExecutor(max_workers=config.AUTOMATION_CONCURRENCY) as executor:
         results = list(executor.map(run_one, range(1, total + 1), test_cases))
     return {"automation_scripts": results}
+
+
+def _report_needed(state: AutomationReportState) -> str:
+    """Skip the report LLM call when every case ended exactly as the current
+    report already describes -- a re-run that changed nothing."""
+    previous = state.get("reported_statuses") or {}
+    current = {s["test_case_id"]: s["status"] for s in state["automation_scripts"]}
+    return "skip" if previous and previous == current else "report"
 
 
 def _report_node(state: AutomationReportState) -> dict:
@@ -127,6 +145,8 @@ _automation_report_builder = StateGraph(AutomationReportState)
 _automation_report_builder.add_node("automation", _automation_node)
 _automation_report_builder.add_node("report", _report_node)
 _automation_report_builder.set_entry_point("automation")
-_automation_report_builder.add_edge("automation", "report")
+_automation_report_builder.add_conditional_edges(
+    "automation", _report_needed, {"report": "report", "skip": END}
+)
 _automation_report_builder.add_edge("report", END)
 automation_report_graph = _automation_report_builder.compile()

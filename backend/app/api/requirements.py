@@ -29,6 +29,8 @@ from app.services.automation_service import (
     analysis_payload,
     replace_report,
     save_automation_script,
+    saved_passing_scripts,
+    script_statuses,
     test_case_payload,
 )
 from app.services.document_service import extract_text_from_pdf
@@ -233,6 +235,10 @@ def generate_automation_and_report(
                     "analysis": analysis_payload(requirement.analysis_result),
                     "approved_test_cases": [test_case_payload(tc) for tc in approved],
                     "base_url": base_url,
+                    "saved_scripts": saved_passing_scripts(approved),
+                    "reported_statuses": (
+                        script_statuses(approved) if requirement.report is not None else {}
+                    ),
                 }
             )
     finally:
@@ -244,7 +250,9 @@ def generate_automation_and_report(
         if test_case is not None:
             save_automation_script(db, test_case, script)
 
-    replace_report(db, requirement, result["report"])
+    # The graph skips the report when every case ended as the current one says.
+    if result.get("report"):
+        replace_report(db, requirement, result["report"])
     db.commit()
     db.refresh(requirement)
 

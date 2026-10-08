@@ -60,6 +60,27 @@ def test_case_payload(tc: TestCase) -> dict[str, Any]:
     }
 
 
+def saved_passing_scripts(test_cases: list[TestCase]) -> dict[str, str]:
+    """Code of each case's script that passed last time, for re-runs to replay.
+    Failing scripts are left out: those cases are regenerated from scratch."""
+    return {
+        str(tc.id): tc.automation_script.code
+        for tc in test_cases
+        if tc.automation_script is not None
+        and tc.automation_script.status == "passed"
+        and tc.automation_script.code
+    }
+
+
+def script_statuses(test_cases: list[TestCase]) -> dict[str, str]:
+    """Each automated case's latest result -- what the current report describes."""
+    return {
+        str(tc.id): tc.automation_script.status
+        for tc in test_cases
+        if tc.automation_script is not None
+    }
+
+
 def save_automation_script(db: Session, test_case: TestCase, script: dict[str, Any]) -> None:
     fields = {
         "code": script.get("code", ""),
