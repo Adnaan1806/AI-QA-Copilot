@@ -11,7 +11,7 @@ AI QA Copilot turns a user story into reviewed test cases, real Playwright autom
 [![Database](https://img.shields.io/badge/database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](#-run-it-locally)
 [![Automation](https://img.shields.io/badge/automation-Playwright-2EAD33?logo=playwright&logoColor=white)](#3-automate-what-you-approved)
 [![LLM](https://img.shields.io/badge/LLM-Gemini%20%7C%20Claude-8A2BE2)](#-pick-your-model)
-[![Last commit](https://img.shields.io/github/last-commit/Adnaan1806/AI-QA-Copilot)](https://github.com/Adnaan1806/AI-QA-Copilot/commits/main)
+
 
 [The workflow](#-from-requirement-to-release-call) · [Features](#-everything-it-does) · [Under the hood](#-under-the-hood) · [Run it locally](#-run-it-locally)
 
