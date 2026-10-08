@@ -1,10 +1,10 @@
 import json
-import os
 from typing import Optional
 
 from google import genai
 from google.genai import types
 
+from app import config
 from app.llm.client import LLMClient
 
 GEMINI_MODEL = "gemini-3.6-flash"
@@ -13,7 +13,7 @@ REQUEST_TIMEOUT_MS = 60_000
 
 class GeminiClient(LLMClient):
     def __init__(self, api_key: Optional[str] = None):
-        api_key = api_key or os.environ["GEMINI_API_KEY"]
+        api_key = api_key or config.gemini_api_key()
         self._client = genai.Client(
             api_key=api_key,
             http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_MS),

@@ -3,12 +3,14 @@ import os
 from langchain_chroma import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
+from app import config
+
 _BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 PERSIST_DIRECTORY = os.path.join(_BACKEND_DIR, "chroma_db")
 
 _embeddings = GoogleGenerativeAIEmbeddings(
     model="models/gemini-embedding-001",
-    google_api_key=os.environ["GEMINI_API_KEY"],
+    google_api_key=config.gemini_api_key(),
 )
 
 _vector_store = None

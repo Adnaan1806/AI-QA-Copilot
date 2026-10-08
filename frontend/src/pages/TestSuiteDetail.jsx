@@ -9,6 +9,7 @@ import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { ErrorMessage, PageError, PageLoading } from "../components/StatusMessages";
 
 export default function TestSuiteDetail() {
   const { suiteId } = useParams();
@@ -59,19 +60,11 @@ export default function TestSuiteDetail() {
   }
 
   if (loading) {
-    return (
-      <p className="mx-auto flex max-w-5xl items-center gap-2 p-8 text-sm text-muted-foreground">
-        <Spinner className="h-4 w-4" /> Loading...
-      </p>
-    );
+    return <PageLoading />;
   }
 
   if (error && !suite) {
-    return (
-      <p className="mx-auto max-w-5xl rounded-2xl border border-destructive/20 bg-destructive/10 p-8 text-sm text-destructive">
-        {error}
-      </p>
-    );
+    return <PageError message={error} />;
   }
 
   return (
@@ -135,11 +128,7 @@ export default function TestSuiteDetail() {
         </CardContent>
       </Card>
 
-      {error && (
-        <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorMessage message={error} className="mt-4" />
 
       <h2 className="mt-10 mb-3 text-lg font-semibold text-foreground">Requirements in this Suite</h2>
       {suite.requirements.length === 0 ? (

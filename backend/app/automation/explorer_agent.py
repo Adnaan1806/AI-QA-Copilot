@@ -5,31 +5,20 @@ import threading
 
 from playwright.sync_api import sync_playwright
 
-from app.automation.browser_config import is_headless
+from app import config
 from app.automation.dom_serializer import serialize_page
 from app.llm.client import LLMClient
 
 MAX_TURNS_PER_STEP = 6
 MAX_TOTAL_TURNS = 25
-# Generous enough to absorb CPU/network contention from several concurrent
-# Explorer browsers competing on one machine (see AUTOMATION_CONCURRENCY in
-# orchestration/graph.py) -- 5s was fine for one browser running alone but
-# started causing real navigation timeouts under concurrent load.
+# 5s caused navigation timeouts once several Explorer browsers ran concurrently.
 ACTION_TIMEOUT_MS = 15000
 
-# uvicorn forces WindowsSelectorEventLoopPolicy on Windows (needed for its own
-# sockets), but that policy's event loop can't spawn subprocesses -- and
-# Playwright's sync API spawns its driver as one via asyncio.new_event_loop().
-# Called from a FastAPI request thread that inherits uvicorn's policy, this
-# blows up with "NotImplementedError" the moment the browser tries to launch.
-#
-# The policy only needs to be Proactor at the instant sync_playwright() creates
-# its event loop -- once created, that loop instance keeps working for the
-# rest of its life regardless of later policy changes, and uvicorn's own
-# already-running loop is unaffected by this process-wide setting too. So this
-# is set once, lazily, and never restored -- NOT wrapped around the whole
-# explore() call, which would otherwise serialize every concurrent automation
-# run through Explorer and defeat the point of running them in parallel.
+# uvicorn forces WindowsSelectorEventLoopPolicy, whose loops can't spawn
+# subprocesses -- so Playwright's driver launch fails with NotImplementedError.
+# Proactor only needs to be active when sync_playwright() creates its loop, so
+# this is set once and never restored; wrapping each explore() call in a
+# lock instead would serialize the concurrent automation runs.
 _policy_lock = threading.Lock()
 _policy_set = False
 
@@ -82,7 +71,7 @@ class ExplorerAgent:
 
     def _explore(self, test_case: dict, base_url: str) -> dict:
         with sync_playwright() as p:
-            browser = p.chromium.launch(headless=is_headless())
+            browser = p.chromium.launch(headless=config.PLAYWRIGHT_HEADLESS)
             try:
                 context = browser.new_context(base_url=base_url)
                 page = context.new_page()

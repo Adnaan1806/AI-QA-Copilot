@@ -9,6 +9,7 @@ import { useSetBreadcrumbs } from "../context/BreadcrumbContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Card } from "../components/ui/card";
+import { PageError, PageLoading } from "../components/StatusMessages";
 
 function EditableName({ name, onSave }) {
   const [editing, setEditing] = useState(false);
@@ -144,19 +145,11 @@ export default function RequirementDetail() {
   }, [id]);
 
   if (loading) {
-    return (
-      <p className="mx-auto flex max-w-5xl items-center gap-2 p-8 text-sm text-muted-foreground">
-        <Spinner className="h-4 w-4" /> Loading...
-      </p>
-    );
+    return <PageLoading />;
   }
 
   if (error && !requirement) {
-    return (
-      <p className="mx-auto max-w-5xl rounded-2xl border border-destructive/20 bg-destructive/10 p-8 text-sm text-destructive">
-        {error}
-      </p>
-    );
+    return <PageError message={error} />;
   }
 
   const totalCount = requirement.test_cases.length;

@@ -8,6 +8,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent } from "../components/ui/card";
 import Spinner from "../motion/Spinner";
+import { ErrorMessage } from "../components/StatusMessages";
 
 export default function Register() {
   const { register } = useAuth();
@@ -107,11 +108,7 @@ export default function Register() {
               {loading ? "Creating account..." : "Create account"}
             </Button>
 
-            {error && (
-              <p className="rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </p>
-            )}
+            <ErrorMessage message={error} />
 
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}

@@ -1,4 +1,3 @@
-import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -6,7 +5,9 @@ from typing import Optional
 import bcrypt
 import jwt
 
-SECRET_KEY = os.environ["SECRET_KEY"]
+from app import config
+
+SECRET_KEY = config.SECRET_KEY
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 7
 

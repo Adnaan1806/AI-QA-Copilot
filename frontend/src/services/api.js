@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 const TOKEN_KEY = "qa_copilot_token";
 
 export function getToken() {
@@ -13,12 +13,18 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-function authHeaders(extra = {}) {
+async function send(path, { method = "GET", json, body } = {}) {
+  const headers = {};
   const token = getToken();
-  return token ? { ...extra, Authorization: `Bearer ${token}` } : extra;
-}
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (json !== undefined) headers["Content-Type"] = "application/json";
 
-async function handleResponse(response) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers,
+    body: json !== undefined ? JSON.stringify(json) : body,
+  });
+
   if (response.status === 401) {
     clearToken();
     if (window.location.pathname !== "/login") {
@@ -30,243 +36,143 @@ async function handleResponse(response) {
     const error = await response.json().catch(() => ({}));
     throw new Error(error.detail || `Request failed with status ${response.status}`);
   }
-  return response.json();
+  return response;
+}
+
+async function request(path, options) {
+  const response = await send(path, options);
+  return response.status === 204 ? null : response.json();
+}
+
+async function download(path, filename) {
+  const blob = await (await send(path)).blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 // Auth
 
 export async function register({ email, password, name }) {
-  const response = await fetch(`${API_BASE_URL}/auth/register`, {
+  const data = await request("/auth/register", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password, name }),
+    json: { email, password, name },
   });
-  const data = await handleResponse(response);
   setToken(data.access_token);
   return data;
 }
 
 export async function login({ email, password }) {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-  const data = await handleResponse(response);
+  const data = await request("/auth/login", { method: "POST", json: { email, password } });
   setToken(data.access_token);
   return data;
 }
 
-export async function getCurrentUser() {
-  const response = await fetch(`${API_BASE_URL}/auth/me`, { headers: authHeaders() });
-  return handleResponse(response);
+export function getCurrentUser() {
+  return request("/auth/me");
 }
 
 // Projects
 
-export async function listProjects() {
-  const response = await fetch(`${API_BASE_URL}/projects`, { headers: authHeaders() });
-  return handleResponse(response);
+export function listProjects() {
+  return request("/projects");
 }
 
-export async function createProject({ name, description, base_url }) {
-  const response = await fetch(`${API_BASE_URL}/projects`, {
-    method: "POST",
-    headers: authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ name, description, base_url }),
-  });
-  return handleResponse(response);
+export function createProject({ name, description, base_url }) {
+  return request("/projects", { method: "POST", json: { name, description, base_url } });
 }
 
-export async function getProject(projectId) {
-  const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
-    headers: authHeaders(),
-  });
-  return handleResponse(response);
+export function getProject(projectId) {
+  return request(`/projects/${projectId}`);
 }
 
-export async function updateProject(projectId, patch) {
-  const response = await fetch(`${API_BASE_URL}/projects/${projectId}`, {
-    method: "PATCH",
-    headers: authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(patch),
-  });
-  return handleResponse(response);
+export function updateProject(projectId, patch) {
+  return request(`/projects/${projectId}`, { method: "PATCH", json: patch });
 }
 
 // Test suites
 
-export async function listTestSuites(projectId) {
-  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/test-suites`, {
-    headers: authHeaders(),
-  });
-  return handleResponse(response);
+export function listTestSuites(projectId) {
+  return request(`/projects/${projectId}/test-suites`);
 }
 
-export async function createTestSuite(projectId, { name, description }) {
-  const response = await fetch(`${API_BASE_URL}/projects/${projectId}/test-suites`, {
+export function createTestSuite(projectId, { name, description }) {
+  return request(`/projects/${projectId}/test-suites`, {
     method: "POST",
-    headers: authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ name, description }),
+    json: { name, description },
   });
-  return handleResponse(response);
 }
 
-export async function getTestSuite(suiteId) {
-  const response = await fetch(`${API_BASE_URL}/test-suites/${suiteId}`, {
-    headers: authHeaders(),
-  });
-  return handleResponse(response);
+export function getTestSuite(suiteId) {
+  return request(`/test-suites/${suiteId}`);
 }
 
 // Requirements
 
-export async function createRequirement(suiteId, { text, file }) {
+export function createRequirement(suiteId, { text, file }) {
   const formData = new FormData();
   if (file) {
     formData.append("file", file);
   } else {
     formData.append("text", text);
   }
-
-  const response = await fetch(`${API_BASE_URL}/test-suites/${suiteId}/requirements`, {
-    method: "POST",
-    headers: authHeaders(),
-    body: formData,
-  });
-  return handleResponse(response);
+  return request(`/test-suites/${suiteId}/requirements`, { method: "POST", body: formData });
 }
 
-export async function listRequirements() {
-  const response = await fetch(`${API_BASE_URL}/requirements`, { headers: authHeaders() });
-  return handleResponse(response);
+export function listRequirements() {
+  return request("/requirements");
 }
 
-export async function getRequirement(requirementId) {
-  const response = await fetch(`${API_BASE_URL}/requirements/${requirementId}`, {
-    headers: authHeaders(),
-  });
-  return handleResponse(response);
+export function getRequirement(requirementId) {
+  return request(`/requirements/${requirementId}`);
 }
 
-export async function updateRequirementName(requirementId, name) {
-  const response = await fetch(`${API_BASE_URL}/requirements/${requirementId}`, {
-    method: "PATCH",
-    headers: authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify({ name }),
-  });
-  return handleResponse(response);
+export function updateRequirementName(requirementId, name) {
+  return request(`/requirements/${requirementId}`, { method: "PATCH", json: { name } });
 }
 
-export async function generateAutomationAndReport(requirementId) {
-  const response = await fetch(`${API_BASE_URL}/requirements/${requirementId}/automation`, {
-    method: "POST",
-    headers: authHeaders(),
-  });
-  return handleResponse(response);
+export function generateAutomationAndReport(requirementId) {
+  return request(`/requirements/${requirementId}/automation`, { method: "POST" });
 }
 
-export async function rerunTestCaseAutomation(testCaseId) {
-  const response = await fetch(`${API_BASE_URL}/test-cases/${testCaseId}/automation`, {
-    method: "POST",
-    headers: authHeaders(),
-  });
-  return handleResponse(response);
+export function getAutomationProgress(requirementId) {
+  return request(`/requirements/${requirementId}/automation/progress`);
 }
 
-export async function getAutomationProgress(requirementId) {
-  const response = await fetch(
-    `${API_BASE_URL}/requirements/${requirementId}/automation/progress`,
-    { headers: authHeaders() },
+export function exportTestCases(requirementId) {
+  return download(
+    `/requirements/${requirementId}/test-cases/export`,
+    `test-cases-${requirementId}.xlsx`,
   );
-  return handleResponse(response);
 }
 
-export async function exportTestCases(requirementId) {
-  const response = await fetch(
-    `${API_BASE_URL}/requirements/${requirementId}/test-cases/export`,
-    { headers: authHeaders() },
-  );
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Request failed with status ${response.status}`);
-  }
-
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `test-cases-${requirementId}.xlsx`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-export async function downloadTestCaseTrace(testCaseId) {
-  const response = await fetch(`${API_BASE_URL}/test-cases/${testCaseId}/trace`, {
-    headers: authHeaders(),
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Request failed with status ${response.status}`);
-  }
-
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `trace-${testCaseId}.zip`;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-export async function approveAllTestCases(requirementId) {
-  const response = await fetch(
-    `${API_BASE_URL}/requirements/${requirementId}/test-cases/approve-all`,
-    { method: "POST", headers: authHeaders() },
-  );
-  return handleResponse(response);
+export function approveAllTestCases(requirementId) {
+  return request(`/requirements/${requirementId}/test-cases/approve-all`, { method: "POST" });
 }
 
 // Test cases
 
-export async function createTestCase(requirementId, testCase) {
-  const response = await fetch(`${API_BASE_URL}/requirements/${requirementId}/test-cases`, {
-    method: "POST",
-    headers: authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(testCase),
-  });
-  return handleResponse(response);
+export function createTestCase(requirementId, testCase) {
+  return request(`/requirements/${requirementId}/test-cases`, { method: "POST", json: testCase });
 }
 
-export async function updateTestCase(testCaseId, patch) {
-  const response = await fetch(`${API_BASE_URL}/test-cases/${testCaseId}`, {
-    method: "PATCH",
-    headers: authHeaders({ "Content-Type": "application/json" }),
-    body: JSON.stringify(patch),
-  });
-  return handleResponse(response);
+export function updateTestCase(testCaseId, patch) {
+  return request(`/test-cases/${testCaseId}`, { method: "PATCH", json: patch });
 }
 
 export async function deleteTestCase(testCaseId) {
-  const response = await fetch(`${API_BASE_URL}/test-cases/${testCaseId}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  if (response.status === 401) {
-    clearToken();
-    if (window.location.pathname !== "/login") {
-      window.location.href = "/login";
-    }
-    throw new Error("Session expired, please log in again.");
-  }
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `Request failed with status ${response.status}`);
-  }
+  await request(`/test-cases/${testCaseId}`, { method: "DELETE" });
+}
+
+export function rerunTestCaseAutomation(testCaseId) {
+  return request(`/test-cases/${testCaseId}/automation`, { method: "POST" });
+}
+
+export function downloadTestCaseTrace(testCaseId) {
+  return download(`/test-cases/${testCaseId}/trace`, `trace-${testCaseId}.zip`);
 }

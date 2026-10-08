@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_owned_project
 from app.auth.dependencies import get_current_user
 from app.database.connection import get_db
 from app.database.models import Project, User
@@ -20,17 +21,6 @@ def _to_response(project: Project) -> ProjectResponse:
         created_at=project.created_at,
         test_suite_count=len(project.test_suites),
     )
-
-
-def _get_owned_project(project_id: uuid.UUID, current_user: User, db: Session) -> Project:
-    project = (
-        db.query(Project)
-        .filter(Project.id == project_id, Project.user_id == current_user.id)
-        .first()
-    )
-    if project is None:
-        raise HTTPException(404, "Project not found")
-    return project
 
 
 @router.get("", response_model=list[ProjectResponse])
@@ -69,7 +59,7 @@ def get_project(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_owned_project(project_id, current_user, db)
+    project = get_owned_project(project_id, current_user, db)
     return _to_response(project)
 
 
@@ -80,7 +70,7 @@ def update_project(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_owned_project(project_id, current_user, db)
+    project = get_owned_project(project_id, current_user, db)
     if payload.name is not None:
         name = payload.name.strip()
         if not name:

@@ -12,6 +12,7 @@ import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import { Card, CardContent } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { ErrorMessage, LoadingMessage } from "../components/StatusMessages";
 
 export default function Dashboard() {
   const [projects, setProjects] = useState([]);
@@ -113,17 +114,11 @@ export default function Dashboard() {
         </Card>
       </Reveal>
 
-      {error && (
-        <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorMessage message={error} className="mt-4" />
 
       <div ref={listRef} className="mt-6 space-y-2">
         {loading ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Spinner className="h-4 w-4" /> Loading...
-          </p>
+          <LoadingMessage />
         ) : projects.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border p-8 text-center">
             <p className="text-sm text-muted-foreground">

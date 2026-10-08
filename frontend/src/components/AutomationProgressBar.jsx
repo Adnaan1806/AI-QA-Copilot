@@ -64,11 +64,8 @@ function ProgressRow({ item }) {
   );
 }
 
-// Mounted only while a generation run is active (parent gates it with
-// <Reveal>). Polls the backend's real per-test-case progress (not a
-// heuristic guess) so this never lies about being "almost done" when it
-// isn't. Test cases automate concurrently on the backend, so this shows one
-// row per test case in flight rather than a single "current" line.
+// Polls the backend's per-test-case progress while a run is active. Test cases
+// automate concurrently, so this shows one row per test case in flight.
 export default function AutomationProgressBar({ requirementId }) {
   const [elapsed, setElapsed] = useState(0);
   const [progress, setProgress] = useState(null);
