@@ -14,6 +14,8 @@ import ConfirmDialog from "../ConfirmDialog";
 import Spinner from "../../motion/Spinner";
 import CaseEditor from "./CaseEditor";
 
+const PRIORITY_SHORT = { high: "High", medium: "Med", low: "Low" };
+
 const BLANK_CASE = {
   title: "",
   type: "functional",
@@ -56,7 +58,7 @@ function AnalysisNotes({ requirement }) {
     <section aria-label="Analysis" className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="grid md:grid-cols-2">
         <div className="space-y-2 px-4 py-3">
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
             <h3 className="flex items-center gap-2 text-sm font-semibold">
               <span className="size-2 rounded-full bg-review" aria-hidden />
               Open questions for the product owner
@@ -267,6 +269,7 @@ export default function ReviewPanel({
   const [pendingDelete, setPendingDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const listRef = useRef(null);
+  const detailRef = useRef(null);
 
   const index = Math.max(0, cases.findIndex((c) => c.id === selectedId));
   const selected = cases[index];
@@ -357,6 +360,10 @@ export default function ReviewPanel({
                   onClick={() => {
                     setSelectedId(tc.id);
                     setMode("view");
+                    // Stacked layout: the detail sits below the list, so bring it into view.
+                    if (!window.matchMedia("(min-width: 1024px)").matches) {
+                      requestAnimationFrame(() => detailRef.current?.scrollIntoView({ block: "start", behavior: "smooth" }));
+                    }
                   }}
                   className={cn(
                     "grid cursor-pointer grid-cols-[16px_1fr_auto] gap-3 border-t border-border px-4 py-2.5 text-sm first:border-t-0",
@@ -374,7 +381,7 @@ export default function ReviewPanel({
                     </span>
                   </span>
                   <span className={cn("text-xs", tc.priority === "high" ? "text-fail" : "text-muted-foreground")}>
-                    {PRIORITY_LABEL[tc.priority]?.slice(0, tc.priority === "medium" ? 3 : undefined) ?? tc.priority}
+                    {PRIORITY_SHORT[tc.priority] ?? tc.priority}
                   </span>
                 </li>
               );
@@ -393,7 +400,7 @@ export default function ReviewPanel({
           </button>
         </div>
 
-        <div className="min-w-0 p-5 md:p-6">
+        <div ref={detailRef} className="min-w-0 scroll-mt-16 p-5 md:p-6">
           {mode === "new" ? (
             <CaseEditor
               testCase={BLANK_CASE}

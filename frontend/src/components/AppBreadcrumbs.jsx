@@ -16,22 +16,26 @@ export default function AppBreadcrumbs() {
   if (items.length === 0) return null;
 
   return (
-    <Breadcrumb>
-      <BreadcrumbList>
+    <Breadcrumb className="min-w-0">
+      <BreadcrumbList className="flex-nowrap">
         {items.map((item, i) => {
           const isLast = i === items.length - 1;
+          // On narrow screens keep only the parent and the current page.
+          const narrowHidden = i < items.length - 2 ? "hidden md:inline-flex" : "";
           return (
             <Fragment key={i}>
-              <BreadcrumbItem>
+              <BreadcrumbItem className={`min-w-0 ${narrowHidden}`}>
                 {isLast || !item.to ? (
-                  <BreadcrumbPage>{item.label}</BreadcrumbPage>
+                  <BreadcrumbPage className="truncate">{item.label}</BreadcrumbPage>
                 ) : (
                   <BreadcrumbLink asChild>
-                    <Link to={item.to}>{item.label}</Link>
+                    <Link to={item.to} className="truncate">
+                      {item.label}
+                    </Link>
                   </BreadcrumbLink>
                 )}
               </BreadcrumbItem>
-              {!isLast && <BreadcrumbSeparator />}
+              {!isLast && <BreadcrumbSeparator className={narrowHidden} />}
             </Fragment>
           );
         })}
