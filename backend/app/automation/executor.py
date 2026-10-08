@@ -22,10 +22,23 @@ def _find_trace(output_dir: str) -> Optional[str]:
     return matches[0] if matches else None
 
 
+def _kill_tree(proc: subprocess.Popen) -> None:
+    """Kill pytest and the browser it launched. os.killpg doesn't exist on Windows."""
+    if sys.platform == "win32":
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(proc.pid)], capture_output=True
+        )
+        return
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+
+
 def execute_script(code: str, test_case_id: Optional[str] = None) -> dict:
     with tempfile.TemporaryDirectory() as tmp_dir:
         script_path = os.path.join(tmp_dir, f"test_{uuid.uuid4().hex}.py")
-        with open(script_path, "w") as f:
+        with open(script_path, "w", encoding="utf-8") as f:
             f.write(code)
 
         args = [sys.executable, "-m", "pytest", script_path, "-v", "--tb=short", "-q"]
@@ -45,6 +58,11 @@ def execute_script(code: str, test_case_id: Optional[str] = None) -> dict:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            # Windows defaults to cp1252 on both ends of the pipe; force UTF-8 so
+            # non-ASCII text in assertions or page content can't crash the run.
+            encoding="utf-8",
+            errors="replace",
+            env={**os.environ, "PYTHONUTF8": "1"},
             start_new_session=True,  # own process group, so a timeout can kill Playwright's browser child too
         )
         try:
@@ -52,10 +70,7 @@ def execute_script(code: str, test_case_id: Optional[str] = None) -> dict:
             trace_path = _find_trace(trace_output_dir) if trace_output_dir else None
             return {"passed": proc.returncode == 0, "output": output, "trace_path": trace_path}
         except subprocess.TimeoutExpired:
-            try:
-                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+            _kill_tree(proc)
             proc.communicate()
             return {
                 "passed": False,
