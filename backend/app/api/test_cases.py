@@ -14,11 +14,17 @@ from app.database.connection import get_db
 from app.database.models import User
 from app.orchestration.graph import automate_single_test_case, generate_report
 from app.schemas.requirement import RequirementDetailResponse
-from app.schemas.test_case import TestCaseItem, TestCaseUpdateRequest
+from app.schemas.test_case import (
+    RunTriesItem,
+    TestCaseItem,
+    TestCaseTriesResponse,
+    TestCaseUpdateRequest,
+)
 from app.services.review_service import set_review_status
 from app.services.automation_service import (
     analysis_payload,
     replace_report,
+    runs_with_tries,
     save_automation_script,
     saved_passing_scripts,
     script_statuses,
@@ -142,6 +148,25 @@ def automate_one_test_case(
         db.refresh(requirement)
 
     return to_requirement_detail(requirement)
+
+
+@router.get("/{test_case_id}/tries", response_model=TestCaseTriesResponse)
+def get_test_case_tries(
+    test_case_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Every script run of the latest automation run, with code and output, so a
+    reviewer can see what healing changed. Loaded only when a case is expanded."""
+    test_case = get_owned_test_case(test_case_id, current_user, db)
+    latest, origin = runs_with_tries(test_case)
+
+    def item(run):
+        if run is None or not run.tries:
+            return None
+        return RunTriesItem(status=run.status, created_at=run.created_at, tries=run.tries)
+
+    return TestCaseTriesResponse(latest=item(latest), origin=item(origin))
 
 
 @router.get("/{test_case_id}/trace")

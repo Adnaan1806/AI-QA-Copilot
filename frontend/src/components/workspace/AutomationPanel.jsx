@@ -10,6 +10,7 @@ import AutomationProgressBar from "../AutomationProgressBar";
 import Spinner from "../../motion/Spinner";
 import { EmptyState } from "../StatusMessages";
 import VerdictBanner from "./VerdictBanner";
+import TryHistory from "./TryHistory";
 
 function Tally({ states, counts, flaky }) {
   const notAutomated = counts.draft + counts.approved;
@@ -57,7 +58,7 @@ function RunDots({ runs }) {
   );
 }
 
-function ScriptDetail({ script }) {
+function ScriptDetail({ testCaseId, script }) {
   return (
     <div className="space-y-3">
       {script.status === "needs_review" && script.last_output && (
@@ -82,8 +83,10 @@ function ScriptDetail({ script }) {
           </ol>
         </div>
       )}
+      {/* Refetch whenever a new run lands, so the tries match the result shown. */}
+      <TryHistory testCaseId={testCaseId} version={script.runs[0]?.created_at ?? ""} />
       <div className="space-y-1.5">
-        <h4 className="text-xs text-muted-foreground">Playwright script ({script.framework})</h4>
+        <h4 className="text-xs text-muted-foreground">Current script ({script.framework})</h4>
         <pre className="max-h-96 overflow-auto rounded-md border border-border bg-background p-3 font-mono text-xs leading-relaxed">
           <code>{script.code}</code>
         </pre>
@@ -291,7 +294,7 @@ export default function AutomationPanel({
                   {open && (
                     <tr className="bg-muted/50">
                       <td colSpan={5} className="px-4 pt-1 pb-4">
-                        <ScriptDetail script={script} />
+                        <ScriptDetail testCaseId={tc.id} script={script} />
                       </td>
                     </tr>
                   )}

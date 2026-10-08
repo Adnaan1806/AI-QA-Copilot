@@ -203,6 +203,7 @@ New tables are created automatically, but new columns on existing tables are not
 PYTHONPATH=. python scripts/migrate_automation_v2.py   # project base URL, script status and attempts
 PYTHONPATH=. python scripts/migrate_trace_path.py      # Playwright trace downloads
 PYTHONPATH=. python scripts/migrate_review_audit.py    # reviewer, reject reasons, run history, verdicts
+PYTHONPATH=. python scripts/migrate_run_tries.py       # code and output of every try, for the try history
 ```
 
 </details>

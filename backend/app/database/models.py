@@ -173,6 +173,9 @@ class AutomationRun(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False)
     attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Each script run in order: {kind: replayed|generated|healed, passed, code,
+    # output, reason}. Null on runs recorded before tries were kept.
+    tries: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

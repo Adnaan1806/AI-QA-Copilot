@@ -47,6 +47,27 @@ class AutomationRunItem(BaseModel):
     created_at: datetime
 
 
+class TryItem(BaseModel):
+    kind: str  # replayed | generated | healed
+    passed: bool
+    code: str
+    output: str = ""  # tail of the pytest output, failing tries only
+    reason: str = ""  # healed tries: what the healer fixed
+    stop_reason: str = ""  # set when the healer declined to change this try
+
+
+class RunTriesItem(BaseModel):
+    status: str
+    created_at: datetime
+    tries: list[TryItem]
+
+
+class TestCaseTriesResponse(BaseModel):
+    latest: Optional[RunTriesItem] = None
+    # The run that produced the saved script, when the latest run only replayed it.
+    origin: Optional[RunTriesItem] = None
+
+
 class AutomationScriptItem(BaseModel):
     test_case_id: uuid.UUID
     framework: str

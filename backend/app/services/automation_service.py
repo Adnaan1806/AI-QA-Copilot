@@ -100,8 +100,25 @@ def save_automation_script(db: Session, test_case: TestCase, script: dict[str, A
             status=fields["status"],
             attempts=fields["attempts"],
             output=fields["last_output"],
+            tries=script.get("tries"),
         )
     )
+
+
+def runs_with_tries(test_case: TestCase) -> tuple[Optional[AutomationRun], Optional[AutomationRun]]:
+    """The latest run, and -- when that run only replayed the saved script -- the
+    earlier run that generated and healed it, so its history stays visible."""
+    runs = test_case.automation_runs  # newest first
+    if not runs:
+        return None, None
+    latest = runs[0]
+    if not latest.tries or any(t["kind"] != "replayed" for t in latest.tries):
+        return latest, None
+    origin = next(
+        (r for r in runs[1:] if r.tries and any(t["kind"] != "replayed" for t in r.tries)),
+        None,
+    )
+    return latest, origin
 
 
 def replace_report(db: Session, requirement: Requirement, report_data: dict[str, Any]) -> None:

@@ -173,6 +173,10 @@ export function rerunTestCaseAutomation(testCaseId) {
   return request(`/test-cases/${testCaseId}/automation`, { method: "POST" });
 }
 
+export function getTestCaseTries(testCaseId) {
+  return request(`/test-cases/${testCaseId}/tries`);
+}
+
 export function downloadTestCaseTrace(testCaseId) {
   return download(`/test-cases/${testCaseId}/trace`, `trace-${testCaseId}.zip`);
 }

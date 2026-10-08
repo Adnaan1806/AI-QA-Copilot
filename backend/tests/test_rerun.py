@@ -8,7 +8,11 @@ import pytest
 
 from app.automation import runner
 from app.orchestration import graph
-from app.services.automation_service import saved_passing_scripts, script_statuses
+from app.services.automation_service import (
+    runs_with_tries,
+    saved_passing_scripts,
+    script_statuses,
+)
 
 CASE = {"id": "tc-1", "title": "Get started opens Installation", "steps": ["Click Get started"]}
 
@@ -89,6 +93,13 @@ def test_fallback_still_heals(monkeypatch):
     assert codegen.healed == 1
     assert result["status"] == "passed"
     assert result["attempts"] == 3
+    assert [(t["kind"], t["passed"], t["code"]) for t in result["tries"]] == [
+        ("replayed", False, "saved"),
+        ("generated", False, "generated"),
+        ("healed", True, "healed-1"),
+    ]
+    assert result["tries"][0]["output"] == "boom"
+    assert result["tries"][2]["output"] == ""  # passing tries keep no output
 
 
 def test_without_saved_script_runs_full_pipeline(monkeypatch):
@@ -122,6 +133,35 @@ def test_unfixable_failure_stops_healing(monkeypatch):
     assert result["attempts"] == 1
     assert result["last_output"].startswith("Healing stopped: page shows no message")
     assert "boom" in result["last_output"]
+    assert result["tries"][-1]["stop_reason"] == "page shows no message"
+
+
+def replay(passed=True):
+    return {"kind": "replayed", "passed": passed}
+
+
+def run_row(tries):
+    return SimpleNamespace(tries=tries)
+
+
+def test_replay_run_points_back_to_the_run_that_made_the_script():
+    made = run_row([{"kind": "generated"}, {"kind": "healed"}])
+    runs = [run_row([replay()]), run_row([replay()]), made, run_row(None)]
+    latest, origin = runs_with_tries(SimpleNamespace(automation_runs=runs))
+    assert latest is runs[0]
+    assert origin is made
+
+
+def test_run_that_generated_needs_no_origin():
+    runs = [run_row([replay(False), {"kind": "generated"}]), run_row([{"kind": "generated"}])]
+    latest, origin = runs_with_tries(SimpleNamespace(automation_runs=runs))
+    assert latest is runs[0] and origin is None
+
+
+def test_runs_from_before_tries_were_kept():
+    assert runs_with_tries(SimpleNamespace(automation_runs=[])) == (None, None)
+    runs = [run_row([replay()]), run_row(None)]
+    assert runs_with_tries(SimpleNamespace(automation_runs=runs)) == (runs[0], None)
 
 
 def case_row(id, status=None, code="code"):
