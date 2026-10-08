@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { listRequirements } from "../services/api";
 import Accordion, { ChevronIcon } from "../motion/Accordion";
-import Spinner from "../motion/Spinner";
 import { useListStagger } from "../motion/useListStagger";
 import { useSetBreadcrumbs } from "../context/BreadcrumbContext";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { ErrorMessage, LoadingMessage } from "../components/StatusMessages";
 
 function groupByProject(requirements) {
   const groups = [];
@@ -49,16 +49,10 @@ export default function History() {
         All requirements analyzed so far, grouped by project.
       </p>
 
-      {error && (
-        <p className="mb-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorMessage message={error} className="mb-4" />
 
       {loading ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner className="h-4 w-4" /> Loading...
-        </p>
+        <LoadingMessage />
       ) : groups.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border p-8 text-center">
           <p className="text-sm italic text-muted-foreground">No requirements yet.</p>

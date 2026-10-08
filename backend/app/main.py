@@ -1,10 +1,7 @@
-from dotenv import load_dotenv
-
-load_dotenv()
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app import config
 from app.api.auth import router as auth_router
 from app.api.knowledge import router as knowledge_router
 from app.api.projects import router as projects_router
@@ -20,7 +17,7 @@ app = FastAPI(title="AI QA Copilot")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=config.CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )

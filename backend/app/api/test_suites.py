@@ -1,11 +1,12 @@
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_owned_project, get_owned_suite
 from app.auth.dependencies import get_current_user
 from app.database.connection import get_db
-from app.database.models import Project, TestSuite, User
+from app.database.models import TestSuite, User
 from app.schemas.test_suite import (
     RequirementSummary,
     TestSuiteCreateRequest,
@@ -14,29 +15,6 @@ from app.schemas.test_suite import (
 )
 
 router = APIRouter(tags=["test-suites"])
-
-
-def _get_owned_project(project_id: uuid.UUID, current_user: User, db: Session) -> Project:
-    project = (
-        db.query(Project)
-        .filter(Project.id == project_id, Project.user_id == current_user.id)
-        .first()
-    )
-    if project is None:
-        raise HTTPException(404, "Project not found")
-    return project
-
-
-def _get_owned_suite(suite_id: uuid.UUID, current_user: User, db: Session) -> TestSuite:
-    suite = (
-        db.query(TestSuite)
-        .join(Project, TestSuite.project_id == Project.id)
-        .filter(TestSuite.id == suite_id, Project.user_id == current_user.id)
-        .first()
-    )
-    if suite is None:
-        raise HTTPException(404, "Test suite not found")
-    return suite
 
 
 def _to_response(suite: TestSuite) -> TestSuiteResponse:
@@ -56,7 +34,7 @@ def list_test_suites(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_owned_project(project_id, current_user, db)
+    project = get_owned_project(project_id, current_user, db)
     suites = (
         db.query(TestSuite)
         .filter(TestSuite.project_id == project.id)
@@ -73,7 +51,7 @@ def create_test_suite(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    project = _get_owned_project(project_id, current_user, db)
+    project = get_owned_project(project_id, current_user, db)
     suite = TestSuite(
         project_id=project.id, name=payload.name, description=payload.description or ""
     )
@@ -88,7 +66,7 @@ def get_test_suite(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    suite = _get_owned_suite(suite_id, current_user, db)
+    suite = get_owned_suite(suite_id, current_user, db)
     requirements = [
         RequirementSummary(
             id=r.id,

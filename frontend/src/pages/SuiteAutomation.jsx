@@ -8,6 +8,7 @@ import { useSetBreadcrumbs } from "../context/BreadcrumbContext";
 import AutomationProgressBar from "../components/AutomationProgressBar";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
+import { ErrorMessage, PageError, PageLoading } from "../components/StatusMessages";
 
 function RequirementRow({ r, generating, onGenerate }) {
   return (
@@ -94,19 +95,11 @@ export default function SuiteAutomation() {
   }
 
   if (loading) {
-    return (
-      <p className="mx-auto flex max-w-5xl items-center gap-2 p-8 text-sm text-muted-foreground">
-        <Spinner className="h-4 w-4" /> Loading...
-      </p>
-    );
+    return <PageLoading />;
   }
 
   if (error && !suite) {
-    return (
-      <p className="mx-auto max-w-5xl rounded-2xl border border-destructive/20 bg-destructive/10 p-8 text-sm text-destructive">
-        {error}
-      </p>
-    );
+    return <PageError message={error} />;
   }
 
   const eligible = suite.requirements.filter(
@@ -121,11 +114,7 @@ export default function SuiteAutomation() {
         test cases
       </p>
 
-      {error && (
-        <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorMessage message={error} className="mt-4" />
 
       <div ref={listRef} className="mt-8 space-y-2">
         {eligible.length === 0 ? (

@@ -8,11 +8,10 @@ import tempfile
 import uuid
 from typing import Optional
 
-from app.automation.browser_config import is_headless
+from app import config
 
 EXECUTION_TIMEOUT_SECONDS = 60
 
-# backend/app/automation/executor.py -> backend/traces
 TRACES_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "traces"
 )
@@ -30,7 +29,7 @@ def execute_script(code: str, test_case_id: Optional[str] = None) -> dict:
             f.write(code)
 
         args = [sys.executable, "-m", "pytest", script_path, "-v", "--tb=short", "-q"]
-        if not is_headless():
+        if not config.PLAYWRIGHT_HEADLESS:
             args.append("--headed")
 
         trace_output_dir = None

@@ -19,6 +19,7 @@ import AutomationSummary from "../components/AutomationSummary";
 import { Button } from "../components/ui/button";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { ErrorMessage, PageError, PageLoading } from "../components/StatusMessages";
 
 const SCRIPT_STATUS_STYLES = {
   passed: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
@@ -111,19 +112,11 @@ export default function RequirementAutomation() {
   }
 
   if (loading) {
-    return (
-      <p className="mx-auto flex max-w-5xl items-center gap-2 p-8 text-sm text-muted-foreground">
-        <Spinner className="h-4 w-4" /> Loading...
-      </p>
-    );
+    return <PageLoading />;
   }
 
   if (error && !requirement) {
-    return (
-      <p className="mx-auto max-w-5xl rounded-2xl border border-destructive/20 bg-destructive/10 p-8 text-sm text-destructive">
-        {error}
-      </p>
-    );
+    return <PageError message={error} />;
   }
 
   const totalCount = requirement.test_cases.length;
@@ -156,11 +149,7 @@ export default function RequirementAutomation() {
         )}
       </div>
 
-      {error && (
-        <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorMessage message={error} className="mt-4" />
 
       <Reveal show={generating} className="mt-6">
         <AutomationProgressBar requirementId={id} />

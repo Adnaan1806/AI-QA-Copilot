@@ -24,11 +24,7 @@ function StatTile({ label, value, tone }) {
   );
 }
 
-// Donut composition of Passed vs. Needs Review, hand-built as inline SVG arcs
-// (only 2 segments -- no need for a charting library). Colors match the same
-// emerald/amber status pair already used by ScriptStatusBadge on this page,
-// with dedicated darker steps for dark mode (validated separately against the
-// dark surface, not an automatic flip of the light-mode hex values).
+// Passed vs. Needs Review donut as inline SVG arcs; colors match ScriptStatusBadge.
 function ResultDonut({ passed, needsReview }) {
   const total = passed + needsReview;
   const passRate = total > 0 ? Math.round((passed / total) * 100) : 0;
@@ -108,8 +104,6 @@ function ResultDonut({ passed, needsReview }) {
   );
 }
 
-// Real, derived counts only -- no fabricated metrics (avg run time, etc. aren't
-// tracked anywhere in the pipeline, so they're not shown here).
 export default function AutomationSummary({ testCases, automationScripts }) {
   const rootRef = useRef(null);
 

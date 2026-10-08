@@ -1,9 +1,9 @@
-import os
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 
+from app import config
 from app.agents.qa_agent import QAAgent
 from app.agents.report_agent import ReportAgent
 from app.agents.requirement_agent import RequirementAgent
@@ -18,11 +18,6 @@ _qa_agent = QAAgent(get_llm_client())
 _explorer_agent = ExplorerAgent(get_llm_client())
 _codegen_agent = CodegenAgent(get_llm_client())
 _report_agent = ReportAgent(get_llm_client())
-
-# Each concurrent slot drives its own real browser (Explorer) and pytest
-# subprocess (execution/healing) -- both meaningfully memory/CPU-heavy, so
-# this is capped rather than left unbounded. Override via env var per machine.
-AUTOMATION_CONCURRENCY = int(os.environ.get("AUTOMATION_CONCURRENCY", "3"))
 
 
 def automate_single_test_case(test_case: dict, base_url: str, requirement_id: str) -> dict:
@@ -110,7 +105,7 @@ def _automation_node(state: AutomationReportState) -> dict:
             test_case_total=total,
         )
 
-    with ThreadPoolExecutor(max_workers=AUTOMATION_CONCURRENCY) as executor:
+    with ThreadPoolExecutor(max_workers=config.AUTOMATION_CONCURRENCY) as executor:
         results = list(executor.map(run_one, range(1, total + 1), test_cases))
     return {"automation_scripts": results}
 

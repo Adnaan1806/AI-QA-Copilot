@@ -14,6 +14,7 @@ import TestCaseTable from "../components/TestCaseTable";
 import Spinner from "../motion/Spinner";
 import { useSetBreadcrumbs } from "../context/BreadcrumbContext";
 import { Button } from "../components/ui/button";
+import { ErrorMessage, PageError, PageLoading } from "../components/StatusMessages";
 
 export default function RequirementTestCases() {
   const { id } = useParams();
@@ -61,7 +62,6 @@ export default function RequirementTestCases() {
     setError(null);
     try {
       await updateTestCase(testCaseId, patch);
-      // Editing content resets just this test case back to draft server-side.
       await load();
     } catch (err) {
       setError(err.message);
@@ -114,19 +114,11 @@ export default function RequirementTestCases() {
   }
 
   if (loading) {
-    return (
-      <p className="mx-auto flex max-w-5xl items-center gap-2 p-8 text-sm text-muted-foreground">
-        <Spinner className="h-4 w-4" /> Loading...
-      </p>
-    );
+    return <PageLoading />;
   }
 
   if (error && !requirement) {
-    return (
-      <p className="mx-auto max-w-5xl rounded-2xl border border-destructive/20 bg-destructive/10 p-8 text-sm text-destructive">
-        {error}
-      </p>
-    );
+    return <PageError message={error} />;
   }
 
   const totalCount = requirement.test_cases.length;
@@ -166,11 +158,7 @@ export default function RequirementTestCases() {
         </div>
       </div>
 
-      {error && (
-        <p className="mt-4 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      <ErrorMessage message={error} className="mt-4" />
 
       <h2 className="mt-8 mb-3 text-lg font-semibold text-foreground">Analysis</h2>
       <AnalysisResult result={analysis} />
