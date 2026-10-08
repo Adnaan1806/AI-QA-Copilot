@@ -12,8 +12,15 @@ Respond with a JSON object matching exactly this shape:
   "summary": "a short paragraph summarizing the testing effort for this requirement",
   "coverage_analysis": ["observations about what is and isn't covered by the approved test cases"],
   "quality_risks": ["remaining quality or business risks given current test coverage"],
-  "release_recommendation": "a short, direct recommendation: ready to release, release with caveats, or not ready, with reasoning"
+  "verdict": "ready" | "ready_with_risks" | "not_ready",
+  "release_recommendation": "a short, direct recommendation with reasoning, consistent with verdict"
 }
+
+Choosing verdict:
+- "not_ready" if any approved test case is not automated, any automation script is "needs_review",
+  or a quality risk would block release.
+- "ready_with_risks" if everything approved passes but quality_risks names gaps worth tracking.
+- "ready" only if every approved test case passes and no material risk remains.
 
 Rules:
 - Ground every statement in the provided data -- do not invent test cases or risks not implied by it.

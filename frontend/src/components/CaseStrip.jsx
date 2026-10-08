@@ -28,7 +28,7 @@ function describe(counts) {
 
 // One segment per test case, coloured by its state. Pass `states` (one per case,
 // in case order) when you have the full requirement, or `counts` from a list API.
-export default function CaseStrip({ states, counts, size = "md", className }) {
+export default function CaseStrip({ states, counts, titles, size = "md", className }) {
   const ordered =
     states ?? CASE_STATES.flatMap((s) => Array.from({ length: counts?.[s] ?? 0 }, () => s));
   const tally = counts ?? countStates(ordered);
@@ -66,6 +66,7 @@ export default function CaseStrip({ states, counts, size = "md", className }) {
       {ordered.map((s, i) => (
         <span
           key={i}
+          title={titles?.[i]}
           className={cn("block transition-colors duration-300", SIZE[size], SEGMENT[s])}
         />
       ))}

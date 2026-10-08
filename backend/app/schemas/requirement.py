@@ -37,6 +37,7 @@ class RequirementListItem(BaseModel):
     test_case_count: int
     case_counts: CaseCounts
     release_recommendation: Optional[str] = None
+    release_verdict: Optional[str] = None
 
 
 class RequirementDetailResponse(BaseModel):

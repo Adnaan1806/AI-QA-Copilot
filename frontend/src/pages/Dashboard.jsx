@@ -25,7 +25,7 @@ function needsAttention(requirements) {
   const score = (r) => {
     if (r.case_counts.draft > 0) return 0;
     if (r.case_counts.needs_review > 0) return 1;
-    if (readVerdict(r.release_recommendation)?.tone === "fail") return 2;
+    if (readVerdict(r.release_recommendation, r.release_verdict)?.tone === "fail") return 2;
     return null;
   };
   return requirements

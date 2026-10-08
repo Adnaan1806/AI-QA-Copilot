@@ -82,6 +82,7 @@ def get_test_suite(
             has_report=r.report is not None,
             case_counts=to_case_counts(r),
             release_recommendation=r.report.release_recommendation if r.report else None,
+            release_verdict=r.report.verdict if r.report else None,
         )
         for r in sorted(suite.requirements, key=lambda r: r.created_at, reverse=True)
     ]

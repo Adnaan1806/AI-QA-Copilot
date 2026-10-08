@@ -19,7 +19,7 @@ import {
 import { plural, readVerdict, readyToAutomate } from "../lib/qa";
 
 function SuiteSummary({ requirements }) {
-  const tones = requirements.map((r) => readVerdict(r.release_recommendation)?.tone);
+  const tones = requirements.map((r) => readVerdict(r.release_recommendation, r.release_verdict)?.tone);
   const notReady = tones.filter((t) => t === "fail").length;
   const ready = tones.filter((t) => t === "pass").length;
   const noReport = tones.filter((t) => !t).length;
@@ -142,7 +142,7 @@ export default function SuiteAutomation() {
                           <CaseStrip counts={counts} size="sm" />
                         </td>
                         <td className="px-4 py-2.5">
-                          <VerdictChip recommendation={r.release_recommendation} />
+                          <VerdictChip recommendation={r.release_recommendation} verdict={r.release_verdict} />
                         </td>
                         <td className="px-4 py-2.5 text-right">
                           {ready ? (

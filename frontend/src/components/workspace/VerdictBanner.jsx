@@ -9,8 +9,8 @@ const TONE_BORDER = {
 };
 
 // The release call, first and in its own colour. The one large type moment in the app.
-export default function VerdictBanner({ recommendation, actions, children, className }) {
-  const verdict = readVerdict(recommendation);
+export default function VerdictBanner({ recommendation, verdict: structured, actions, children, className }) {
+  const verdict = readVerdict(recommendation, structured);
   if (!verdict) return null;
   return (
     <section

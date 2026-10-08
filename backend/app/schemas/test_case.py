@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
@@ -12,6 +13,9 @@ class TestCaseItem(BaseModel):
     expected_result: str
     priority: str
     status: str
+    reviewed_by_name: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    reject_reason: Optional[str] = None
 
 
 class TestCaseCreateRequest(BaseModel):
@@ -34,6 +38,13 @@ class TestCaseUpdateRequest(BaseModel):
     expected_result: Optional[str] = None
     priority: Optional[str] = None
     status: Optional[str] = None
+    reject_reason: Optional[str] = None
+
+
+class AutomationRunItem(BaseModel):
+    status: str
+    attempts: int
+    created_at: datetime
 
 
 class AutomationScriptItem(BaseModel):
@@ -44,3 +55,4 @@ class AutomationScriptItem(BaseModel):
     attempts: int
     last_output: Optional[str] = None
     has_trace: bool = False
+    runs: list[AutomationRunItem] = []  # newest first, capped

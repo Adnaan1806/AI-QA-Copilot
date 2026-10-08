@@ -1,7 +1,10 @@
 from app.database.models import Requirement, TestCase
 from app.schemas.report import ReportResponse
 from app.schemas.requirement import CaseCounts, RequirementDetailResponse
-from app.schemas.test_case import AutomationScriptItem, TestCaseItem
+from app.schemas.test_case import AutomationRunItem, AutomationScriptItem, TestCaseItem
+
+# How many recent runs to send per case -- enough to judge flakiness.
+RUN_HISTORY_LIMIT = 10
 
 
 def active_test_cases(requirement: Requirement) -> list[TestCase]:
@@ -35,6 +38,9 @@ def to_test_case_item(tc: TestCase) -> TestCaseItem:
         expected_result=tc.expected_result,
         priority=tc.priority,
         status=tc.status,
+        reviewed_by_name=tc.reviewed_by.name if tc.reviewed_by else None,
+        reviewed_at=tc.reviewed_at,
+        reject_reason=tc.reject_reason,
     )
 
 
@@ -61,6 +67,10 @@ def to_requirement_detail(requirement: Requirement) -> RequirementDetailResponse
                 attempts=tc.automation_script.attempts,
                 last_output=tc.automation_script.last_output,
                 has_trace=tc.automation_script.trace_path is not None,
+                runs=[
+                    AutomationRunItem(status=run.status, attempts=run.attempts, created_at=run.created_at)
+                    for run in tc.automation_runs[:RUN_HISTORY_LIMIT]
+                ],
             )
             for tc in requirement.test_cases
             if tc.automation_script is not None
@@ -70,6 +80,7 @@ def to_requirement_detail(requirement: Requirement) -> RequirementDetailResponse
             coverage_analysis=report.coverage_analysis,
             quality_risks=report.quality_risks,
             release_recommendation=report.release_recommendation,
+            verdict=report.verdict,
             created_at=report.created_at,
         )
         if report
