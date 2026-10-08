@@ -1,75 +1,190 @@
 <div align="center">
 
-# 🤖 AI QA Copilot
+# AI QA Copilot
 
-**An AI QA engineer for your app.**
-Submit a requirement → get a risk analysis, AI-generated test cases, real browser automation, and a release-readiness report.
+**Paste a requirement. Review what the AI drafts. Ship when the verdict says so.**
 
-[![Python](https://img.shields.io/badge/backend-Python%20%2F%20FastAPI-3776AB?logo=python&logoColor=white)](#backend)
-[![Frontend](https://img.shields.io/badge/frontend-Vite-646CFF?logo=vite&logoColor=white)](#frontend)
-[![Database](https://img.shields.io/badge/database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](#backend)
-[![Automation](https://img.shields.io/badge/automation-Playwright-2EAD33?logo=playwright&logoColor=white)](#-features)
-[![LLM](https://img.shields.io/badge/LLM-Gemini%20%7C%20Claude-8A2BE2)](#-swappable-llm-provider)
-[![Issues](https://img.shields.io/github/issues/Adnaan1806/AI-QA-Copilot)](https://github.com/Adnaan1806/AI-QA-Copilot/issues)
+AI QA Copilot turns a user story into reviewed test cases, real Playwright automation,<br/>and a release call you can take to the go/no-go meeting.
+
+[![Python](https://img.shields.io/badge/backend-Python%20%2F%20FastAPI-3776AB?logo=python&logoColor=white)](#-run-it-locally)
+[![React](https://img.shields.io/badge/frontend-React%2019%20%2B%20Vite-61DAFB?logo=react&logoColor=black)](#-run-it-locally)
+[![Database](https://img.shields.io/badge/database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)](#-run-it-locally)
+[![Automation](https://img.shields.io/badge/automation-Playwright-2EAD33?logo=playwright&logoColor=white)](#3-automate-what-you-approved)
+[![LLM](https://img.shields.io/badge/LLM-Gemini%20%7C%20Claude-8A2BE2)](#-pick-your-model)
 [![Last commit](https://img.shields.io/github/last-commit/Adnaan1806/AI-QA-Copilot)](https://github.com/Adnaan1806/AI-QA-Copilot/commits/main)
 
-[Features](#-features) · [How it works](#-how-it-works) · [Quick start](#-quick-start) · [Docs](#-docs)
+[The workflow](#-from-requirement-to-release-call) · [Features](#-everything-it-does) · [Under the hood](#-under-the-hood) · [Run it locally](#-run-it-locally)
+
+<br/>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/review-dark.png">
+  <img alt="Reviewing AI-drafted test cases: the case list on the left, the selected case with numbered steps and Approve / Reject buttons on the right" src="docs/screenshots/review-light.png">
+</picture>
+
+<sub>Screenshots follow your GitHub theme. Switch between light and dark to see the other one.</sub>
 
 </div>
 
 ---
 
-## ✨ What is this?
+## 🟩🟩🟩⬜⬜ Read a requirement in one glance
 
-Writing test cases, wiring up automation, and deciding whether a release is safe to ship all take real QA time. **AI QA Copilot** takes a requirement (plain text or a PDF) and carries it all the way to a release decision — with a human approval checkpoint in the middle, so nothing gets automated without your sign-off.
+Every requirement carries a **case strip**: one square per test case, coloured by where that case stands. It's on every list, header and report, so you can see what's covered (and what isn't) before reading a single number.
 
-## 🚀 How it works
+| Square | Means |
+|:---:|---|
+| ⬜ | **Draft.** Written by the AI, nobody has reviewed it yet |
+| ⬛ | **Approved.** Signed off by a person, waiting for automation |
+| 🟩 | **Passed.** Its Playwright script ran green |
+| 🟧 | **Needs review.** The script still fails after three self-healing attempts |
+| ✖️ | **Rejected.** Kept on record with a reason, never run |
 
-```mermaid
-flowchart LR
-    A["📝 Requirement<br/>(text or PDF)"] --> B["🔍 Analysis<br/>risks · gaps · considerations"]
-    B --> C["🧪 AI Test Case Generation<br/>RAG-grounded on your QA knowledge base"]
-    C --> D["✅ Human Review<br/>edit · approve · add · delete"]
-    D --> E["🌐 Browser Automation<br/>real headless/headed run → pytest-playwright"]
-    E -->|"fails? self-heal ×3"| E
-    E --> F["📊 Release-Readiness Report<br/>coverage · risks · go/no-go"]
-```
+The strip never hides the gaps. A requirement with three passing cases and two unreviewed ones reads as `🟩🟩🟩⬜⬜`, not "100% passed".
 
-Every approved test case gets its own real browser session to *ground* working locators before a script is written — so the generated `pytest-playwright` code reflects the app as it actually behaves, not a guess. Test cases run concurrently, and a failing script gets up to three self-healing attempts using its own pytest failure output.
+## 🧭 From requirement to release call
 
-## 🧩 Features
+### 1. Write it down
+
+Paste a user story or acceptance criteria into a suite, or upload a PDF. The copilot reads it, pulls related context from your QA knowledge base, and drafts test cases: functional, negative, edge case and security. It also lists **open questions for the product owner** and **risks**, and one click copies the questions as a ready-to-send message.
+
+### 2. Review the drafts
+
+Nothing gets automated without a person signing it off. Work down the list with the keyboard: approve with <kbd>A</kbd>, reject with <kbd>R</kbd>, and the next draft opens automatically.
+
+Rejecting asks why, so you keep a record of where the drafts go wrong:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/reject-dark.png">
+  <img alt="Reject form with reason chips: Duplicate, Out of scope, Wrong expected result, Not testable, Other, and an optional note" src="docs/screenshots/reject-light.png" width="620">
+</picture>
+
+Every approval and rejection records **who** made it and **when**. Editing an approved case warns you first, because the change sends it back to draft.
+
+### 3. Automate what you approved
+
+Once every case is approved or rejected, generate automation. For each approved case the copilot:
+
+1. drives a **real browser** through the steps to find locators that actually work,
+2. writes a `pytest-playwright` script from what it saw,
+3. runs it, and if it fails, **heals it** using the real failure output, up to three times.
+
+Cases run concurrently, and you can watch each one's progress live. Every run is kept, so a case that passes one day and fails the next gets flagged **Flaky**.
+
+### 4. Make the call
+
+The release verdict comes first, in its own colour. Below it is every case: the ones that passed, the ones that need review (with *why* they failed shown above the script), and the ones that never got automated.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/verdict-dark.png">
+  <img alt="Automation tab: a red 'Not ready to release' verdict, a tally of passed, needs review and not automated cases, and a results table with run history and a Flaky flag" src="docs/screenshots/verdict-light.png">
+</picture>
+
+The report agent returns a structured verdict (**Ready**, **Ready with risks** or **Not ready**) with a summary, coverage analysis and quality risks, grounded in exact case counts.
+
+## 🗂️ Stay on top of everything
+
+The sidebar keeps a **Cases to review** queue with a live count, plus **Failing scripts** when any exist. The home page opens with what **needs attention** across every project:
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/projects-dark.png">
+  <img alt="Projects page with a Needs attention table showing each requirement's case strip, stage and verdict" src="docs/screenshots/projects-light.png">
+</picture>
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**All requirements**, filterable by stage: in review, ready to automate, failing scripts, or not ready to release.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/all-requirements-dark.png">
+  <img alt="All requirements table filtered to In review" src="docs/screenshots/all-requirements-light.png">
+</picture>
+
+</td>
+<td width="50%" valign="top">
+
+**Suite release readiness**: one line answering "can this suite ship?", with the next step for every requirement.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/suite-overview-dark.png">
+  <img alt="Suite automation overview: Suite not ready to release, with each requirement's verdict and next step" src="docs/screenshots/suite-overview-light.png">
+</picture>
+
+</td>
+</tr>
+</table>
+
+### ⌨️ Review at keyboard speed
+
+| Key | Does |
+|:---:|---|
+| <kbd>J</kbd> / <kbd>K</kbd> | Next / previous case |
+| <kbd>A</kbd> | Approve, then open the next draft |
+| <kbd>R</kbd> | Reject (then <kbd>1</kbd>–<kbd>5</kbd> to pick a reason, <kbd>Enter</kbd> to confirm) |
+| <kbd>E</kbd> | Edit the case |
+| <kbd>Esc</kbd> | Cancel an edit or rejection |
+
+## ✨ Everything it does
 
 | | |
 |---|---|
-| 🔍 **Requirement analysis** | Submit a requirement (text or PDF) and get back structured requirements, risks, missing information, and testing considerations. |
-| 🧪 **AI-generated test cases** | Functional, negative, edge-case, and security cases — grounded via RAG against a QA knowledge base you upload (past test cases, bug reports, business rules). |
-| ✅ **Human review** | Edit, approve, add, or delete test cases before anything gets automated. Nothing runs without your go-ahead. |
-| 🌐 **Real browser automation** | Each approved test case drives a real browser step by step to ground actual working locators, then turns them into a `pytest-playwright` script. Concurrent, not sequential. |
-| 🔁 **Self-healing scripts** | Failing scripts repair themselves using real pytest failure output, up to 3 attempts. |
-| 🎯 **Targeted reruns** | Rerun automation for a single test case (e.g. one flagged "needs review") without regenerating everything else. |
-| 📊 **Release-readiness report** | A summary, coverage analysis, quality risks, and a release recommendation — grounded in exact test/automation counts, not vibes. |
-| 🔄 **Swappable LLM provider** | Gemini by default (pay-per-token API key), or Claude via a locally logged-in `claude` CLI, riding your Claude Code subscription instead of a separate API key. Toggle with `LLM_PROVIDER` in `.env`. |
+| 🔍 **Requirement analysis** | Structured requirements, risks, missing information and testing notes from plain text or a PDF. |
+| 🧪 **Grounded test cases** | Functional, negative, edge-case and security cases, grounded via RAG on a QA knowledge base (past test cases, bug reports, business rules) that you upload through `POST /knowledge/upload`. |
+| ✅ **Human sign-off** | Approve, reject with a reason, edit, add or delete. Each decision records who made it and when. Excel export of the approved set. |
+| 🌐 **Real browser automation** | Each case drives a real browser to ground its locators before a `pytest-playwright` script is written. Concurrent, with live progress. |
+| 🔁 **Self-healing scripts** | Failing scripts repair themselves from real pytest output, up to three attempts. Re-run a single case without regenerating the rest. Download its Playwright trace. |
+| 📈 **Run history** | Every run is kept. Cases whose recent runs both passed and failed are flagged **Flaky**. |
+| 📊 **Release verdict** | Ready, ready with risks, or not ready, with summary, coverage and quality risks. Rolled up per suite. |
+| 🌗 **Light and dark** | Full dark mode, and the layout works down to phone width. |
+| 🔄 **Swappable LLM** | Gemini by API key, or Claude through your logged-in `claude` CLI. |
 
-## 🛠️ Quick start
+## 🔧 Under the hood
 
-### Backend
+```mermaid
+flowchart LR
+    A["Requirement<br/>text or PDF"] --> B["Analysis<br/>risks, open questions"]
+    B --> C["Drafted test cases<br/>RAG on your QA knowledge base"]
+    C --> D{"Human review"}
+    D -->|reject + reason| R["Kept on record"]
+    D -->|approve| E["Browser exploration<br/>real locators"]
+    E --> F["pytest-playwright script"]
+    F --> G{"Run"}
+    G -->|fail, up to 3x| H["Self-heal from<br/>pytest output"] --> G
+    G -->|every run| I["Run history"]
+    I --> J["Release report<br/>structured verdict"]
+```
+
+| Layer | Stack |
+|---|---|
+| Frontend | React 19, Vite, Tailwind CSS v4, shadcn/ui, IBM Plex |
+| Backend | FastAPI, SQLAlchemy, PostgreSQL |
+| AI | Gemini or Claude, LangGraph orchestration, Chroma for RAG |
+| Automation | Playwright (exploration and execution), pytest-playwright |
+
+## 🛠️ Run it locally
+
+You'll need Python 3.12+, Node 20+, and a running PostgreSQL instance.
+
+**Backend**
 
 ```bash
 cd backend
 python3 -m venv .venv
-source .venv/bin/activate
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env   # fill in GEMINI_API_KEY and DATABASE_URL (or set LLM_PROVIDER=claude)
+playwright install chromium
+cp .env.example .env             # fill in DATABASE_URL and GEMINI_API_KEY (or set LLM_PROVIDER=claude)
 uvicorn app.main:app --reload
 ```
 
-Requires a running PostgreSQL instance matching `DATABASE_URL` in `.env`. Tables are created automatically on startup.
+Tables are created on first start. API docs live at **http://localhost:8000/docs**.
 
-> ⚠️ `.env` is only read once, at process start. After changing it, restart the backend — `--reload` watches `.py` files, not `.env`.
+> [!NOTE]
+> `.env` is read once at startup. After changing it, restart the backend: `--reload` watches `.py` files, not `.env`.
 
-API docs live at **http://localhost:8000/docs**
-
-### Frontend
+**Frontend**
 
 ```bash
 cd frontend
@@ -77,22 +192,41 @@ npm install
 npm run dev
 ```
 
-Runs at **http://localhost:5173**, expects the backend at `http://localhost:8000`.
+Opens at **http://localhost:5173** and expects the backend at `http://localhost:8000` (override with `VITE_API_BASE_URL`).
 
-## 🔄 Swappable LLM provider
+<details>
+<summary><b>Upgrading an existing database</b></summary>
 
-| Provider | How it's billed | Setup |
+New tables are created automatically, but new columns on existing tables are not. If your database predates a feature, run the matching migration from `backend/` (each is safe to re-run):
+
+```bash
+PYTHONPATH=. python scripts/migrate_automation_v2.py   # project base URL, script status and attempts
+PYTHONPATH=. python scripts/migrate_trace_path.py      # Playwright trace downloads
+PYTHONPATH=. python scripts/migrate_review_audit.py    # reviewer, reject reasons, run history, verdicts
+```
+
+</details>
+
+## 🤖 Pick your model
+
+| Provider | Billing | Setup |
 |---|---|---|
-| **Gemini** (default) | Pay-per-token API key | Set `GEMINI_API_KEY` in `.env` |
-| **Claude** | Rides your Claude Code subscription | Log in to the `claude` CLI locally, set `LLM_PROVIDER=claude` in `.env` |
+| **Gemini** (default) | Pay per token | Set `GEMINI_API_KEY` in `.env` |
+| **Claude** | Uses your Claude Code subscription | Log in to the `claude` CLI, then set `LLM_PROVIDER=claude` in `.env` |
 
-## 📚 Docs
+## 📚 More
 
-- [`AI-QA-COPILOT-ROADMAP.md`](https://github.com/Adnaan1806/AI-QA-Copilot/blob/main/AI-QA-COPILOT-ROADMAP.md) — the original vision, and what's still ahead
+- [`AI-QA-COPILOT-ROADMAP.md`](AI-QA-COPILOT-ROADMAP.md): the original vision and what's still ahead
+- [`frontend/README.md`](frontend/README.md): frontend layout and design tokens
 
 ---
 
 <div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/login-dark.png">
+  <img alt="AI QA Copilot sign-in screen" src="docs/screenshots/login-light.png" width="560">
+</picture>
 
 Built by [Adnaan Janees](https://github.com/Adnaan1806)
 
