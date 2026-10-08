@@ -75,10 +75,11 @@ class Requirement(Base):
         back_populates="requirement", uselist=False, cascade="all, delete-orphan"
     )
     # Ordered so the UI's case numbers (TC-1, TC-2, ...) stay stable across reloads.
+    # Cases drafted together share a created_at, so id breaks the tie.
     test_cases: Mapped[list["TestCase"]] = relationship(
         back_populates="requirement",
         cascade="all, delete-orphan",
-        order_by="TestCase.created_at",
+        order_by=lambda: (TestCase.created_at, TestCase.id),
     )
     report: Mapped["Report"] = relationship(
         back_populates="requirement", uselist=False, cascade="all, delete-orphan"
