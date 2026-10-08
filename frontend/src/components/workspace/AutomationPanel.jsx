@@ -84,7 +84,7 @@ function ScriptDetail({ testCaseId, script }) {
         </div>
       )}
       {/* Refetch whenever a new run lands, so the tries match the result shown. */}
-      <TryHistory testCaseId={testCaseId} version={script.runs[0]?.created_at ?? ""} />
+      <TryHistory testCaseId={testCaseId} currentCode={script.code} version={script.runs[0]?.created_at ?? ""} />
       <div className="space-y-1.5">
         <h4 className="text-xs text-muted-foreground">Current script ({script.framework})</h4>
         <pre className="max-h-96 overflow-auto rounded-md border border-border bg-background p-3 font-mono text-xs leading-relaxed">

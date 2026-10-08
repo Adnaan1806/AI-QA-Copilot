@@ -58,7 +58,7 @@ function DiffView({ before, after }) {
   );
 }
 
-function TryDetail({ tries, index }) {
+function TryDetail({ tries, index, currentCode }) {
   const current = tries[index];
   const previous = index > 0 ? tries[index - 1] : null;
   const showDiff = current.kind === "healed" && previous;
@@ -93,6 +93,8 @@ function TryDetail({ tries, index }) {
           <h5 className="text-xs text-muted-foreground">Changes from try {index}</h5>
           <DiffView before={previous.code} after={current.code} />
         </div>
+      ) : current.code === currentCode ? (
+        <p className="text-xs text-muted-foreground">This try's script is the current script, shown below.</p>
       ) : (
         <div className="space-y-1.5">
           <h5 className="text-xs text-muted-foreground">Script</h5>
@@ -119,7 +121,7 @@ function TryDetail({ tries, index }) {
   );
 }
 
-function RunTries({ run, heading }) {
+function RunTries({ run, heading, currentCode }) {
   const [selected, setSelected] = useState(() => defaultTry(run.tries));
   const index = Math.min(selected, run.tries.length - 1);
 
@@ -149,13 +151,13 @@ function RunTries({ run, heading }) {
           </li>
         ))}
       </ol>
-      <TryDetail tries={run.tries} index={index} />
+      <TryDetail tries={run.tries} index={index} currentCode={currentCode} />
     </div>
   );
 }
 
 // Every try of the case's latest automation run, and what healing changed between them.
-export default function TryHistory({ testCaseId, version }) {
+export default function TryHistory({ testCaseId, currentCode, version }) {
   const [state, setState] = useState({ loading: true, data: null, error: null });
 
   useEffect(() => {
@@ -187,7 +189,7 @@ export default function TryHistory({ testCaseId, version }) {
         <p className="text-xs text-muted-foreground">
           The latest run replayed the saved script and it passed first time. Below is how that script was made.
         </p>
-        <RunTries key={`origin-${version}`} run={origin} heading={`Run on ${formatDate(origin.created_at)}`} />
+        <RunTries key={`origin-${version}`} run={origin} currentCode={currentCode} heading={`Run on ${formatDate(origin.created_at)}`} />
       </div>
     );
   }
@@ -195,6 +197,7 @@ export default function TryHistory({ testCaseId, version }) {
     <RunTries
       key={`latest-${version}`}
       run={latest}
+      currentCode={currentCode}
       heading={`Latest run, ${formatDate(latest.created_at)}: ${plural(latest.tries.length, "try", "tries")}`}
     />
   );
