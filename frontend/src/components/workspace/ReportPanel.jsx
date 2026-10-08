@@ -36,7 +36,7 @@ export default function ReportPanel({ report, onOpenAutomation }) {
 
   return (
     <div className="space-y-4">
-      <VerdictBanner recommendation={report.release_recommendation}>
+      <VerdictBanner recommendation={report.release_recommendation} verdict={report.verdict}>
         <p className="tabular text-xs text-muted-foreground">Written {formatDate(report.created_at)}</p>
       </VerdictBanner>
       <div className="space-y-6 rounded-lg border border-border bg-card px-5 py-5 md:px-6">

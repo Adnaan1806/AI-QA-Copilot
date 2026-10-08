@@ -38,6 +38,22 @@ export function caseState(testCase, scriptsById) {
   return script.status === "passed" ? "passed" : "needs_review";
 }
 
+// One line per case for hover text: number, title, state, and who signed it off.
+export function describeCase(testCase, index, state) {
+  const who = testCase.reviewed_by_name ? ` by ${testCase.reviewed_by_name}` : "";
+  const why = state === "rejected" && testCase.reject_reason ? ` (${testCase.reject_reason})` : "";
+  const reviewed = state === "draft" ? "" : state === "rejected" ? `, rejected${who}${why}` : `, approved${who}`;
+  return `${caseLabel(index)} ${testCase.title}: ${CASE_STATE_LABEL[state]}${reviewed}`;
+}
+
+// Mixed results among the recent runs of an unchanged case point to a flaky test.
+export const FLAKY_WINDOW = 5;
+
+export function isFlaky(runs = []) {
+  const recent = runs.slice(0, FLAKY_WINDOW);
+  return recent.some((r) => r.status === "passed") && recent.some((r) => r.status !== "passed");
+}
+
 export function scriptsByCaseId(requirement) {
   return new Map(requirement.automation_scripts.map((s) => [s.test_case_id, s]));
 }
@@ -84,32 +100,37 @@ export function stageSteps(counts, hasAnalysis, hasReport) {
   return steps.map((s) => ({ ...s, current: s === current }));
 }
 
-// The report's release recommendation is free text written by the report agent
-// (e.g. "Not ready to release — approve the remaining..."). Read its verdict
-// from the wording so it can be shown first and in the right colour.
-export function readVerdict(recommendation) {
-  if (!recommendation) return null;
-  const text = recommendation.trim();
+const VERDICT_TONE = { not_ready: "fail", ready_with_risks: "review", ready: "pass" };
+
+const TONE_COPY = {
+  fail: { headline: "Not ready to release", short: "Not ready" },
+  review: { headline: "Ready with risks", short: "Ready with risks" },
+  pass: { headline: "Ready to release", short: "Ready" },
+};
+
+// The report agent returns a structured verdict alongside its free-text
+// recommendation. Older reports may lack it, so fall back to the wording.
+export function readVerdict(recommendation, verdict) {
+  if (!recommendation && !verdict) return null;
+  const text = (recommendation ?? "").trim();
   const lower = text.toLowerCase();
-  let tone = "neutral";
-  let headline = "Release recommendation";
-  if (/\bnot ready\b|\bdo not release\b|\bdon't release\b|\bblock/.test(lower)) {
-    tone = "fail";
-    headline = "Not ready to release";
-  } else if (/\bwith (caution|risks?)\b|\bconditional|\bcaveat/.test(lower)) {
-    tone = "review";
-    headline = "Ready with risks";
-  } else if (/\bready\b/.test(lower)) {
-    tone = "pass";
-    headline = "Ready to release";
+  let tone = VERDICT_TONE[verdict];
+  if (!tone) {
+    if (/\bnot ready\b|\bdo not release\b|\bdon't release\b|\bblock/.test(lower)) tone = "fail";
+    else if (/\bwith (caution|caveats?|risks?)\b|\bconditional/.test(lower)) tone = "review";
+    else if (/\bready\b/.test(lower)) tone = "pass";
+    else tone = "fail";
   }
+  // Drop a leading restatement of the verdict ("Not ready to release — ...") since the headline says it.
   const detail = text
-    .replace(/^(release recommendation:\s*)?(not ready to release|ready to release|ready with risks)\s*[—–:.-]*\s*/i, "")
+    .replace(
+      /^(release recommendation:\s*)?(not ready( to release)?|ready to release|ready with (risks|caveats)|release with caveats)\s*[—–:.,-]*\s*/i,
+      "",
+    )
     .trim();
   return {
     tone,
-    headline,
-    short: { fail: "Not ready", review: "Ready with risks", pass: "Ready", neutral: "See report" }[tone],
+    ...TONE_COPY[tone],
     detail: detail ? detail[0].toUpperCase() + detail.slice(1) : "",
   };
 }

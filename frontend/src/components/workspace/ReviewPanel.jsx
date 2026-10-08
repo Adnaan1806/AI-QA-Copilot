@@ -7,8 +7,10 @@ import {
   PRIORITY_LABEL,
   TYPE_LABEL,
   caseLabel,
+  formatDate,
 } from "../../lib/qa";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 import { StateChip } from "../QaChips";
 import ConfirmDialog from "../ConfirmDialog";
 import Spinner from "../../motion/Spinner";
@@ -155,7 +157,22 @@ function CaseMark({ state }) {
   );
 }
 
-function CaseDetail({ testCase, index, state, script, busy, onApprove, onReject, onRevert, onEdit, onDelete, onOpenAutomation }) {
+function CaseDetail({
+  testCase,
+  index,
+  state,
+  script,
+  busy,
+  rejecting,
+  onApprove,
+  onReject,
+  onConfirmReject,
+  onCancelReject,
+  onRevert,
+  onEdit,
+  onDelete,
+  onOpenAutomation,
+}) {
   const label = caseLabel(index);
   return (
     <div className="space-y-5">
@@ -206,6 +223,11 @@ function CaseDetail({ testCase, index, state, script, busy, onApprove, onReject,
         </button>
       )}
 
+      <ReviewRecord testCase={testCase} state={state} />
+
+      {rejecting ? (
+        <RejectForm label={label} busy={busy} onConfirm={onConfirmReject} onCancel={onCancelReject} />
+      ) : (
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
         <div className="flex flex-wrap gap-2">
           {state === "draft" && (
@@ -241,7 +263,115 @@ function CaseDetail({ testCase, index, state, script, busy, onApprove, onReject,
           <kbd className="ml-1 rounded border border-b-2 border-border px-1 font-mono">E</kbd> edit
         </p>
       </div>
+      )}
     </div>
+  );
+}
+
+// Who signed the case off and when; for a rejection, why.
+function ReviewRecord({ testCase, state }) {
+  if (state === "draft") return null;
+  const verb = state === "rejected" ? "Rejected" : "Approved";
+  const who = testCase.reviewed_by_name;
+  return (
+    <div className="space-y-1 text-sm">
+      <p className="text-muted-foreground">
+        {verb}
+        {who && (
+          <>
+            {" "}
+            by <span className="text-foreground">{who}</span>
+          </>
+        )}
+        {testCase.reviewed_at && <> on {formatDate(testCase.reviewed_at)}</>}
+        {!who && !testCase.reviewed_at && " before review history was recorded"}
+      </p>
+      {state === "rejected" && testCase.reject_reason && (
+        <p className="border-l-2 border-border py-0.5 pl-3">{testCase.reject_reason}</p>
+      )}
+    </div>
+  );
+}
+
+// Common reasons double as a tally of where the drafted cases go wrong.
+const REJECT_REASONS = ["Duplicate", "Out of scope", "Wrong expected result", "Not testable", "Other"];
+
+function RejectForm({ label, busy, onConfirm, onCancel }) {
+  const [reason, setReason] = useState(null);
+  const [note, setNote] = useState("");
+  const formRef = useRef(null);
+
+  useEffect(() => {
+    formRef.current?.focus();
+  }, []);
+
+  function submit(e) {
+    e?.preventDefault();
+    const parts = [reason, note.trim()].filter(Boolean);
+    onConfirm(parts.join(": "));
+  }
+
+  function onKeyDown(e) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+      return;
+    }
+    if (e.target.tagName === "INPUT") return;
+    const n = Number(e.key);
+    if (n >= 1 && n <= REJECT_REASONS.length) {
+      e.preventDefault();
+      setReason((current) => (current === REJECT_REASONS[n - 1] ? null : REJECT_REASONS[n - 1]));
+    } else if (e.key === "Enter") {
+      submit(e);
+    }
+  }
+
+  return (
+    <form
+      ref={formRef}
+      tabIndex={-1}
+      onSubmit={submit}
+      onKeyDown={onKeyDown}
+      aria-label={`Reject ${label}`}
+      className="space-y-3 border-t border-border pt-4 outline-none"
+    >
+      <p className="text-sm font-medium">Why reject {label}?</p>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Reason">
+        {REJECT_REASONS.map((r, i) => (
+          <button
+            key={r}
+            type="button"
+            aria-pressed={reason === r}
+            onClick={() => setReason(reason === r ? null : r)}
+            className={cn(
+              "inline-flex h-7 items-center gap-1.5 rounded-md border px-2.5 text-sm",
+              reason === r
+                ? "border-primary bg-pencil-wash text-primary"
+                : "border-border text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <span className="tabular text-xs opacity-70">{i + 1}</span>
+            {r}
+          </button>
+        ))}
+      </div>
+      <Input
+        aria-label="Note"
+        placeholder="Add a note (optional), e.g. same as TC-1"
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+      />
+      <div className="flex gap-2">
+        <Button type="submit" disabled={busy} className="bg-destructive text-white hover:bg-destructive/90">
+          {busy ? <Spinner className="size-3.5" /> : <X />}
+          Reject case
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }
 
@@ -294,12 +424,13 @@ export default function ReviewPanel({
     [cases, states],
   );
 
-  async function setStatus(status) {
+  async function setStatus(status, rejectReason) {
     if (!selected || busyId) return;
     const advanceTo = status === "draft" ? null : nextDraftAfter(index);
     setBusyId(selected.id);
     try {
-      await onSetStatus(selected.id, status);
+      await onSetStatus(selected.id, status, rejectReason);
+      setMode("view");
       if (advanceTo) setSelectedId(advanceTo);
     } finally {
       setBusyId(null);
@@ -320,7 +451,7 @@ export default function ReviewPanel({
       if (key === "j" || e.key === "ArrowDown") move(1);
       else if (key === "k" || e.key === "ArrowUp") move(-1);
       else if (key === "a" && states[index] === "draft") setStatus("approved");
-      else if (key === "r" && states[index] === "draft") setStatus("rejected");
+      else if (key === "r" && states[index] === "draft") setMode("reject");
       else if (key === "e" && selected) setMode("edit");
       else return;
       e.preventDefault();
@@ -354,6 +485,7 @@ export default function ReviewPanel({
                 <li
                   key={tc.id}
                   data-case={tc.id}
+                  title={state === "rejected" && tc.reject_reason ? `Rejected: ${tc.reject_reason}` : undefined}
                   role="option"
                   aria-selected={isSelected}
                   tabIndex={-1}
@@ -434,8 +566,11 @@ export default function ReviewPanel({
               state={states[index]}
               script={scriptsById.get(selected.id)}
               busy={busyId === selected.id}
+              rejecting={mode === "reject"}
               onApprove={() => setStatus("approved")}
-              onReject={() => setStatus("rejected")}
+              onReject={() => setMode("reject")}
+              onConfirmReject={(reason) => setStatus("rejected", reason)}
+              onCancelReject={() => setMode("view")}
               onRevert={() => setStatus("draft")}
               onEdit={() => setMode("edit")}
               onDelete={() => setPendingDelete(selected)}

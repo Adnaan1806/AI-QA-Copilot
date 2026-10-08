@@ -23,7 +23,7 @@ const FILTERS = [
   {
     key: "not-ready",
     label: "Not ready to release",
-    test: (r) => readVerdict(r.release_recommendation)?.tone === "fail",
+    test: (r) => readVerdict(r.release_recommendation, r.release_verdict)?.tone === "fail",
   },
 ];
 

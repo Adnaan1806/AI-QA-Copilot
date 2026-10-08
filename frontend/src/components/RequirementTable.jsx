@@ -66,7 +66,7 @@ export default function RequirementTable({ requirements, showLocation = false, c
                   )}
                 </td>
                 <td className="px-4 py-2.5">
-                  <VerdictChip recommendation={r.release_recommendation} />
+                  <VerdictChip recommendation={r.release_recommendation} verdict={r.release_verdict} />
                 </td>
                 <td className="tabular px-4 py-2.5 text-right whitespace-nowrap text-muted-foreground">
                   {formatDate(r.created_at)}

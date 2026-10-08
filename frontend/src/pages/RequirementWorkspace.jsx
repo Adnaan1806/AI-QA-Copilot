@@ -31,6 +31,7 @@ import {
   activeTotal,
   caseState,
   countStates,
+  describeCase,
   plural,
   readyToAutomate,
   scriptsByCaseId,
@@ -117,6 +118,7 @@ export default function RequirementWorkspace({ tab }) {
   if (error && !requirement) return <PageError message={error} />;
 
   const counts = countStates(states);
+  const caseTitles = requirement.test_cases.map((tc, i) => describeCase(tc, i, states[i]));
   const total = activeTotal(counts);
   const ready = readyToAutomate(counts);
   const baseUrlMissing = !project.base_url;
@@ -146,7 +148,8 @@ export default function RequirementWorkspace({ tab }) {
   }
 
   const handlers = {
-    onSetStatus: (caseId, status) => run(async () => replaceCase(await updateTestCase(caseId, { status }))),
+    onSetStatus: (caseId, status, rejectReason) =>
+      run(async () => replaceCase(await updateTestCase(caseId, { status, reject_reason: rejectReason }))),
     onSaveCase: (caseId, patch) => run(async () => replaceCase(await updateTestCase(caseId, patch))),
     onCreateCase: (payload) =>
       run(async () => {
@@ -258,7 +261,7 @@ export default function RequirementWorkspace({ tab }) {
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <CaseStrip states={states} />
+            <CaseStrip states={states} titles={caseTitles} />
             <span className="tabular text-sm">
               {signedOff(counts)} of {plural(total, "case")} approved
             </span>

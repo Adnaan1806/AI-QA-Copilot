@@ -23,8 +23,8 @@ const TONE_STYLE = {
   neutral: "bg-muted text-foreground",
 };
 
-export function VerdictChip({ recommendation, className }) {
-  const verdict = readVerdict(recommendation);
+export function VerdictChip({ recommendation, verdict: structured, className }) {
+  const verdict = readVerdict(recommendation, structured);
   if (!verdict) return <span className={cn("text-xs text-muted-foreground", className)}>No report yet</span>;
   return (
     <span className={cn(CHIP, TONE_STYLE[verdict.tone], className)} title={recommendation}>
