@@ -61,7 +61,17 @@ def automate_test_case(
             break
         if attempt < MAX_ATTEMPTS:
             report("healing", attempt=replays + attempt)
-            code = codegen.heal(code, result, trace, test_case, attempt)
+            healed = codegen.heal(code, result, trace, test_case, attempt)
+            if not healed["fixable"]:
+                # The page doesn't meet the expected result; healing further would
+                # only weaken the test. Leave the failure for a person to review.
+                reason = healed["reason"] or "the page does not meet the expected result"
+                result = {
+                    **result,
+                    "output": f"Healing stopped: {reason}\n\n{result['output']}",
+                }
+                break
+            code = healed["code"]
 
     report("passed" if result["passed"] else "needs_review", attempt=replays + attempt)
     return _outcome(test_case, code, result, attempts=replays + attempt)

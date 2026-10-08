@@ -23,9 +23,10 @@ class FakeExplorer:
 
 
 class FakeCodegen:
-    def __init__(self):
+    def __init__(self, fixable=True):
         self.generated = 0
         self.healed = 0
+        self.fixable = fixable
 
     def generate(self, trace, test_case):
         self.generated += 1
@@ -33,7 +34,9 @@ class FakeCodegen:
 
     def heal(self, code, result, trace, test_case, attempt):
         self.healed += 1
-        return f"healed-{attempt}"
+        if not self.fixable:
+            return {"fixable": False, "reason": "page shows no message", "code": ""}
+        return {"fixable": True, "reason": "", "code": f"healed-{attempt}"}
 
 
 def fake_executor(monkeypatch, passing_code):
@@ -105,6 +108,20 @@ def test_needs_review_after_all_attempts(monkeypatch):
     assert codegen.healed == runner.MAX_ATTEMPTS - 1
     assert result["status"] == "needs_review"
     assert result["last_output"] == "boom"
+
+
+def test_unfixable_failure_stops_healing(monkeypatch):
+    ran = fake_executor(monkeypatch, set())
+    explorer, codegen = FakeExplorer(), FakeCodegen(fixable=False)
+    result = runner.automate_test_case(CASE, "https://example.test", explorer, codegen)
+
+    assert ran == ["generated"]  # no healed script is run
+    assert codegen.healed == 1
+    assert result["status"] == "needs_review"
+    assert result["code"] == "generated"
+    assert result["attempts"] == 1
+    assert result["last_output"].startswith("Healing stopped: page shows no message")
+    assert "boom" in result["last_output"]
 
 
 def case_row(id, status=None, code="code"):
