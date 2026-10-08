@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import sys
 import threading
 
@@ -9,6 +10,9 @@ from app import config
 from app.automation.dom_serializer import serialize_page
 from app.llm.client import LLMClient
 
+logger = logging.getLogger(__name__)
+
+LLM_ATTEMPTS = 2
 MAX_TURNS_PER_STEP = 6
 MAX_TOTAL_TURNS = 25
 # 5s caused navigation timeouts once several Explorer browsers ran concurrently.
@@ -164,13 +168,22 @@ class ExplorerAgent:
             },
             indent=2,
         )
-        try:
-            return self._llm_client.generate_json(
-                system_prompt=EXPLORE_SYSTEM_PROMPT,
-                user_prompt=user_prompt,
-            )
-        except Exception:
-            return {"action": "dead_end", "reasoning": "LLM call failed"}
+        # One retry: a single bad response (timeout, unparseable JSON) shouldn't
+        # cost the step its grounded locator.
+        error = None
+        for _ in range(LLM_ATTEMPTS):
+            try:
+                return self._llm_client.generate_json(
+                    system_prompt=EXPLORE_SYSTEM_PROMPT,
+                    user_prompt=user_prompt,
+                )
+            except Exception as exc:
+                error = exc
+                logger.warning("Explorer LLM call failed on step %r: %r", step_text, exc)
+        return {
+            "action": "dead_end",
+            "reasoning": f"LLM call failed ({type(error).__name__}: {str(error)[:200]})",
+        }
 
     @staticmethod
     def _act(locator, action: str, value):
