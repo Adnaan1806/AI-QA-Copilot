@@ -42,9 +42,16 @@ def analysis_payload(analysis: AnalysisResult) -> dict[str, Any]:
     }
 
 
+def case_label(tc: TestCase) -> str:
+    """The TC-n number the UI shows: position among all the requirement's cases,
+    rejected ones included (same ordering as caseLabel in frontend/src/lib/qa.js)."""
+    return f"TC-{tc.requirement.test_cases.index(tc) + 1}"
+
+
 def test_case_payload(tc: TestCase) -> dict[str, Any]:
     return {
         "id": str(tc.id),
+        "label": case_label(tc),
         "title": tc.title,
         "type": tc.test_type,
         "steps": tc.steps,
