@@ -4,6 +4,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from app.schemas.requirement import CaseCounts
+
 
 class TestSuiteCreateRequest(BaseModel):
     name: str
@@ -28,6 +30,8 @@ class RequirementSummary(BaseModel):
     test_case_count: int
     approved_test_case_count: int
     has_report: bool
+    case_counts: CaseCounts
+    release_recommendation: Optional[str] = None
 
 
 class TestSuiteDetailResponse(BaseModel):

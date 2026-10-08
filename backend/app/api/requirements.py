@@ -7,7 +7,12 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_owned_requirement, get_owned_suite
 from app.api.errors import llm_errors_as_http
-from app.api.serializers import to_requirement_detail, to_test_case_item
+from app.api.serializers import (
+    active_test_cases,
+    to_case_counts,
+    to_requirement_detail,
+    to_test_case_item,
+)
 from app.auth.dependencies import get_current_user
 from app.automation import progress
 from app.database.connection import get_db
@@ -119,6 +124,8 @@ def list_my_requirements(
             created_at=r.created_at,
             has_analysis=r.analysis_result is not None,
             test_case_count=len(r.test_cases),
+            case_counts=to_case_counts(r),
+            release_recommendation=r.report.release_recommendation if r.report else None,
         )
         for r in requirements
     ]
@@ -161,7 +168,7 @@ def approve_all_test_cases(
     db: Session = Depends(get_db),
 ):
     requirement = get_owned_requirement(requirement_id, current_user, db)
-    for test_case in requirement.test_cases:
+    for test_case in active_test_cases(requirement):
         test_case.status = "approved"
     db.commit()
     return [to_test_case_item(tc) for tc in requirement.test_cases]
@@ -201,18 +208,18 @@ def generate_automation_and_report(
     requirement = get_owned_requirement(requirement_id, current_user, db)
     if requirement.analysis_result is None:
         raise HTTPException(400, "Requirement has not been analyzed yet")
-    if not requirement.test_cases:
+    approved = active_test_cases(requirement)
+    if not approved:
         raise HTTPException(400, "No test cases to automate")
-    if any(tc.status != "approved" for tc in requirement.test_cases):
+    if any(tc.status != "approved" for tc in approved):
         raise HTTPException(
-            400, "All test cases must be accepted before generating automation -- accept all test cases first"
+            400, "Approve or reject every test case before generating automation"
         )
     base_url = requirement.suite.project.base_url
     if not base_url:
         raise HTTPException(
             400, "Set a base URL on this project before generating automation"
         )
-    approved = requirement.test_cases
 
     try:
         with llm_errors_as_http():
@@ -258,14 +265,13 @@ def export_test_cases(
     db: Session = Depends(get_db),
 ):
     requirement = get_owned_requirement(requirement_id, current_user, db)
-    if not requirement.test_cases:
+    approved = active_test_cases(requirement)
+    if not approved:
         raise HTTPException(400, "No test cases to export")
-    if any(tc.status != "approved" for tc in requirement.test_cases):
-        raise HTTPException(
-            400, "All test cases must be accepted before exporting -- accept all test cases first"
-        )
+    if any(tc.status != "approved" for tc in approved):
+        raise HTTPException(400, "Approve or reject every test case before exporting")
 
-    workbook_bytes = build_test_cases_workbook(requirement.test_cases)
+    workbook_bytes = build_test_cases_workbook(approved)
     return Response(
         content=workbook_bytes,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

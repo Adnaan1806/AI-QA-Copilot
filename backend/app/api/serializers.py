@@ -1,7 +1,29 @@
 from app.database.models import Requirement, TestCase
 from app.schemas.report import ReportResponse
-from app.schemas.requirement import RequirementDetailResponse
+from app.schemas.requirement import CaseCounts, RequirementDetailResponse
 from app.schemas.test_case import AutomationScriptItem, TestCaseItem
+
+
+def active_test_cases(requirement: Requirement) -> list[TestCase]:
+    """Test cases still in play -- rejected ones are kept for the record but never
+    gate, automate, or export."""
+    return [tc for tc in requirement.test_cases if tc.status != "rejected"]
+
+
+def to_case_counts(requirement: Requirement) -> CaseCounts:
+    counts = CaseCounts()
+    for tc in requirement.test_cases:
+        if tc.status == "rejected":
+            counts.rejected += 1
+        elif tc.status != "approved":
+            counts.draft += 1
+        elif tc.automation_script is None:
+            counts.approved += 1
+        elif tc.automation_script.status == "passed":
+            counts.passed += 1
+        else:
+            counts.needs_review += 1
+    return counts
 
 
 def to_test_case_item(tc: TestCase) -> TestCaseItem:

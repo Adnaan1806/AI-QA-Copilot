@@ -24,7 +24,7 @@ from app.services.automation_service import (
 
 router = APIRouter(prefix="/test-cases", tags=["test-cases"])
 
-VALID_STATUSES = {"draft", "approved"}
+VALID_STATUSES = {"draft", "approved", "rejected"}
 
 
 @router.patch("/{test_case_id}", response_model=TestCaseItem)
