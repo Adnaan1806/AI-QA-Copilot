@@ -1,239 +1,217 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Pencil, Plus } from "lucide-react";
-import { createTestSuite, getProject, listTestSuites, updateProject } from "../services/api";
-import Reveal from "../motion/Reveal";
+import { Plus } from "lucide-react";
+import { createTestSuite, getProject, getTestSuite, listTestSuites, updateProject } from "../services/api";
 import Spinner from "../motion/Spinner";
-import { useListStagger } from "../motion/useListStagger";
-import { useMountFade } from "../motion/useMountFade";
 import { useSetBreadcrumbs } from "../context/BreadcrumbContext";
+import { useDataVersion } from "../context/DataVersionContext";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
-import { Card, CardContent } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
-import { ErrorMessage, PageError, PageLoading } from "../components/StatusMessages";
+import InlineEdit from "../components/InlineEdit";
+import RequirementTable from "../components/RequirementTable";
+import {
+  EmptyState,
+  ErrorMessage,
+  Page,
+  PageError,
+  PageHeader,
+  PageLoading,
+} from "../components/StatusMessages";
+import { plural } from "../lib/qa";
 
-function EditableBaseUrl({ baseUrl, onSave }) {
-  const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(baseUrl);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const fadeRef = useMountFade([editing]);
-
-  useEffect(() => {
-    setValue(baseUrl);
-  }, [baseUrl]);
-
-  async function handleSave() {
-    setSaving(true);
-    setError(null);
-    try {
-      await onSave(value.trim());
-      setEditing(false);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (!editing) {
-    return (
-      <div ref={fadeRef} className="mt-2 flex items-center gap-2">
-        <span className="text-sm text-muted-foreground">
-          Base URL:{" "}
-          {baseUrl ? (
-            <span className="font-medium text-foreground/80">{baseUrl}</span>
-          ) : (
-            <span className="italic text-amber-600 dark:text-amber-400">
-              not set — required to generate automation
-            </span>
-          )}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => setEditing(true)}
-          aria-label="Edit base URL"
-        >
-          <Pencil />
-        </Button>
-      </div>
-    );
-  }
-
-  return (
-    <div ref={fadeRef} className="mt-2">
-      <div className="flex items-center gap-2">
-        <Input
-          autoFocus
-          type="url"
-          placeholder="https://your-app.com"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-        />
-        <Button onClick={handleSave} disabled={saving} className="shrink-0 gap-1.5">
-          {saving && <Spinner className="h-3.5 w-3.5" />}
-          {saving ? "Saving..." : "Save"}
-        </Button>
-        <Button
-          variant="outline"
-          className="shrink-0"
-          onClick={() => {
-            setValue(baseUrl);
-            setEditing(false);
-            setError(null);
-          }}
-        >
-          Cancel
-        </Button>
-      </div>
-      {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-    </div>
-  );
-}
-
-export default function ProjectDetail() {
-  const { projectId } = useParams();
-  const [project, setProject] = useState(null);
-  const [suites, setSuites] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+function NewSuiteForm({ projectId, onCreated, onCancel }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [creating, setCreating] = useState(false);
-  const listRef = useListStagger([loading, suites.length]);
+  const [error, setError] = useState(null);
 
-  useSetBreadcrumbs(project ? [{ label: "Projects", to: "/" }, { label: project.name }] : []);
-
-  function load() {
-    setLoading(true);
-    setError(null);
-    Promise.all([getProject(projectId), listTestSuites(projectId)])
-      .then(([p, s]) => {
-        setProject(p);
-        setSuites(s);
-      })
-      .catch((err) => setError(err.message))
-      .finally(() => setLoading(false));
-  }
-
-  useEffect(load, [projectId]);
-
-  async function handleSaveBaseUrl(baseUrl) {
-    const updated = await updateProject(projectId, { base_url: baseUrl });
-    setProject(updated);
-  }
-
-  async function handleCreate(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setCreating(true);
     setError(null);
     try {
       await createTestSuite(projectId, { name, description });
-      setName("");
-      setDescription("");
-      setShowForm(false);
-      load();
+      onCreated();
     } catch (err) {
       setError(err.message);
-    } finally {
       setCreating(false);
     }
   }
 
-  if (loading) {
-    return <PageLoading />;
-  }
-
-  if (error && !project) {
-    return <PageError message={error} />;
-  }
-
   return (
-    <div className="mx-auto max-w-5xl p-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{project.name}</h1>
-          {project.description && (
-            <p className="mt-1 text-muted-foreground">{project.description}</p>
-          )}
-          <EditableBaseUrl baseUrl={project.base_url} onSave={handleSaveBaseUrl} />
-        </div>
-        <Button
-          onClick={() => setShowForm((s) => !s)}
-          className="gap-1.5 bg-linear-to-r from-primary to-emerald-500 text-white shadow-sm shadow-primary/25 hover:opacity-90"
-        >
-          {!showForm && <Plus className="size-4" />}
-          {showForm ? "Cancel" : "New Test Suite"}
+    <form onSubmit={handleSubmit} className="grid gap-4 rounded-lg border border-border bg-card p-5 md:grid-cols-2">
+      <div className="space-y-1.5">
+        <Label htmlFor="suite-name">Suite name</Label>
+        <Input
+          id="suite-name"
+          required
+          placeholder="e.g. Checkout & Payments"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="suite-description">Description</Label>
+        <Input
+          id="suite-description"
+          placeholder="Optional"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+        />
+      </div>
+      <ErrorMessage message={error} className="md:col-span-2" />
+      <div className="flex gap-2 md:col-span-2">
+        <Button type="submit" disabled={creating}>
+          {creating && <Spinner className="size-3.5" />}
+          Create suite
+        </Button>
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
         </Button>
       </div>
+    </form>
+  );
+}
 
-      <Reveal show={showForm} className="mt-6">
-        <Card>
-          <CardContent>
-            <form onSubmit={handleCreate} className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="suite-name">Test suite name</Label>
-                <Input
-                  id="suite-name"
-                  required
-                  placeholder="Test suite name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="suite-description">Description (optional)</Label>
-                <Textarea
-                  id="suite-description"
-                  placeholder="Description (optional)"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="h-20 resize-none"
-                />
-              </div>
-              <Button type="submit" disabled={creating} className="gap-2">
-                {creating && <Spinner className="h-4 w-4" />}
-                {creating ? "Creating..." : "Create Test Suite"}
+export default function ProjectDetail() {
+  const { projectId } = useParams();
+  const { bump } = useDataVersion();
+  const [project, setProject] = useState(null);
+  const [suites, setSuites] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+
+  useSetBreadcrumbs(project ? [{ label: "Projects", to: "/" }, { label: project.name }] : []);
+
+  function load() {
+    setError(null);
+    return Promise.all([getProject(projectId), listTestSuites(projectId)])
+      .then(async ([p, list]) => {
+        // The suite list has no requirements; fetch each suite's detail for its table.
+        const details = await Promise.all(list.map((s) => getTestSuite(s.id)));
+        setProject(p);
+        setSuites(details);
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    setLoading(true);
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  async function handleSaveBaseUrl(baseUrl) {
+    setProject(await updateProject(projectId, { base_url: baseUrl }));
+  }
+
+  if (loading) return <PageLoading />;
+  if (error && !project) return <PageError message={error} />;
+
+  return (
+    <Page className="space-y-8">
+      <PageHeader
+        title={project.name}
+        subtitle={project.description}
+        actions={
+          !showForm && (
+            <Button onClick={() => setShowForm(true)}>
+              <Plus />
+              New suite
+            </Button>
+          )
+        }
+      >
+        <div className="pt-1 text-sm">
+          <InlineEdit
+            label="App URL"
+            type="url"
+            placeholder="https://your-app.com"
+            value={project.base_url}
+            onSave={handleSaveBaseUrl}
+            display={
+              project.base_url ? (
+                <span className="text-muted-foreground">
+                  Tests run against <span className="font-mono text-[13px] text-foreground">{project.base_url}</span>
+                </span>
+              ) : (
+                <span className="text-review">Add the app URL before generating automation</span>
+              )
+            }
+          />
+        </div>
+      </PageHeader>
+
+      {showForm && (
+        <NewSuiteForm
+          projectId={projectId}
+          onCancel={() => setShowForm(false)}
+          onCreated={async () => {
+            setShowForm(false);
+            bump();
+            await load();
+          }}
+        />
+      )}
+
+      <ErrorMessage message={error} />
+
+      {suites.length === 0 ? (
+        !showForm && (
+          <EmptyState
+            action={
+              <Button onClick={() => setShowForm(true)}>
+                <Plus />
+                New suite
               </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </Reveal>
-
-      <ErrorMessage message={error} className="mt-4" />
-
-      <h2 className="mt-10 mb-3 text-lg font-semibold text-foreground">Test Suites</h2>
-      <div ref={listRef} className="space-y-2">
-        {suites.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border p-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              No test suites yet. Create one to start a requirement → test case → automation
-              workflow.
-            </p>
-          </div>
-        ) : (
-          suites.map((s) => (
-            <Link key={s.id} to={`/suites/${s.id}`} className="block">
-              <Card className="flex-row items-center justify-between px-4 py-3.5 transition-colors hover:bg-primary/5 hover:ring-primary/40">
-                <div className="min-w-0 pr-4">
-                  <p className="truncate font-medium text-foreground">{s.name}</p>
-                  {s.description && (
-                    <p className="truncate text-sm text-muted-foreground">{s.description}</p>
-                  )}
-                </div>
-                <Badge variant="secondary" className="shrink-0">
-                  {s.requirement_count} requirement{s.requirement_count === 1 ? "" : "s"}
-                </Badge>
-              </Card>
-            </Link>
-          ))
-        )}
-      </div>
-    </div>
+            }
+          >
+            Suites group related requirements, like a feature area or a release. Create one to add
+            your first requirement.
+          </EmptyState>
+        )
+      ) : (
+        suites.map((suite) => (
+          <section key={suite.id} className="space-y-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
+                <h2 className="text-base font-semibold">
+                  <Link to={`/suites/${suite.id}`} className="hover:text-primary hover:underline">
+                    {suite.name}
+                  </Link>
+                </h2>
+                {suite.description && (
+                  <span className="text-sm text-muted-foreground">{suite.description}</span>
+                )}
+              </div>
+              <span className="tabular text-sm text-muted-foreground">
+                {plural(suite.requirements.length, "requirement")}
+              </span>
+            </div>
+            {suite.requirements.length === 0 ? (
+              <EmptyState
+                action={
+                  <Button variant="outline" asChild>
+                    <Link to={`/suites/${suite.id}`}>Add a requirement</Link>
+                  </Button>
+                }
+              >
+                No requirements in this suite yet.
+              </EmptyState>
+            ) : (
+              <>
+                <RequirementTable requirements={suite.requirements} />
+                <Link to={`/suites/${suite.id}`} className="inline-block text-sm text-primary hover:underline">
+                  Add requirement to {suite.name}
+                </Link>
+              </>
+            )}
+          </section>
+        ))
+      )}
+    </Page>
   );
 }

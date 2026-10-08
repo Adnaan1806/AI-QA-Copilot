@@ -1,95 +1,56 @@
-import { useEffect, useRef, useState } from "react";
-import { useGSAP } from "@gsap/react";
-import gsap from "gsap";
+import { useEffect, useState } from "react";
 import { getAutomationProgress } from "../services/api";
+import Spinner from "../motion/Spinner";
 
 // Verb shown per real backend stage (see backend/app/automation/progress.py
 // and runner.py for where these are reported).
 const STAGE_VERBS = {
-  exploring: "Exploring the app to ground",
-  generating_script: "Generating a Playwright script for",
-  running_tests: "Running the generated test for",
-  healing: "Fixing a failed run for",
+  exploring: "Exploring the app for",
+  generating_script: "Writing a Playwright script for",
+  running_tests: "Running the script for",
+  healing: "Fixing a failed run of",
 };
 
 const DONE_STAGES = new Set(["passed", "needs_review"]);
 
 function formatElapsed(ms) {
   const totalSeconds = Math.floor(ms / 1000);
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
-  return `${m}:${String(s).padStart(2, "0")}`;
+  return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
 }
 
 function describeItem(item) {
   const { stage, test_case_title, attempt } = item;
-  if (stage === "passed") return `Passed "${test_case_title}"`;
-  if (stage === "needs_review") return `Needs review: "${test_case_title}"`;
+  if (stage === "passed") return `Passed: ${test_case_title}`;
+  if (stage === "needs_review") return `Needs review: ${test_case_title}`;
   const verb = STAGE_VERBS[stage] || "Working on";
-  const attemptSuffix = attempt ? `, attempt ${attempt}` : "";
-  return `${verb} "${test_case_title}"${attemptSuffix}…`;
+  return `${verb} ${test_case_title}${attempt ? ` (attempt ${attempt})` : ""}`;
 }
 
-function ProgressRow({ item }) {
-  const done = DONE_STAGES.has(item.stage);
-  const rowRef = useRef(null);
-
-  useGSAP(() => {
-    if (!rowRef.current) return;
-    gsap.fromTo(
-      rowRef.current,
-      { opacity: 0, y: 4 },
-      { opacity: 1, y: 0, duration: 0.25, ease: "power2.out" },
-    );
-  }, []);
-
-  return (
-    <div ref={rowRef} className="flex items-center gap-2.5 text-sm">
-      {done ? (
-        <span
-          className={`h-2 w-2 shrink-0 rounded-full ${
-            item.stage === "passed" ? "bg-emerald-500" : "bg-amber-500"
-          }`}
-        />
-      ) : (
-        <span className="relative flex h-2 w-2 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-        </span>
-      )}
-      <span className={`truncate ${done ? "text-muted-foreground" : "font-medium text-primary"}`}>
-        {describeItem(item)}
-      </span>
-    </div>
-  );
-}
+const DOT = { passed: "bg-pass", needs_review: "bg-review" };
 
 // Polls the backend's per-test-case progress while a run is active. Test cases
-// automate concurrently, so this shows one row per test case in flight.
+// automate concurrently, so this shows one row per case in flight.
 export default function AutomationProgressBar({ requirementId }) {
   const [elapsed, setElapsed] = useState(0);
   const [progress, setProgress] = useState(null);
-  const barRef = useRef(null);
 
   useEffect(() => {
     const start = performance.now();
-    const id = setInterval(() => setElapsed(performance.now() - start), 200);
+    const id = setInterval(() => setElapsed(performance.now() - start), 500);
     return () => clearInterval(id);
   }, []);
 
   useEffect(() => {
     if (!requirementId) return;
     let cancelled = false;
-
     async function poll() {
       try {
         const data = await getAutomationProgress(requirementId);
         if (!cancelled) setProgress(data);
       } catch {
-        // Transient poll failure — keep showing the last known stage.
+        // Transient poll failure: keep showing the last known stage.
       }
     }
-
     poll();
     const id = setInterval(poll, 1500);
     return () => {
@@ -103,52 +64,49 @@ export default function AutomationProgressBar({ requirementId }) {
   );
   const doneCount = items.filter((item) => DONE_STAGES.has(item.stage)).length;
   const total = items[0]?.test_case_total || items.length;
-  const overtime = elapsed > 60000;
-
-  useGSAP(() => {
-    if (!barRef.current) return;
-    const tween = gsap.to(barRef.current, {
-      backgroundPosition: "-200% 0",
-      duration: 1.6,
-      ease: "none",
-      repeat: -1,
-    });
-    return () => tween.kill();
-  }, []);
+  const pct = total ? Math.round((doneCount / total) * 100) : 0;
 
   return (
-    <div className="rounded-2xl border border-primary/20 bg-primary/10 p-5">
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-sm font-medium text-primary">
+    <div className="space-y-3 rounded-lg border border-border bg-card p-4" role="status" aria-live="polite">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="flex items-center gap-2 font-medium">
+          <Spinner className="size-4 text-primary" />
           {progress?.report
-            ? "Compiling the release report…"
+            ? "Writing the release report"
             : total
-              ? `Automating test cases (${doneCount}/${total} finished)…`
-              : "Starting up…"}
+              ? `Automating cases: ${doneCount} of ${total} finished`
+              : "Starting up"}
         </span>
-        <span className="shrink-0 font-mono text-xs text-primary/70">
-          {formatElapsed(elapsed)}
-        </span>
+        <span className="tabular text-xs text-muted-foreground">{formatElapsed(elapsed)}</span>
       </div>
 
-      <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-primary/15">
+      <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
         <div
-          ref={barRef}
-          className="h-full w-full rounded-full bg-[length:200%_100%] bg-[linear-gradient(90deg,transparent_0%,var(--color-primary)_50%,transparent_100%)]"
+          className="h-full rounded-full bg-primary transition-[width] duration-500"
+          style={{ width: `${progress?.report ? 100 : Math.max(pct, 4)}%` }}
         />
       </div>
 
       {items.length > 0 && (
-        <div className="mt-4 space-y-2">
+        <ul className="space-y-1.5 text-sm">
           {items.map((item) => (
-            <ProgressRow key={item.test_case_index} item={item} />
+            <li key={item.test_case_index} className="flex items-center gap-2.5">
+              {DONE_STAGES.has(item.stage) ? (
+                <span className={`size-2 shrink-0 rounded-full ${DOT[item.stage]}`} />
+              ) : (
+                <Spinner className="size-3 shrink-0 text-primary" />
+              )}
+              <span className={`truncate ${DONE_STAGES.has(item.stage) ? "text-muted-foreground" : ""}`}>
+                {describeItem(item)}
+              </span>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
 
-      {overtime && (
-        <p className="mt-3 text-xs text-primary/70">
-          Still working — requirements with more test cases can take a little longer.
+      {elapsed > 60000 && (
+        <p className="text-xs text-muted-foreground">
+          Still working. Requirements with more cases take longer, usually a few minutes.
         </p>
       )}
     </div>
