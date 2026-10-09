@@ -23,10 +23,11 @@ class FakeStore:
 
     def similarity_search_with_relevance_scores(self, query, k, filter):
         self.searches.append(filter)
+        conditions = filter.get("$and", [filter])
         return [
             (doc, 0.9)
             for doc in self.chunks.values()
-            if all(doc.metadata.get(key) == value for key, value in filter.items())
+            if all(doc.metadata.get(key) == value for c in conditions for key, value in c.items())
         ][:k]
 
 
@@ -70,6 +71,7 @@ def test_chunks_are_tagged_with_project_and_document(monkeypatch):
     for chunk in store.chunks.values():
         assert chunk.metadata == {
             "source": "Rules", "project_id": str(p.id), "document_id": str(document.id),
+            "kind": "document",
         }
 
 
@@ -81,7 +83,7 @@ def test_retrieval_only_searches_the_project(monkeypatch):
 
     results = retriever.retrieve("rule", mine.id, k=50)
     assert results and {r["source"] for r in results} == {"Mine"}
-    assert store.searches == [{"project_id": str(mine.id)}]
+    assert store.searches == [{"$and": [{"project_id": str(mine.id)}, {"kind": "document"}]}]
 
 
 def test_deleting_a_document_removes_its_chunks(monkeypatch):

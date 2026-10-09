@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import config
 from app.api.auth import router as auth_router
+from app.api.app_map import router as app_map_router
 from app.api.knowledge import router as knowledge_router
 from app.api.projects import router as projects_router
 from app.api.requirements import router as requirements_router
@@ -28,6 +29,7 @@ app.include_router(test_suites_router)
 app.include_router(requirements_router)
 app.include_router(test_cases_router)
 app.include_router(knowledge_router)
+app.include_router(app_map_router)
 
 
 @app.get("/health")

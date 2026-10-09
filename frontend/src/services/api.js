@@ -205,3 +205,21 @@ export function deleteKnowledge(projectId, documentId) {
 export function searchKnowledge(projectId, query) {
   return request(`/projects/${projectId}/knowledge/search`, { method: "POST", json: { query } });
 }
+
+// App map
+
+export function getAppMap(projectId) {
+  return request(`/projects/${projectId}/app-map`);
+}
+
+export function crawlApp(projectId) {
+  return request(`/projects/${projectId}/app-map/crawl`, { method: "POST" });
+}
+
+export function updateCrawlSettings(projectId, settings) {
+  return request(`/projects/${projectId}/app-map`, { method: "PATCH", json: settings });
+}
+
+export function getFact(projectId, factId) {
+  return request(`/projects/${projectId}/facts/${factId}`);
+}

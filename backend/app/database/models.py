@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Integer, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.connection import Base
@@ -44,6 +44,12 @@ class Project(Base):
         back_populates="project",
         cascade="all, delete-orphan",
         order_by="KnowledgeDocument.created_at.desc()",
+    )
+    app_crawl: Mapped[Optional["AppCrawl"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", uselist=False
+    )
+    knowledge_facts: Mapped[list["KnowledgeFact"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", order_by="KnowledgeFact.title"
     )
 
 
@@ -234,3 +240,67 @@ class Report(Base):
     )
 
     requirement: Mapped["Requirement"] = relationship(back_populates="report")
+
+
+class AppCrawl(Base):
+    """The project's app-map crawl: its settings and how the last run went."""
+
+    __tablename__ = "app_crawls"
+    __table_args__ = (UniqueConstraint("project_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    max_pages: Mapped[int] = mapped_column(Integer, default=30)
+    max_depth: Mapped[int] = mapped_column(Integer, default=3)
+    # Paths crawled from as well as the base URL, e.g. ["/docs/intro"].
+    start_paths: Mapped[list] = mapped_column(JSON, default=list)
+    respect_robots: Mapped[bool] = mapped_column(Boolean, default=True)
+    # "running", "done" or "failed".
+    status: Mapped[str] = mapped_column(Text, default="running")
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # url -> why it wasn't visited, from the last run.
+    skipped: Mapped[dict] = mapped_column(JSON, default=dict)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    project: Mapped["Project"] = relationship(back_populates="app_crawl")
+
+
+# Where a fact came from, and how far the agents may rely on it.
+FACT_SOURCES = ("crawler", "explorer", "healer", "reviewer", "chat", "document")
+# observed: seen in the app (good for steps, never for expected results).
+# proven: a passing test did it. stated: a person said so, not yet checked.
+# confirmed: a reviewer confirmed it.
+FACT_STATUSES = ("observed", "proven", "stated", "confirmed")
+
+
+class KnowledgeFact(Base):
+    """One thing the project knows about its app: a page, a workflow, a rule.
+    Facts accumulate as the crawler, the agents and people add them; each keeps
+    its source, status and when it was last seen. Its text form is also in the
+    vector store (id "fact-<id>", kind "fact") so agents can retrieve it."""
+
+    __tablename__ = "knowledge_facts"
+    __table_args__ = (UniqueConstraint("project_id", "kind", "key"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    # "page" for now; "workflow", "rule", "term", ... as other sources arrive.
+    kind: Mapped[str] = mapped_column(Text, nullable=False)
+    # Identifies the fact within its kind, so seeing it again updates it (a page's URL).
+    key: Mapped[str] = mapped_column(Text, nullable=False)
+    title: Mapped[str] = mapped_column(Text, default="")
+    # Structured detail, shaped by kind (a page: headings, buttons, fields, ...).
+    content: Mapped[dict] = mapped_column(JSON, default=dict)
+    source: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    project: Mapped["Project"] = relationship(back_populates="knowledge_facts")

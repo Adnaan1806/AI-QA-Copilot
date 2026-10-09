@@ -230,7 +230,7 @@ export default function ProjectDetail() {
         </TabsContent>
 
         <TabsContent value="knowledge" className="pt-4">
-          <KnowledgePanel projectId={projectId} />
+          <KnowledgePanel projectId={projectId} hasBaseUrl={!!project.base_url} />
         </TabsContent>
       </Tabs>
     </Page>
