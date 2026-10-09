@@ -24,23 +24,27 @@ class ClaudeCliClient(LLMClient):
     """
 
     def generate_json(self, system_prompt: str, user_prompt: str) -> dict:
-        result = subprocess.run(
-            [
-                CLAUDE_BIN,
-                "-p", user_prompt,
-                "--system-prompt", system_prompt,
-                "--tools", "",
-                "--output-format", "json",
-                "--no-session-persistence",
-                "--strict-mcp-config",
-            ],
-            capture_output=True,
-            text=True,
-            # The CLI writes UTF-8; without this Windows decodes it as cp1252,
-            # garbling dashes and quotes and crashing on some accented letters.
-            encoding="utf-8",
-            timeout=REQUEST_TIMEOUT_S,
-        )
+        try:
+            result = subprocess.run(
+                [
+                    CLAUDE_BIN,
+                    "-p", user_prompt,
+                    "--system-prompt", system_prompt,
+                    "--tools", "",
+                    "--output-format", "json",
+                    "--no-session-persistence",
+                    "--strict-mcp-config",
+                ],
+                capture_output=True,
+                text=True,
+                # The CLI writes UTF-8; without this Windows decodes it as cp1252,
+                # garbling dashes and quotes and crashing on some accented letters.
+                encoding="utf-8",
+                timeout=REQUEST_TIMEOUT_S,
+            )
+        except subprocess.TimeoutExpired:
+            # The exception's own message embeds the whole prompt.
+            raise TimeoutError(f"the claude CLI didn't answer within {REQUEST_TIMEOUT_S}s") from None
         if result.returncode != 0:
             raise RuntimeError(f"claude CLI exited {result.returncode}: {result.stderr.strip()}")
 

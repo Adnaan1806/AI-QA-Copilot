@@ -1,3 +1,4 @@
+import logging
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Optional, TypedDict
 
@@ -12,6 +13,8 @@ from app.automation.codegen_agent import CodegenAgent
 from app.automation.explorer_agent import ExplorerAgent
 from app.automation.runner import automate_test_case
 from app.llm.factory import get_llm_client
+
+logger = logging.getLogger(__name__)
 
 _requirement_agent = RequirementAgent(get_llm_client())
 _qa_agent = QAAgent(get_llm_client())
@@ -132,12 +135,18 @@ def _report_node(state: AutomationReportState) -> dict:
     requirement_id = state.get("requirement_id")
     if requirement_id:
         progress.set_progress(requirement_id, stage="compiling_report")
-    report = _report_agent.generate(
-        requirement_text=state["requirement_text"],
-        analysis=state["analysis"],
-        test_cases=state["approved_test_cases"],
-        automation_scripts=state["automation_scripts"],
-    )
+    try:
+        report = _report_agent.generate(
+            requirement_text=state["requirement_text"],
+            analysis=state["analysis"],
+            test_cases=state["approved_test_cases"],
+            automation_scripts=state["automation_scripts"],
+        )
+    except Exception:
+        # Keep the scripts this run produced; the old report no longer matches
+        # their statuses, so the next run writes a new one.
+        logger.exception("Report generation failed for requirement %s", requirement_id)
+        return {}
     return {"report": report}
 
 
