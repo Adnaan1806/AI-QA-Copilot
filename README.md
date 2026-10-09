@@ -132,6 +132,7 @@ The sidebar keeps a **Cases to review** queue with a live count, plus **Failing 
 |---|---|
 | 🔍 **Requirement analysis** | Structured requirements, risks, missing information and testing notes from plain text or a PDF. |
 | 🧪 **Grounded test cases** | Functional, negative, edge-case and security cases, grounded via RAG on the project's own knowledge base (business rules, user guides, past stories) that you add on the project's **Knowledge** tab. Other projects never see it. |
+| 🗺️ **App map** | When a project gets its app URL, a crawler (plain code, no LLM) follows the app's links with a hidden browser and records each page's headings, buttons, fields and messages. Same site only, robots.txt respected, never clicks buttons or submits forms. Shown on the project's **Knowledge** tab, with page and depth limits and start paths you can set. |
 | ✅ **Human sign-off** | Approve, reject with a reason, edit, add or delete. Each decision records who made it and when. Excel export of the approved set. |
 | 🌐 **Real browser automation** | Each case drives a real browser to ground its locators before a `pytest-playwright` script is written. Concurrent, with live progress. |
 | 🔁 **Self-healing scripts** | Failing scripts repair themselves from real pytest output, up to three attempts. Re-run a single case without regenerating the rest. Download its Playwright trace. |
@@ -206,6 +207,7 @@ PYTHONPATH=. python scripts/migrate_review_audit.py    # reviewer, reject reason
 PYTHONPATH=. python scripts/migrate_run_tries.py       # code and output of every try, for the try history
 PYTHONPATH=. python scripts/migrate_report_statuses.py # case statuses each report was written for
 PYTHONPATH=. python scripts/migrate_case_coverage.py   # criterion each case covers, suggested cases
+PYTHONPATH=. python scripts/migrate_knowledge_kind.py   # tag older knowledge chunks as documents
 ```
 
 </details>

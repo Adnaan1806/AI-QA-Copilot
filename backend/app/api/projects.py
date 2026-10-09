@@ -8,6 +8,7 @@ from app.auth.dependencies import get_current_user
 from app.database.connection import get_db
 from app.database.models import Project, User
 from app.schemas.project import ProjectCreateRequest, ProjectResponse, ProjectUpdateRequest
+from app.services.app_map_service import is_running, start_crawl
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -50,6 +51,8 @@ def create_project(
     )
     db.add(project)
     db.commit()
+    if project.base_url:
+        start_crawl(db, project)  # map the app before any test cases are written
     return _to_response(project)
 
 
@@ -78,8 +81,12 @@ def update_project(
         project.name = name
     if payload.description is not None:
         project.description = payload.description
+    url_changed = payload.base_url is not None and payload.base_url.strip() != project.base_url
     if payload.base_url is not None:
         project.base_url = payload.base_url.strip()
     db.commit()
     db.refresh(project)
+    # A new app URL means a different app to map.
+    if url_changed and project.base_url and not is_running(project.app_crawl):
+        start_crawl(db, project)
     return _to_response(project)
