@@ -14,6 +14,7 @@ from app.schemas.app_map import (
     CrawlSettings,
     CrawlSettingsUpdate,
     FactDetail,
+    SiteLayout,
     SkippedLink,
 )
 from app.services.app_map_service import is_running, start_crawl
@@ -65,6 +66,7 @@ def to_app_map(project: Project) -> AppMapResponse:
     if status == "running" and not is_running(app_crawl):
         status, error = "failed", "The crawl was interrupted. Run it again."
     skipped = (app_crawl.skipped or {}) if app_crawl else {}
+    layout = next((f for f in project.knowledge_facts if f.kind == "layout"), None)
     return AppMapResponse(
         status=status,
         error=error,
@@ -85,6 +87,12 @@ def to_app_map(project: Project) -> AppMapResponse:
             )
             for f in pages
         ],
+        layout=SiteLayout(
+            buttons=[b["name"] for b in layout.content.get("buttons", [])],
+            link_count=len(layout.content.get("links", [])),
+        )
+        if layout
+        else None,
         skipped_count=len(skipped),
         skipped=_skipped_sample(skipped),
     )

@@ -193,6 +193,66 @@ function SettingsForm({ projectId, settings, onSaved, onCancel }) {
   );
 }
 
+// Pages grouped by the first part of their path: "/docs/intro" -> "docs".
+function sections(pages) {
+  const counts = new Map();
+  for (const page of pages) {
+    const path = page.url.replace(/^https?:\/\/[^/]+/, "");
+    const first = path.split("/").filter(Boolean)[0] ?? "";
+    const name = first ? `/${first}` : "Home";
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort(
+    (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+  );
+}
+
+function Summary({ map }) {
+  const groups = sections(map.pages);
+  const fields = map.pages.reduce((n, p) => n + p.fields, 0);
+  return (
+    <div className="space-y-3 rounded-lg border border-border bg-card p-4 text-sm">
+      <div className="space-y-1.5">
+        <h4 className="text-xs text-muted-foreground">Sections</h4>
+        <ul className="flex flex-wrap gap-1.5">
+          {groups.map(([name, count]) => (
+            <li
+              key={name}
+              className="tabular rounded-md border border-border px-2 py-0.5"
+            >
+              <span className="font-mono text-xs">{name}</span>{" "}
+              <span className="text-xs text-muted-foreground">{count}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+      {map.layout && (
+        <div className="space-y-1.5">
+          <h4 className="text-xs text-muted-foreground">On every page</h4>
+          <p>
+            {map.layout.buttons.length > 0 && (
+              <span className="font-mono text-xs">
+                {map.layout.buttons.join(" · ")}
+              </span>
+            )}
+            {map.layout.link_count > 0 && (
+              <span className="text-muted-foreground">
+                {map.layout.buttons.length > 0 && " · "}
+                {plural(map.layout.link_count, "navigation link")}
+              </span>
+            )}
+          </p>
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">
+        {fields > 0
+          ? `${plural(fields, "form field")} found across the pages.`
+          : "No form fields on the pages it reached. Forms behind a login or a click aren't mapped yet."}
+      </p>
+    </div>
+  );
+}
+
 export default function AppMapPanel({ projectId, hasBaseUrl }) {
   const [map, setMap] = useState(null);
   const [error, setError] = useState(null);
@@ -200,6 +260,7 @@ export default function AppMapPanel({ projectId, hasBaseUrl }) {
   const [openId, setOpenId] = useState(null);
   const [editing, setEditing] = useState(false);
   const [showSkipped, setShowSkipped] = useState(false);
+  const [showPages, setShowPages] = useState(false);
   const running = map?.status === "running";
 
   useEffect(() => {
@@ -307,7 +368,26 @@ export default function AppMapPanel({ projectId, hasBaseUrl }) {
       )}
       <ErrorMessage message={error} />
 
+      {map.pages.length > 0 && <Summary map={map} />}
+
       {map.pages.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowPages((v) => !v)}
+          aria-expanded={showPages}
+          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+        >
+          <ChevronRight
+            className={cn(
+              "size-3.5 transition-transform",
+              showPages && "rotate-90",
+            )}
+          />
+          {showPages ? "Hide" : "Show"} the {plural(map.pages.length, "page")}
+        </button>
+      )}
+
+      {showPages && map.pages.length > 0 && (
         <ul className="divide-y divide-border rounded-lg border border-border">
           {map.pages.map((page) => {
             const open = openId === page.id;
@@ -335,8 +415,12 @@ export default function AppMapPanel({ projectId, hasBaseUrl }) {
                     </span>
                   </span>
                   <span className="tabular hidden shrink-0 text-xs text-muted-foreground sm:inline">
-                    {plural(page.buttons, "button")} ·{" "}
-                    {plural(page.fields, "field")}
+                    {[
+                      page.buttons && plural(page.buttons, "control"),
+                      page.fields && plural(page.fields, "field"),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ") || "Content only"}
                   </span>
                 </button>
                 {open && (

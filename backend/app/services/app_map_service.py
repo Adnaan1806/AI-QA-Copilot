@@ -19,8 +19,47 @@ logger = logging.getLogger(__name__)
 
 # A crawl still "running" after this was cut off (e.g. the server restarted).
 STALE_AFTER = timedelta(minutes=15)
-# How many of a page's nav links go into its text form; the rest are site-wide noise.
+# How many of a page's links go into its text form.
 NAV_LINKS_IN_TEXT = 25
+# A control on at least this share of pages is part of the site's layout
+# (header, navigation, footer); it's recorded once, not on every page.
+SHARED_SHARE = 0.6
+SHARED_MIN_PAGES = 3
+
+
+def _unique(items: list, key) -> list:
+    seen, out = set(), []
+    for item in items:
+        k = key(item)
+        if k not in seen:
+            seen.add(k)
+            out.append(item)
+    return out
+
+
+def _button_key(button: dict) -> tuple:
+    return (button.get("role"), button.get("name"))
+
+
+def _link_key(link: dict) -> tuple:
+    return (link.get("text"), link.get("href"))
+
+
+def shared_controls(pages: list[dict]) -> tuple[set, set]:
+    """Buttons and links on most pages: the layout every page shares."""
+    if len(pages) < SHARED_MIN_PAGES:
+        return set(), set()
+    threshold = SHARED_SHARE * len(pages)
+    buttons, links = {}, {}
+    for page in pages:
+        for key in {_button_key(b) for b in page.get("buttons", [])}:
+            buttons[key] = buttons.get(key, 0) + 1
+        for key in {_link_key(link) for link in page.get("links", []) if link.get("text")}:
+            links[key] = links.get(key, 0) + 1
+    return (
+        {k for k, n in buttons.items() if n >= threshold},
+        {k for k, n in links.items() if n >= threshold},
+    )
 
 
 def page_text(url: str, title: str, content: dict) -> str:
@@ -47,22 +86,37 @@ def page_text(url: str, title: str, content: dict) -> str:
     return "\n".join(lines)
 
 
-def _stored_content(page: dict) -> dict:
-    links = [
-        {"text": link["text"], "href": link["href"], "in_nav": link.get("in_nav", False)}
-        for link in page.get("links", [])
-        if link.get("text")
-    ]
+def _stored_content(page: dict, shared_buttons: set = frozenset(), shared_links: set = frozenset()) -> dict:
+    """What's on the page itself: each control once, without the site's layout."""
+    links = _unique(
+        [
+            {"text": link["text"], "href": link["href"], "in_nav": link.get("in_nav", False)}
+            for link in page.get("links", [])
+            if link.get("text") and _link_key(link) not in shared_links
+        ],
+        _link_key,
+    )
     return {
         "url": page["url"],
         "pattern": page["pattern"],
         "depth": page["depth"],
-        "headings": page.get("headings", []),
-        "buttons": page.get("buttons", []),
-        "fields": page.get("fields", []),
-        "messages": page.get("messages", []),
+        "headings": _unique(page.get("headings", []), lambda h: h.get("text")),
+        "buttons": _unique(
+            [b for b in page.get("buttons", []) if _button_key(b) not in shared_buttons], _button_key
+        ),
+        "fields": _unique(page.get("fields", []), lambda f: (f.get("label"), f.get("type"))),
+        "messages": _unique(page.get("messages", []), lambda m: m),
         "links": links[:100],
     }
+
+
+def layout_text(content: dict) -> str:
+    lines = ["On every page of the app (header, navigation, footer):"]
+    if content["buttons"]:
+        lines.append("Buttons: " + ", ".join(f'{b["role"]} "{b["name"]}"' for b in content["buttons"]))
+    if content["links"]:
+        lines.append("Links: " + ", ".join(link["text"] for link in content["links"]))
+    return "\n".join(lines)
 
 
 def is_running(app_crawl: AppCrawl | None) -> bool:
@@ -135,9 +189,10 @@ def run_crawl(project_id: uuid.UUID, fetcher_factory=None, rules=None) -> None:
 def record_pages(db: Session, project: Project, pages: list[dict]) -> None:
     """Record each crawled page as a fact, and forget crawled pages this crawl
     no longer found -- unless a reviewer confirmed them."""
+    shared_buttons, shared_links = shared_controls(pages)
     seen = set()
     for page in pages:
-        content = _stored_content(page)
+        content = _stored_content(page, shared_buttons, shared_links)
         title = (page.get("title") or "")[:300] or page["pattern"]
         record_fact(
             db,
@@ -151,11 +206,19 @@ def record_pages(db: Session, project: Project, pages: list[dict]) -> None:
             status="observed",
         )
         seen.add(page["url"])
+
+    layout = _layout_content(pages, shared_buttons, shared_links)
+    if layout["buttons"] or layout["links"]:
+        record_fact(
+            db, project, kind="layout", key="site", title="On every page", content=layout,
+            text=layout_text(layout), source="crawler", status="observed",
+        )
+        seen.add("site")
     gone = (
         db.query(KnowledgeFact)
         .filter(
             KnowledgeFact.project_id == project.id,
-            KnowledgeFact.kind == "page",
+            KnowledgeFact.kind.in_(("page", "layout")),
             KnowledgeFact.source == "crawler",
             KnowledgeFact.status != "confirmed",
             KnowledgeFact.key.notin_(seen),
@@ -163,3 +226,16 @@ def record_pages(db: Session, project: Project, pages: list[dict]) -> None:
         .all()
     )
     forget_facts(db, gone)
+
+
+def _layout_content(pages: list[dict], shared_buttons: set, shared_links: set) -> dict:
+    """The shared controls, in the order they appear on the first page that has them."""
+    buttons, links = [], []
+    for page in pages:
+        buttons += [b for b in page.get("buttons", []) if _button_key(b) in shared_buttons]
+        links += [
+            {"text": link["text"], "href": link["href"]}
+            for link in page.get("links", [])
+            if link.get("text") and _link_key(link) in shared_links
+        ]
+    return {"buttons": _unique(buttons, _button_key), "links": _unique(links, _link_key)}
