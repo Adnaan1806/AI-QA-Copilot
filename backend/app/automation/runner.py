@@ -1,9 +1,12 @@
+import logging
 from typing import Optional
 
 from app.automation import progress
 from app.automation.codegen_agent import CodegenAgent
 from app.automation.executor import execute_script
 from app.automation.explorer_agent import ExplorerAgent
+
+logger = logging.getLogger(__name__)
 
 MAX_ATTEMPTS = 3
 
@@ -52,27 +55,34 @@ def automate_test_case(
             report("passed", attempt=1)
             return _outcome(test_case, saved_code, result, tries)
 
-    report("exploring")
-    trace = explorer.explore(test_case, base_url)
+    try:
+        report("exploring")
+        trace = explorer.explore(test_case, base_url)
 
-    report("generating_script")
-    code = codegen.generate(trace, test_case)
+        report("generating_script")
+        code = codegen.generate(trace, test_case)
 
-    result = run(code, "generated")
-    for attempt in range(1, MAX_ATTEMPTS):
-        if result["passed"]:
-            break
-        report("healing", attempt=len(tries))
-        healed = codegen.heal(code, result, trace, test_case, attempt)
-        if not healed["fixable"]:
-            # The page doesn't meet the expected result; healing further would
-            # only weaken the test. Leave the failure for a person to review.
-            reason = healed["reason"] or "the page does not meet the expected result"
-            tries[-1]["stop_reason"] = reason
-            result = {**result, "output": f"Healing stopped: {reason}\n\n{result['output']}"}
-            break
-        code = healed["code"]
-        result = run(code, "healed", healed["reason"])
+        result = run(code, "generated")
+        for attempt in range(1, MAX_ATTEMPTS):
+            if result["passed"]:
+                break
+            report("healing", attempt=len(tries))
+            healed = codegen.heal(code, result, trace, test_case, attempt)
+            if not healed["fixable"]:
+                # The page doesn't meet the expected result; healing further would
+                # only weaken the test. Leave the failure for a person to review.
+                reason = healed["reason"] or "the page does not meet the expected result"
+                tries[-1]["stop_reason"] = reason
+                result = {**result, "output": f"Healing stopped: {reason}\n\n{result['output']}"}
+                break
+            code = healed["code"]
+            result = run(code, "healed", healed["reason"])
+    except Exception as exc:
+        # An LLM call that times out or a browser that crashes stops this case
+        # only; the other cases in the run still finish and get saved.
+        logger.exception("Automation stopped for test case %r", test_case.get("title"))
+        report("needs_review", attempt=len(tries))
+        return _stopped(test_case, exc, tries, saved_code)
 
     report("passed" if result["passed"] else "needs_review", attempt=len(tries))
     return _outcome(test_case, code, result, tries)
@@ -85,6 +95,24 @@ TRY_OUTPUT_LINES = 60
 def _try(kind: str, code: str, result: dict, reason: str) -> dict:
     output = "" if result["passed"] else "\n".join(result["output"].splitlines()[-TRY_OUTPUT_LINES:])
     return {"kind": kind, "passed": result["passed"], "code": code, "output": output, "reason": reason}
+
+
+def _stopped(test_case: dict, exc: Exception, tries: list[dict], saved_code: Optional[str]) -> dict:
+    # Keep the script that ran last, so a reviewer sees what was being tried.
+    code = tries[-1]["code"] if tries else saved_code or ""
+    detail = str(exc).splitlines()[0][:300] if str(exc) else ""
+    message = f"Automation stopped: {type(exc).__name__}: {detail}"
+    if tries and not tries[-1]["passed"]:
+        message += "\n\nLast run before it stopped:\n" + tries[-1]["output"]
+    return {
+        "test_case_id": test_case.get("id", ""),
+        "code": code,
+        "status": "needs_review",
+        "attempts": len(tries),
+        "last_output": message,
+        "trace_path": None,
+        "tries": tries,
+    }
 
 
 def _outcome(test_case: dict, code: str, result: dict, tries: list[dict]) -> dict:

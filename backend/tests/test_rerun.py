@@ -253,3 +253,79 @@ def test_report_rewritten_after_a_case_is_removed(fake_graph):
 def test_reported_statuses_without_a_stored_map():
     assert reported_statuses(requirement_with_report(...)) == {}  # no report
     assert reported_statuses(requirement_with_report(None)) == {}  # report predates the column
+
+
+class Boom(Exception):
+    pass
+
+
+class FailingCodegen(FakeCodegen):
+    def __init__(self, fail_on):
+        super().__init__()
+        self.fail_on = fail_on
+
+    def generate(self, trace, test_case):
+        if self.fail_on == "generate":
+            raise Boom("generate timed out")
+        return super().generate(trace, test_case)
+
+    def heal(self, code, result, trace, test_case, attempt):
+        if self.fail_on == "heal":
+            raise Boom("heal timed out")
+        return super().heal(code, result, trace, test_case, attempt)
+
+
+def test_failed_llm_call_stops_only_that_case(monkeypatch):
+    fake_executor(monkeypatch, set())
+    result = runner.automate_test_case(
+        CASE, "https://example.test", FakeExplorer(), FailingCodegen("heal"), saved_code="saved"
+    )
+    assert result["status"] == "needs_review"
+    assert result["code"] == "generated"  # the last script that ran
+    assert result["attempts"] == 2  # failed replay + generated
+    assert result["last_output"].startswith("Automation stopped: Boom: heal timed out")
+    assert "Last run before it stopped:\nboom" in result["last_output"]
+
+
+def test_failure_before_any_script_keeps_the_saved_one(monkeypatch):
+    fake_executor(monkeypatch, set())
+    result = runner.automate_test_case(
+        CASE, "https://example.test", FakeExplorer(), FailingCodegen("generate"), saved_code="saved"
+    )
+    assert result["status"] == "needs_review"
+    assert result["code"] == "saved"
+    assert result["last_output"].startswith("Automation stopped: Boom: generate timed out")
+
+    class CrashingExplorer:
+        def explore(self, test_case, base_url):
+            raise Boom("browser crashed")
+
+    result = runner.automate_test_case(CASE, "https://example.test", CrashingExplorer(), FakeCodegen())
+    assert result["status"] == "needs_review" and result["code"] == "" and result["attempts"] == 0
+
+
+def test_report_failure_keeps_the_run(fake_graph, monkeypatch):
+    run, _ = fake_graph
+
+    def fail(**kwargs):
+        raise Boom("report timed out")
+
+    monkeypatch.setattr(graph._report_agent, "generate", fail)
+    result = run({"a": "passed", "b": "needs_review"}, {})
+    assert "report" not in result
+    assert [s["status"] for s in result["automation_scripts"]] == ["passed", "needs_review"]
+
+
+def test_cli_timeout_message_leaves_out_the_prompt(monkeypatch):
+    import subprocess
+
+    from app.llm import claude_cli_client
+
+    def timeout(args, **kwargs):
+        raise subprocess.TimeoutExpired(args, kwargs["timeout"])
+
+    monkeypatch.setattr(claude_cli_client.subprocess, "run", timeout)
+    with pytest.raises(TimeoutError) as error:
+        claude_cli_client.ClaudeCliClient().generate_json("system", "a very long prompt")
+    assert "prompt" not in str(error.value)
+    assert str(error.value) == f"the claude CLI didn't answer within {claude_cli_client.REQUEST_TIMEOUT_S}s"
