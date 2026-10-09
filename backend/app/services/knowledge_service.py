@@ -17,7 +17,12 @@ def add_document(db: Session, project: Project, name: str, docs) -> KnowledgeDoc
     db.flush()  # assigns document.id for the chunk ids
     for chunk in chunks:
         chunk.metadata.update(
-            {"source": name, "project_id": str(project.id), "document_id": str(document.id)}
+            {
+                "source": name,
+                "project_id": str(project.id),
+                "document_id": str(document.id),
+                "kind": "document",
+            }
         )
     get_vector_store().add_documents(chunks, ids=_chunk_ids(document))
     return document
