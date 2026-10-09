@@ -35,6 +35,7 @@ from app.services.automation_service import (
 )
 from app.services.document_service import extract_text_from_pdf
 from app.services.review_service import set_review_status
+from app.services.workflow_service import learn_from_run
 from app.services.export_service import build_test_cases_workbook
 
 router = APIRouter(tags=["requirements"])
@@ -250,6 +251,7 @@ def generate_automation_and_report(
         test_case = approved_by_id.get(script.get("test_case_id"))
         if test_case is not None:
             save_automation_script(db, test_case, script)
+            learn_from_run(db, test_case, script)
 
     # The graph skips the report when every case ended as the current one says.
     if result.get("report"):

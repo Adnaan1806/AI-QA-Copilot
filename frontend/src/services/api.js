@@ -223,3 +223,7 @@ export function updateCrawlSettings(projectId, settings) {
 export function getFact(projectId, factId) {
   return request(`/projects/${projectId}/facts/${factId}`);
 }
+
+export function listFacts(projectId, kind) {
+  return request(`/projects/${projectId}/facts?kind=${encodeURIComponent(kind)}`);
+}
