@@ -137,6 +137,62 @@ function AnalysisNotes({ requirement }) {
   );
 }
 
+// Extra cases the QA agent drafted but didn't add. Adding one makes it a draft
+// case like any other; ones already added (same title) are hidden.
+function Suggestions({ requirement, onAdd }) {
+  const [adding, setAdding] = useState(null);
+  const [open, setOpen] = useState(true);
+  const titles = new Set(requirement.test_cases.map((tc) => tc.title.trim().toLowerCase()));
+  const remaining = (requirement.suggestions ?? []).filter((s) => !titles.has(s.title.trim().toLowerCase()));
+  if (!remaining.length) return null;
+
+  async function add(suggestion) {
+    setAdding(suggestion.title);
+    try {
+      await onAdd(suggestion);
+    } finally {
+      setAdding(null);
+    }
+  }
+
+  return (
+    <section aria-label="Suggested cases" className="rounded-lg border border-dashed border-border bg-card">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-1.5 px-4 py-2.5 text-left text-sm font-semibold"
+      >
+        <ChevronDown className={cn("size-3.5 text-muted-foreground transition-transform", !open && "-rotate-90")} />
+        Suggested cases
+        <span className="tabular font-normal text-muted-foreground">{remaining.length}</span>
+        <span className="ml-1 font-normal text-muted-foreground">
+          Beyond the acceptance criteria. Add the ones worth testing.
+        </span>
+      </button>
+      {open && (
+        <ul className="divide-y divide-border border-t border-border">
+          {remaining.map((s) => (
+            <li key={s.title} className="flex items-start gap-3 px-4 py-2.5 text-sm">
+              <div className="min-w-0 flex-1 space-y-0.5">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-medium">{s.title}</span>
+                  <span className="text-xs text-muted-foreground">{TYPE_LABEL[s.type] ?? s.type}</span>
+                </div>
+                {s.why && <p className="text-muted-foreground">{s.why}</p>}
+              </div>
+              <Button variant="outline" size="sm" disabled={adding !== null} onClick={() => add(s)}>
+                {adding === s.title ? <Spinner className="size-3.5" /> : <Plus />}
+                Add
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 const MARK = {
   draft: "border-[1.5px] border-muted-foreground",
   approved: "border-graphite bg-graphite text-sheet",
@@ -188,6 +244,11 @@ function CaseDetail({
         <h3 className={cn("text-[17px] leading-snug font-semibold", state === "rejected" && "text-muted-foreground line-through")}>
           {testCase.title}
         </h3>
+        {testCase.covers && (
+          <p className="text-sm text-muted-foreground">
+            Covers <span className="text-foreground">{testCase.covers}</span>
+          </p>
+        )}
       </div>
 
       <div className="space-y-1.5">
@@ -579,6 +640,17 @@ export default function ReviewPanel({
           )}
         </div>
       </div>
+
+      <Suggestions
+        requirement={requirement}
+        onAdd={async (suggestion) => {
+          // eslint-disable-next-line no-unused-vars
+          const { why, ...payload } = suggestion;
+          const created = await onCreateCase(payload);
+          setSelectedId(created.id);
+          setMode("view");
+        }}
+      />
 
       <ConfirmDialog
         open={pendingDelete !== null}
