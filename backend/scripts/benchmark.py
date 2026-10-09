@@ -126,15 +126,15 @@ def load_requirements(project_name, only):
                 }
             )
     db.close()
-    return project.base_url, requirements
+    return project.id, project.base_url, requirements
 
 
-def generate_cases(requirement):
+def generate_cases(requirement, project_id):
     from app.orchestration.graph import analysis_qa_graph
     from app.rag.retriever import retrieve
 
     result = analysis_qa_graph.invoke(
-        {"requirement_text": requirement["content"], "context": retrieve(requirement["content"])}
+        {"requirement_text": requirement["content"], "context": retrieve(requirement["content"], project_id)}
     )
     return [
         {
@@ -154,7 +154,7 @@ def run(project_name, mode, only):
     from app.automation.runner import automate_test_case
     from app.orchestration import graph
 
-    base_url, requirements = load_requirements(project_name, only)
+    project_id, base_url, requirements = load_requirements(project_name, only)
 
     def run_one(job):
         requirement, test_case = job
@@ -167,7 +167,7 @@ def run(project_name, mode, only):
 
     cases = []
     for requirement in requirements:
-        test_cases = generate_cases(requirement) if mode == "fresh" else requirement["cases"]
+        test_cases = generate_cases(requirement, project_id) if mode == "fresh" else requirement["cases"]
         print(f"{requirement['name']}: {len(test_cases)} cases")
         jobs = [(requirement["name"], tc) for tc in test_cases]
         with ThreadPoolExecutor(max_workers=config.AUTOMATION_CONCURRENCY) as executor:
