@@ -1,8 +1,18 @@
+import re
 import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+# "1. ", "2) ", "Step 3: ", "4 - " -- the UI numbers steps itself.
+_STEP_NUMBER = re.compile(r"^\s*(?:step\s*)?\d+\s*[.):-]\s+", re.IGNORECASE)
+
+
+def clean_steps(steps: list[str]) -> list[str]:
+    """Strip leading step numbers and drop blank steps."""
+    cleaned = (_STEP_NUMBER.sub("", step, count=1).strip() for step in steps)
+    return [step for step in cleaned if step]
 
 
 class TestCaseItem(BaseModel):
@@ -25,6 +35,8 @@ class TestCaseCreateRequest(BaseModel):
     expected_result: str = ""
     priority: str = "medium"
 
+    _clean_steps = field_validator("steps")(clean_steps)
+
 
 class TestCaseGenerationResponse(BaseModel):
     requirement_id: uuid.UUID
@@ -38,6 +50,11 @@ class TestCaseUpdateRequest(BaseModel):
     expected_result: Optional[str] = None
     priority: Optional[str] = None
     status: Optional[str] = None
+
+    @field_validator("steps")
+    @classmethod
+    def _clean_steps(cls, steps: Optional[list[str]]) -> Optional[list[str]]:
+        return None if steps is None else clean_steps(steps)
     reject_reason: Optional[str] = None
 
 
