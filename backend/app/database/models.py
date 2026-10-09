@@ -120,6 +120,8 @@ class AnalysisResult(Base):
     risks: Mapped[list] = mapped_column(JSON, default=list)
     missing_info: Mapped[list] = mapped_column(JSON, default=list)
     testing_considerations: Mapped[list] = mapped_column(JSON, default=list)
+    # Extra cases the QA agent drafted but didn't add; a reviewer adds them with one click.
+    suggestions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -138,6 +140,8 @@ class TestCase(Base):
     test_type: Mapped[str] = mapped_column(Text, nullable=False)
     steps: Mapped[list] = mapped_column(JSON, default=list)
     expected_result: Mapped[str] = mapped_column(Text, nullable=False)
+    # The acceptance criterion this case proves, as the QA agent quoted it.
+    covers: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     priority: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, default="draft")
     # Who approved or rejected the case, and when. Cleared when it returns to draft.

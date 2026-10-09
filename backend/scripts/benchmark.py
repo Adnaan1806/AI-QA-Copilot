@@ -179,16 +179,18 @@ def load_requirements(project_name, only):
 
 
 def generate_cases(requirement, project_id):
+    """The drafted cases, and how many extra ideas came back as suggestions."""
     from app.orchestration.graph import analysis_qa_graph
     from app.rag.retriever import retrieve
 
     result = analysis_qa_graph.invoke(
         {"requirement_text": requirement["content"], "context": retrieve(requirement["content"], project_id)}
     )
-    return [
+    cases = [
         {
             "id": "",
             "title": item.get("title", ""),
+            "covers": item.get("covers"),
             "type": item.get("type", "functional"),
             "steps": item.get("steps", []),
             "expected_result": item.get("expected_result", ""),
@@ -196,6 +198,7 @@ def generate_cases(requirement, project_id):
         }
         for item in result["test_cases"]
     ]
+    return cases, len(result.get("suggestions") or [])
 
 
 def run(project_name, mode, only, save=lambda result: None):
@@ -239,7 +242,7 @@ def run(project_name, mode, only, save=lambda result: None):
         if mode == "fresh":
             take_usage()
             try:
-                test_cases = generate_cases(requirement, project_id)
+                test_cases, entry["suggestions"] = generate_cases(requirement, project_id)
             except Exception as exc:
                 entry["error"] = f"generating cases failed: {type(exc).__name__}: {str(exc)[:300]}"
                 print(f"{requirement['name']}: {entry['error']}", flush=True)

@@ -83,6 +83,7 @@ def create_requirement(
             risks=analysis.get("risks", []),
             missing_info=analysis.get("missing_info", []),
             testing_considerations=analysis.get("testing_considerations", []),
+            suggestions=result.get("suggestions", []),
         )
     )
 
@@ -95,6 +96,7 @@ def create_requirement(
                 steps=clean_steps(item.get("steps", [])),
                 expected_result=item.get("expected_result", ""),
                 priority=item.get("priority", "medium"),
+                covers=item.get("covers") or None,
             )
         )
     db.commit()
@@ -197,6 +199,7 @@ def create_test_case(
         steps=payload.steps,
         expected_result=payload.expected_result,
         priority=payload.priority,
+        covers=payload.covers,
     )
     db.add(test_case)
     db.commit()
