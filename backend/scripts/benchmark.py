@@ -127,16 +127,32 @@ def summarize(cases, requirements=()):
 # Lower is better for these; higher is better for the rest except NEUTRAL.
 LOWER_IS_BETTER = {
     "needs_review", "stopped", "errors", "passed_despite_dead_ends", "healing_gave_up",
+    "passed_despite_dead_ends_rate", "needs_review_rate",
     "dead_end_steps", "dead_end_rate", "mean_tries", "mean_seconds",
     "llm_calls", "mean_llm_calls", "mean_input_tokens", "mean_output_tokens", "cost_usd",
 }
-NEUTRAL = {"cases", "steps", "cases_per_criterion"}
+# Counts that follow the number of cases; their rates below are what to compare.
+NEUTRAL = {"cases", "steps", "cases_per_criterion", "passed", "passed_first_try", "passed_after_healing", "llm_calls"}
+
+
+def with_rates(summary):
+    """The summary plus per-case rates, also for result files saved before rates existed."""
+    cases = summary.get("cases") or 0
+    if not cases:
+        return summary
+    rates = {
+        f"{key}_rate": round(summary[key] / cases, 3)
+        for key in ("passed", "passed_first_try", "passed_despite_dead_ends", "needs_review")
+        if key in summary
+    }
+    return {**summary, **rates}
 
 
 def compare(before, after):
     rows = []
-    for key, old in before["summary"].items():
-        new = after["summary"].get(key)
+    old_summary, new_summary = with_rates(before["summary"]), with_rates(after["summary"])
+    for key, old in old_summary.items():
+        new = new_summary.get(key)
         if not isinstance(old, (int, float)) or not isinstance(new, (int, float)):
             continue
         delta = round(new - old, 3)
@@ -179,16 +195,18 @@ def load_requirements(project_name, only):
 
 
 def generate_cases(requirement, project_id):
+    """The drafted cases, and how many extra ideas came back as suggestions."""
     from app.orchestration.graph import analysis_qa_graph
     from app.rag.retriever import retrieve
 
     result = analysis_qa_graph.invoke(
         {"requirement_text": requirement["content"], "context": retrieve(requirement["content"], project_id)}
     )
-    return [
+    cases = [
         {
             "id": "",
             "title": item.get("title", ""),
+            "covers": item.get("covers"),
             "type": item.get("type", "functional"),
             "steps": item.get("steps", []),
             "expected_result": item.get("expected_result", ""),
@@ -196,6 +214,7 @@ def generate_cases(requirement, project_id):
         }
         for item in result["test_cases"]
     ]
+    return cases, len(result.get("suggestions") or [])
 
 
 def run(project_name, mode, only, save=lambda result: None):
@@ -239,7 +258,7 @@ def run(project_name, mode, only, save=lambda result: None):
         if mode == "fresh":
             take_usage()
             try:
-                test_cases = generate_cases(requirement, project_id)
+                test_cases, entry["suggestions"] = generate_cases(requirement, project_id)
             except Exception as exc:
                 entry["error"] = f"generating cases failed: {type(exc).__name__}: {str(exc)[:300]}"
                 print(f"{requirement['name']}: {entry['error']}", flush=True)

@@ -1,6 +1,8 @@
+from typing import Optional
+
 from app.database.models import Requirement, TestCase
 from app.schemas.report import ReportResponse
-from app.schemas.requirement import CaseCounts, RequirementDetailResponse
+from app.schemas.requirement import CaseCounts, RequirementDetailResponse, SuggestedCase
 from app.schemas.test_case import (
     AutomationRunItem,
     AutomationScriptItem,
@@ -34,6 +36,26 @@ def to_case_counts(requirement: Requirement) -> CaseCounts:
     return counts
 
 
+def suggested_cases(raw: Optional[list]) -> list[SuggestedCase]:
+    """The QA agent's suggestions, skipping any too malformed to add as a case."""
+    cases = []
+    for item in raw or []:
+        if not isinstance(item, dict) or not str(item.get("title") or "").strip():
+            continue
+        cases.append(
+            SuggestedCase(
+                title=str(item["title"]).strip(),
+                covers=item.get("covers") or None,
+                type=item.get("type") or "functional",
+                steps=clean_steps([str(step) for step in item.get("steps") or []]),
+                expected_result=str(item.get("expected_result") or ""),
+                priority=item.get("priority") or "medium",
+                why=str(item.get("why") or ""),
+            )
+        )
+    return cases
+
+
 def to_test_case_item(tc: TestCase) -> TestCaseItem:
     return TestCaseItem(
         id=tc.id,
@@ -42,6 +64,7 @@ def to_test_case_item(tc: TestCase) -> TestCaseItem:
         steps=clean_steps(tc.steps),  # cases saved before steps were cleaned on write
         expected_result=tc.expected_result,
         priority=tc.priority,
+        covers=tc.covers,
         status=tc.status,
         reviewed_by_name=tc.reviewed_by.name if tc.reviewed_by else None,
         reviewed_at=tc.reviewed_at,
@@ -62,6 +85,7 @@ def to_requirement_detail(requirement: Requirement) -> RequirementDetailResponse
         risks=analysis.risks if analysis else [],
         missing_info=analysis.missing_info if analysis else [],
         testing_considerations=analysis.testing_considerations if analysis else [],
+        suggestions=suggested_cases(analysis.suggestions if analysis else None),
         test_cases=[to_test_case_item(tc) for tc in requirement.test_cases],
         automation_scripts=[
             AutomationScriptItem(

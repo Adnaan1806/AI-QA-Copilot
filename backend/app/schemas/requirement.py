@@ -40,6 +40,16 @@ class RequirementListItem(BaseModel):
     release_verdict: Optional[str] = None
 
 
+class SuggestedCase(BaseModel):
+    title: str
+    covers: Optional[str] = None
+    type: str = "functional"
+    steps: list[str] = []
+    expected_result: str = ""
+    priority: str = "medium"
+    why: str = ""
+
+
 class RequirementDetailResponse(BaseModel):
     requirement_id: uuid.UUID
     suite_id: uuid.UUID
@@ -50,6 +60,7 @@ class RequirementDetailResponse(BaseModel):
     risks: list[str]
     missing_info: list[str]
     testing_considerations: list[str]
+    suggestions: list[SuggestedCase]
     test_cases: list[TestCaseItem]
     automation_scripts: list[AutomationScriptItem]
     report: Optional[ReportResponse]

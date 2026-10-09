@@ -205,6 +205,7 @@ PYTHONPATH=. python scripts/migrate_trace_path.py      # Playwright trace downlo
 PYTHONPATH=. python scripts/migrate_review_audit.py    # reviewer, reject reasons, run history, verdicts
 PYTHONPATH=. python scripts/migrate_run_tries.py       # code and output of every try, for the try history
 PYTHONPATH=. python scripts/migrate_report_statuses.py # case statuses each report was written for
+PYTHONPATH=. python scripts/migrate_case_coverage.py   # criterion each case covers, suggested cases
 ```
 
 </details>

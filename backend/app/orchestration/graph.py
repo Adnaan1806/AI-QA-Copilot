@@ -5,7 +5,7 @@ from typing import Any, Optional, TypedDict
 from langgraph.graph import END, StateGraph
 
 from app import config
-from app.agents.qa_agent import QAAgent
+from app.agents.qa_agent import MAX_SUGGESTIONS, QAAgent
 from app.agents.report_agent import ReportAgent
 from app.agents.requirement_agent import RequirementAgent
 from app.automation import progress
@@ -60,6 +60,7 @@ class AnalysisQAState(TypedDict):
     context: list[dict[str, Any]]
     analysis: dict[str, Any]
     test_cases: list[dict[str, Any]]
+    suggestions: list[dict[str, Any]]
 
 
 def _requirement_node(state: AnalysisQAState) -> dict:
@@ -73,7 +74,10 @@ def _qa_node(state: AnalysisQAState) -> dict:
         analysis=state["analysis"],
         context=state.get("context") or [],
     )
-    return {"test_cases": generated.get("test_cases", [])}
+    return {
+        "test_cases": generated.get("test_cases", []),
+        "suggestions": (generated.get("suggestions") or [])[:MAX_SUGGESTIONS],
+    }
 
 
 _analysis_qa_builder = StateGraph(AnalysisQAState)

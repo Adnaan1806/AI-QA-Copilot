@@ -22,6 +22,7 @@ class TestCaseItem(BaseModel):
     steps: list[str]
     expected_result: str
     priority: str
+    covers: Optional[str] = None
     status: str
     reviewed_by_name: Optional[str] = None
     reviewed_at: Optional[datetime] = None
@@ -34,6 +35,7 @@ class TestCaseCreateRequest(BaseModel):
     steps: list[str] = []
     expected_result: str = ""
     priority: str = "medium"
+    covers: Optional[str] = None
 
     _clean_steps = field_validator("steps")(clean_steps)
 
