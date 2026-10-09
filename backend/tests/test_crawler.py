@@ -92,3 +92,10 @@ def test_url_rules():
     assert normalize("javascript:void(0)", SITE) is None
     assert pattern(SITE + "/users/3fa85f64-5717-4562-b3fc-2c963f66afa6/edit") == "/users/{id}/edit"
     assert skip_reason(SITE + "/x", "Sign out", SITE) is not None
+
+
+def test_an_error_status_only_means_missing_when_nothing_rendered():
+    from app.appmap.browser import rendered_anything
+
+    assert rendered_anything({"title": "Swag Labs", "buttons": [{"role": "button", "name": "Add to cart"}]})
+    assert not rendered_anything({"title": "", "headings": [], "buttons": [], "fields": [], "links": []})

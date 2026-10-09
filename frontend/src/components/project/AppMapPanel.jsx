@@ -75,7 +75,9 @@ function PageDetail({ projectId, pageId }) {
         "Fields",
         fields.map(
           (f) =>
-            `${f.label || "(no label)"} · ${f.type}${f.required ? " · required" : ""}`,
+            `${f.label || "(no label)"} · ${f.type}${f.required ? " · required" : ""}${
+              f.options?.length ? `: ${f.options.join(", ")}` : ""
+            }`,
         ),
       )}
       {section("Messages", messages)}

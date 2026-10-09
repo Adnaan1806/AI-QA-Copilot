@@ -13,6 +13,9 @@ from sqlalchemy.orm import Session
 from app.appmap.crawler import CrawlLimits, crawl
 from app.database.connection import SessionLocal
 from app.database.models import AppCrawl, KnowledgeFact, Project
+from app.access.login import LoginFailed
+from app.access.secrets import CredentialsKeyMissing
+from app.services.account_service import default_account, log_in_account
 from app.services.fact_service import forget_facts, record_fact
 
 logger = logging.getLogger(__name__)
@@ -165,7 +168,18 @@ def run_crawl(project_id: uuid.UUID, fetcher_factory=None, rules=None) -> None:
                 delay_seconds=max(0.5, min(robots_delay, 5.0)),
             )
             _ensure_proactor_policy()
-            with fetcher_factory() as fetcher:
+            session = None
+            account = default_account(project)
+            if account is not None:
+                # Map the app as its default account sees it; the page the login
+                # lands on is a start too, since the login page may not link to it.
+                try:
+                    login = log_in_account(db, account)
+                except (LoginFailed, CredentialsKeyMissing) as exc:
+                    raise RuntimeError(f"Couldn't log in as {account.name}: {exc}") from None
+                session = login.storage_state
+                starts.append(login.final_url)
+            with fetcher_factory(storage_state=session) as fetcher:
                 result = crawl(starts, fetcher.fetch, limits, allowed=allowed)
             if not result.pages:
                 raise RuntimeError(

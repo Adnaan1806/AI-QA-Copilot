@@ -43,3 +43,8 @@ CORS_ORIGINS = [
 
 def gemini_api_key() -> str:
     return _required("GEMINI_API_KEY")
+
+# Fernet key that encrypts stored app passwords and login sessions. Generate one with
+#   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+# Without it, accounts can't be saved. Changing it makes stored passwords unreadable.
+CREDENTIALS_KEY = os.environ.get("CREDENTIALS_KEY", "")
