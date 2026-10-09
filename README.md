@@ -209,6 +209,21 @@ PYTHONPATH=. python scripts/migrate_report_statuses.py # case statuses each repo
 
 </details>
 
+<details>
+<summary><b>Tests and benchmark</b></summary>
+
+From `backend/`:
+
+```bash
+python -m pytest tests                                                          # unit tests, no LLM or browser
+PYTHONPATH=. python scripts/benchmark.py --project "<name>" --mode approved --label baseline
+PYTHONPATH=. python scripts/benchmark.py --compare benchmarks/<before>.json benchmarks/<after>.json
+```
+
+The benchmark runs the real agents on a project's requirements without saving anything: `approved` automates the approved cases from scratch, `fresh` also generates new cases first. It records pass rate, tries, how often healing gave up, and how many steps the Explorer couldn't match on the page, into `backend/benchmarks/`.
+
+</details>
+
 ## 🤖 Pick your model
 
 | Provider | Billing | Setup |
