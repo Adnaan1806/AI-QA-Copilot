@@ -101,3 +101,31 @@ def test_page_text_names_what_a_test_would_use():
     assert 'Field: email "Email" (required)' in text
     assert 'Message shown: "Wrong password"' in text
     assert "Forgot password?" in text
+
+
+def test_layout_controls_are_split_from_pages():
+    search = {"role": "button", "name": "Search"}
+    home = {"text": "Home", "href": "/"}
+    pages = [
+        {"url": f"https://app.test/{n}", "pattern": f"/{n}", "depth": 1,
+         "buttons": [search, {"role": "tab", "name": "npm"}, {"role": "tab", "name": "npm"}],
+         "links": [home, {"text": f"Page {n}", "href": f"/{n}"}]}
+        for n in range(4)
+    ]
+    shared_buttons, shared_links = app_map_service.shared_controls(pages)
+    assert shared_buttons == {("button", "Search"), ("tab", "npm")}
+    assert shared_links == {("Home", "/")}
+
+    pages[0]["buttons"].append({"role": "button", "name": "Buy"})
+    content = app_map_service._stored_content(pages[0], shared_buttons, shared_links)
+    assert content["buttons"] == [{"role": "button", "name": "Buy"}]  # layout gone, repeats once
+    assert [link["text"] for link in content["links"]] == ["Page 0"]
+
+    layout = app_map_service._layout_content(pages, shared_buttons, shared_links)
+    assert [b["name"] for b in layout["buttons"]] == ["Search", "npm"]
+    assert "On every page" in app_map_service.layout_text(layout)
+
+
+def test_small_crawls_have_no_layout():
+    page = {"buttons": [{"role": "button", "name": "Log in"}], "links": []}
+    assert app_map_service.shared_controls([page, page]) == (set(), set())

@@ -36,6 +36,13 @@ class SkippedLink(BaseModel):
     reason: str
 
 
+class SiteLayout(BaseModel):
+    """Controls on every page (header, navigation, footer)."""
+
+    buttons: list[str]
+    link_count: int
+
+
 class AppMapResponse(BaseModel):
     # None until the first crawl; then "running", "done" or "failed".
     status: Optional[str]
@@ -44,6 +51,7 @@ class AppMapResponse(BaseModel):
     finished_at: Optional[datetime]
     settings: CrawlSettings
     pages: list[AppPageItem]
+    layout: Optional[SiteLayout]
     skipped_count: int
     # A sample of what the crawl didn't visit, grouped reasons first.
     skipped: list[SkippedLink]
