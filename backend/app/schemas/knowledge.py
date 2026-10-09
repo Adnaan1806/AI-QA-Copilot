@@ -1,11 +1,15 @@
+import uuid
+from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel
 
 
-class UploadResponse(BaseModel):
-    chunks_stored: int
-    source: str
+class KnowledgeDocumentItem(BaseModel):
+    id: uuid.UUID
+    name: str
+    chunk_count: int
+    created_at: datetime
 
 
 class SearchRequest(BaseModel):

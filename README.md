@@ -46,7 +46,7 @@ The strip never hides the gaps. A requirement with three passing cases and two u
 
 ### 1. Write it down
 
-Paste a user story or acceptance criteria into a suite, or upload a PDF. The copilot reads it, pulls related context from your QA knowledge base, and drafts test cases: functional, negative, edge case and security. It also lists **open questions for the product owner** and **risks**, and one click copies the questions as a ready-to-send message.
+Paste a user story or acceptance criteria into a suite, or upload a PDF. The copilot reads it, pulls related context from the project's knowledge base, and drafts test cases: functional, negative, edge case and security. It also lists **open questions for the product owner** and **risks**, and one click copies the questions as a ready-to-send message.
 
 ### 2. Review the drafts
 
@@ -131,7 +131,7 @@ The sidebar keeps a **Cases to review** queue with a live count, plus **Failing 
 | | |
 |---|---|
 | 🔍 **Requirement analysis** | Structured requirements, risks, missing information and testing notes from plain text or a PDF. |
-| 🧪 **Grounded test cases** | Functional, negative, edge-case and security cases, grounded via RAG on a QA knowledge base (past test cases, bug reports, business rules) that you upload through `POST /knowledge/upload`. |
+| 🧪 **Grounded test cases** | Functional, negative, edge-case and security cases, grounded via RAG on the project's own knowledge base (business rules, user guides, past stories) that you add on the project's **Knowledge** tab. Other projects never see it. |
 | ✅ **Human sign-off** | Approve, reject with a reason, edit, add or delete. Each decision records who made it and when. Excel export of the approved set. |
 | 🌐 **Real browser automation** | Each case drives a real browser to ground its locators before a `pytest-playwright` script is written. Concurrent, with live progress. |
 | 🔁 **Self-healing scripts** | Failing scripts repair themselves from real pytest output, up to three attempts. Re-run a single case without regenerating the rest. Download its Playwright trace. |
