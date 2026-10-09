@@ -40,6 +40,29 @@ class Project(Base):
     test_suites: Mapped[list["TestSuite"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    knowledge_documents: Mapped[list["KnowledgeDocument"]] = relationship(
+        back_populates="project",
+        cascade="all, delete-orphan",
+        order_by="KnowledgeDocument.created_at.desc()",
+    )
+
+
+class KnowledgeDocument(Base):
+    """A document uploaded to a project's knowledge base. Its text lives in the
+    vector store as chunks with ids "<document id>-<n>", tagged with project_id
+    so retrieval only ever searches the project's own documents."""
+
+    __tablename__ = "knowledge_documents"
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    project: Mapped["Project"] = relationship(back_populates="knowledge_documents")
 
 
 class TestSuite(Base):

@@ -64,7 +64,7 @@ def create_requirement(
         raise HTTPException(400, "Requirement content is empty")
 
     with llm_errors_as_http():
-        context = retrieve(requirement_text)
+        context = retrieve(requirement_text, suite.project_id)
         result = analysis_qa_graph.invoke(
             {"requirement_text": requirement_text, "context": context}
         )
