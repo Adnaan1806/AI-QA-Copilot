@@ -103,10 +103,17 @@ class BrowserFetcher:
             self._page.wait_for_load_state("networkidle", timeout=5000)
         except Exception:
             pass
-        if response is not None and response.status >= 400:
-            raise RuntimeError(f"HTTP {response.status}")
         data = self._page.evaluate(EXTRACT_JS, MAX_ITEMS)
+        if response is not None and response.status >= 400 and not rendered_anything(data):
+            raise RuntimeError(f"HTTP {response.status}")
         return {**data, "url": self._page.url}
+
+
+def rendered_anything(data: dict) -> bool:
+    """Single-page apps often answer 404 for their own routes, then draw the page
+    in the browser anyway (saucedemo's /inventory.html). An error status only
+    means a missing page when nothing was drawn."""
+    return any(data.get(key) for key in ("headings", "buttons", "fields", "links"))
 
 
 def robots_rules(start_url: str) -> tuple[Callable[[str], bool], float]:
