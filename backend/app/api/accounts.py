@@ -18,6 +18,7 @@ from app.schemas.account import (
     LoginCheckResponse,
 )
 from app.services.account_service import log_in_account
+from app.services.app_map_service import is_running, start_crawl
 
 router = APIRouter(prefix="/projects/{project_id}/accounts", tags=["accounts"])
 
@@ -51,6 +52,13 @@ def _encrypt(password: str) -> str:
 def _make_default(project: Project, account: ProjectAccount) -> None:
     for other in project.accounts:
         other.is_default = other is account
+
+
+def _remap(db: Session, project: Project, account: ProjectAccount) -> None:
+    """The app map was made without this login (a new project crawls before
+    its accounts exist); map it again as the default account sees it."""
+    if account.is_default and project.base_url and not is_running(project.app_crawl):
+        start_crawl(db, project)
 
 
 def _commit(db: Session) -> None:
@@ -93,6 +101,7 @@ def create_account(
     if payload.is_default or len(project.accounts) == 1:
         _make_default(project, account)
     _commit(db)
+    _remap(db, project, account)
     return _item(account)
 
 
@@ -121,9 +130,12 @@ def update_account(
         # The saved session belongs to the old login.
         account.session_encrypted = None
         account.last_login_at = account.last_login_error = None
+    became_default = payload.is_default and not account.is_default
     if payload.is_default:
         _make_default(project, account)
     _commit(db)
+    if login_changed or became_default:
+        _remap(db, project, account)
     return _item(account)
 
 

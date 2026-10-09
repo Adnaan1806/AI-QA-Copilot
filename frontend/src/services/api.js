@@ -227,3 +227,25 @@ export function getFact(projectId, factId) {
 export function listFacts(projectId, kind) {
   return request(`/projects/${projectId}/facts?kind=${encodeURIComponent(kind)}`);
 }
+
+// Accounts (logins to the project's app)
+
+export function listAccounts(projectId) {
+  return request(`/projects/${projectId}/accounts`);
+}
+
+export function createAccount(projectId, account) {
+  return request(`/projects/${projectId}/accounts`, { method: "POST", json: account });
+}
+
+export function updateAccount(projectId, accountId, patch) {
+  return request(`/projects/${projectId}/accounts/${accountId}`, { method: "PATCH", json: patch });
+}
+
+export function deleteAccount(projectId, accountId) {
+  return request(`/projects/${projectId}/accounts/${accountId}`, { method: "DELETE" });
+}
+
+export function checkAccountLogin(projectId, accountId) {
+  return request(`/projects/${projectId}/accounts/${accountId}/login`, { method: "POST" });
+}

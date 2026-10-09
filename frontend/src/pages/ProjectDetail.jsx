@@ -11,6 +11,7 @@ import { Label } from "../components/ui/label";
 import InlineEdit from "../components/InlineEdit";
 import RequirementTable from "../components/RequirementTable";
 import KnowledgePanel from "../components/project/KnowledgePanel";
+import AccountsPanel from "../components/project/AccountsPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import {
   EmptyState,
@@ -85,7 +86,8 @@ export default function ProjectDetail() {
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get("tab") === "knowledge" ? "knowledge" : "suites";
+  const TABS = ["suites", "knowledge", "accounts"];
+  const tab = TABS.includes(searchParams.get("tab")) ? searchParams.get("tab") : "suites";
 
   useSetBreadcrumbs(project ? [{ label: "Projects", to: "/" }, { label: project.name }] : []);
 
@@ -157,6 +159,7 @@ export default function ProjectDetail() {
         <TabsList variant="line">
           <TabsTrigger value="suites">Suites</TabsTrigger>
           <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
+          <TabsTrigger value="accounts">Accounts</TabsTrigger>
         </TabsList>
 
         <TabsContent value="suites" className="space-y-8 pt-4">
@@ -231,6 +234,10 @@ export default function ProjectDetail() {
 
         <TabsContent value="knowledge" className="pt-4">
           <KnowledgePanel projectId={projectId} hasBaseUrl={!!project.base_url} />
+        </TabsContent>
+
+        <TabsContent value="accounts" className="pt-4">
+          <AccountsPanel projectId={projectId} />
         </TabsContent>
       </Tabs>
     </Page>
