@@ -45,7 +45,7 @@ export default function ReportPanel({ report, onOpenAutomation }) {
           <p className="max-w-[72ch] text-sm">{report.summary}</p>
         </section>
         <div className="grid gap-6 md:grid-cols-2">
-          <List title="Coverage" items={report.coverage_analysis} dot="bg-pass" />
+          <List title="Coverage" items={report.coverage_analysis} dot="bg-muted-foreground" />
           <List title="Quality risks" items={report.quality_risks} dot="bg-fail" />
         </div>
       </div>
