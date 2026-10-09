@@ -81,6 +81,14 @@ def script_statuses(test_cases: list[TestCase]) -> dict[str, str]:
     }
 
 
+def reported_statuses(requirement: Requirement) -> dict[str, str]:
+    """Case -> status the current report was written for. Empty when there is
+    no report, or it predates this being stored, so the next run writes one.
+    Unlike script_statuses() this still lists cases rejected or deleted since."""
+    report = requirement.report
+    return dict(report.case_statuses or {}) if report is not None else {}
+
+
 def save_automation_script(db: Session, test_case: TestCase, script: dict[str, Any]) -> None:
     fields = {
         "code": script.get("code", ""),
@@ -121,7 +129,12 @@ def runs_with_tries(test_case: TestCase) -> tuple[Optional[AutomationRun], Optio
     return latest, origin
 
 
-def replace_report(db: Session, requirement: Requirement, report_data: dict[str, Any]) -> None:
+def replace_report(
+    db: Session,
+    requirement: Requirement,
+    report_data: dict[str, Any],
+    case_statuses: dict[str, str],
+) -> None:
     if requirement.report is not None:
         db.delete(requirement.report)
         db.flush()
@@ -134,5 +147,6 @@ def replace_report(db: Session, requirement: Requirement, report_data: dict[str,
             quality_risks=report_data.get("quality_risks", []),
             release_recommendation=recommendation,
             verdict=normalize_verdict(report_data.get("verdict"), recommendation),
+            case_statuses=case_statuses,
         )
     )

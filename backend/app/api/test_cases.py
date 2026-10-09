@@ -24,6 +24,7 @@ from app.services.review_service import set_review_status
 from app.services.automation_service import (
     analysis_payload,
     replace_report,
+    reported_statuses,
     runs_with_tries,
     save_automation_script,
     saved_passing_scripts,
@@ -111,7 +112,6 @@ def automate_one_test_case(
         raise HTTPException(400, "Set a base URL on this project before generating automation")
 
     requirement_id = str(requirement.id)
-    previous_status = script_statuses([test_case]).get(str(test_case.id))
     try:
         with llm_errors_as_http():
             script = automate_single_test_case(
@@ -128,11 +128,12 @@ def automate_one_test_case(
     db.refresh(requirement)
 
     # Keep the report in sync -- a stale report showing this test case's old
-    # status would be misleading. If the result didn't change, the report still holds.
+    # status, or cases rejected since, would be misleading. If every case still
+    # ends as the report describes, the report still holds.
     approved = [tc for tc in requirement.test_cases if tc.status == "approved"]
     scripted = [tc for tc in approved if tc.automation_script is not None]
-    report_stale = requirement.report is None or script["status"] != previous_status
-    if scripted and report_stale:
+    statuses = script_statuses(approved)
+    if statuses and statuses != reported_statuses(requirement):
         with llm_errors_as_http():
             report_data = generate_report(
                 requirement_text=requirement.content,
@@ -143,7 +144,7 @@ def automate_one_test_case(
                     for tc in scripted
                 ],
             )
-        replace_report(db, requirement, report_data)
+        replace_report(db, requirement, report_data, statuses)
         db.commit()
         db.refresh(requirement)
 

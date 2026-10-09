@@ -9,6 +9,7 @@ import pytest
 from app.automation import runner
 from app.orchestration import graph
 from app.services.automation_service import (
+    reported_statuses,
     runs_with_tries,
     saved_passing_scripts,
     script_statuses,
@@ -233,3 +234,22 @@ def test_report_written_when_results_differ(fake_graph, reported):
     result = run({"a": "passed", "b": "passed"}, reported)
     assert result["report"] == {"summary": "new report"}
     assert len(reports) == 1
+
+
+def requirement_with_report(case_statuses):
+    report = None if case_statuses is ... else SimpleNamespace(case_statuses=case_statuses)
+    return SimpleNamespace(report=report)
+
+
+def test_report_rewritten_after_a_case_is_removed(fake_graph):
+    # The report counted c; c has since been rejected, so a and b alone run.
+    requirement = requirement_with_report({"a": "passed", "b": "passed", "c": "passed"})
+    run, reports = fake_graph
+    result = run({"a": "passed", "b": "passed"}, reported_statuses(requirement))
+    assert result["report"] == {"summary": "new report"}
+    assert [s["test_case_id"] for s in reports[0]["automation_scripts"]] == ["a", "b"]
+
+
+def test_reported_statuses_without_a_stored_map():
+    assert reported_statuses(requirement_with_report(...)) == {}  # no report
+    assert reported_statuses(requirement_with_report(None)) == {}  # report predates the column

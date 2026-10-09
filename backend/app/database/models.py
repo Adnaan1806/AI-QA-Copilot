@@ -198,6 +198,10 @@ class Report(Base):
     # One of RELEASE_VERDICTS (see services/automation_service.py); null only on
     # reports written before verdicts were structured and not yet backfilled.
     verdict: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Test case id -> automation status this report was written for; re-runs
+    # compare against it to tell whether the report is stale. Null on reports
+    # written before it was stored, which are rewritten on their next run.
+    case_statuses: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
