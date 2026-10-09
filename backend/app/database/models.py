@@ -48,6 +48,9 @@ class Project(Base):
     app_crawl: Mapped[Optional["AppCrawl"]] = relationship(
         back_populates="project", cascade="all, delete-orphan", uselist=False
     )
+    accounts: Mapped[list["ProjectAccount"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan", order_by="ProjectAccount.created_at"
+    )
     knowledge_facts: Mapped[list["KnowledgeFact"]] = relationship(
         back_populates="project", cascade="all, delete-orphan", order_by="KnowledgeFact.title"
     )
@@ -304,3 +307,30 @@ class KnowledgeFact(Base):
     )
 
     project: Mapped["Project"] = relationship(back_populates="knowledge_facts")
+
+
+class ProjectAccount(Base):
+    """A login to the project's app, e.g. "Admin" or "Standard user". The password
+    and the saved browser session are encrypted (app/access/secrets.py) and never
+    leave the backend: not in API responses, not in LLM prompts."""
+
+    __tablename__ = "project_accounts"
+    __table_args__ = (UniqueConstraint("project_id", "name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    username: Mapped[str] = mapped_column(Text, nullable=False)
+    password_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    # Where the login form is; the project's app URL when empty.
+    login_url: Mapped[str] = mapped_column(Text, default="")
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Playwright storage state after the last successful login, encrypted.
+    session_encrypted: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    last_login_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_login_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+
+    project: Mapped["Project"] = relationship(back_populates="accounts")

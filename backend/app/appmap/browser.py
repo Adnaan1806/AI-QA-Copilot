@@ -77,7 +77,7 @@ EXTRACT_JS = """
 class BrowserFetcher:
     """Opens each URL in one hidden browser tab, reused across the crawl."""
 
-    def __init__(self, storage_state: Optional[str] = None):
+    def __init__(self, storage_state: Optional[dict] = None):
         self._storage_state = storage_state
 
     def __enter__(self):
