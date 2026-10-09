@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Plus } from "lucide-react";
 import { createTestSuite, getProject, getTestSuite, listTestSuites, updateProject } from "../services/api";
 import Spinner from "../motion/Spinner";
@@ -10,6 +10,8 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import InlineEdit from "../components/InlineEdit";
 import RequirementTable from "../components/RequirementTable";
+import KnowledgePanel from "../components/project/KnowledgePanel";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import {
   EmptyState,
   ErrorMessage,
@@ -82,6 +84,8 @@ export default function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showForm, setShowForm] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get("tab") === "knowledge" ? "knowledge" : "suites";
 
   useSetBreadcrumbs(project ? [{ label: "Projects", to: "/" }, { label: project.name }] : []);
 
@@ -117,6 +121,7 @@ export default function ProjectDetail() {
         title={project.name}
         subtitle={project.description}
         actions={
+          tab === "suites" &&
           !showForm && (
             <Button onClick={() => setShowForm(true)}>
               <Plus />
@@ -145,73 +150,89 @@ export default function ProjectDetail() {
         </div>
       </PageHeader>
 
-      {showForm && (
-        <NewSuiteForm
-          projectId={projectId}
-          onCancel={() => setShowForm(false)}
-          onCreated={async () => {
-            setShowForm(false);
-            bump();
-            await load();
-          }}
-        />
-      )}
+      <Tabs
+        value={tab}
+        onValueChange={(next) => setSearchParams(next === "suites" ? {} : { tab: next }, { replace: true })}
+      >
+        <TabsList variant="line">
+          <TabsTrigger value="suites">Suites</TabsTrigger>
+          <TabsTrigger value="knowledge">Knowledge</TabsTrigger>
+        </TabsList>
 
-      <ErrorMessage message={error} />
+        <TabsContent value="suites" className="space-y-8 pt-4">
+          {showForm && (
+            <NewSuiteForm
+              projectId={projectId}
+              onCancel={() => setShowForm(false)}
+              onCreated={async () => {
+                setShowForm(false);
+                bump();
+                await load();
+              }}
+            />
+          )}
 
-      {suites.length === 0 ? (
-        !showForm && (
-          <EmptyState
-            action={
-              <Button onClick={() => setShowForm(true)}>
-                <Plus />
-                New suite
-              </Button>
-            }
-          >
-            Suites group related requirements, like a feature area or a release. Create one to add
-            your first requirement.
-          </EmptyState>
-        )
-      ) : (
-        suites.map((suite) => (
-          <section key={suite.id} className="space-y-3">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-              <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
-                <h2 className="text-base font-semibold">
-                  <Link to={`/suites/${suite.id}`} className="hover:text-primary hover:underline">
-                    {suite.name}
-                  </Link>
-                </h2>
-                {suite.description && (
-                  <span className="text-sm text-muted-foreground">{suite.description}</span>
-                )}
-              </div>
-              <span className="tabular text-sm text-muted-foreground">
-                {plural(suite.requirements.length, "requirement")}
-              </span>
-            </div>
-            {suite.requirements.length === 0 ? (
+          <ErrorMessage message={error} />
+
+          {suites.length === 0 ? (
+            !showForm && (
               <EmptyState
                 action={
-                  <Button variant="outline" asChild>
-                    <Link to={`/suites/${suite.id}`}>Add a requirement</Link>
+                  <Button onClick={() => setShowForm(true)}>
+                    <Plus />
+                    New suite
                   </Button>
                 }
               >
-                No requirements in this suite yet.
+                Suites group related requirements, like a feature area or a release. Create one to add
+                your first requirement.
               </EmptyState>
-            ) : (
-              <>
-                <RequirementTable requirements={suite.requirements} />
-                <Link to={`/suites/${suite.id}`} className="inline-block text-sm text-primary hover:underline">
-                  Add requirement to {suite.name}
-                </Link>
-              </>
-            )}
-          </section>
-        ))
-      )}
+            )
+          ) : (
+            suites.map((suite) => (
+              <section key={suite.id} className="space-y-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                  <div className="flex min-w-0 flex-wrap items-baseline gap-x-3">
+                    <h2 className="text-base font-semibold">
+                      <Link to={`/suites/${suite.id}`} className="hover:text-primary hover:underline">
+                        {suite.name}
+                      </Link>
+                    </h2>
+                    {suite.description && (
+                      <span className="text-sm text-muted-foreground">{suite.description}</span>
+                    )}
+                  </div>
+                  <span className="tabular text-sm text-muted-foreground">
+                    {plural(suite.requirements.length, "requirement")}
+                  </span>
+                </div>
+                {suite.requirements.length === 0 ? (
+                  <EmptyState
+                    action={
+                      <Button variant="outline" asChild>
+                        <Link to={`/suites/${suite.id}`}>Add a requirement</Link>
+                      </Button>
+                    }
+                  >
+                    No requirements in this suite yet.
+                  </EmptyState>
+                ) : (
+                  <>
+                    <RequirementTable requirements={suite.requirements} />
+                    <Link to={`/suites/${suite.id}`} className="inline-block text-sm text-primary hover:underline">
+                      Add requirement to {suite.name}
+                    </Link>
+                  </>
+                )}
+              </section>
+            ))
+          )}
+        </TabsContent>
+
+        <TabsContent value="knowledge" className="pt-4">
+          <KnowledgePanel projectId={projectId} />
+        </TabsContent>
+      </Tabs>
     </Page>
   );
 }

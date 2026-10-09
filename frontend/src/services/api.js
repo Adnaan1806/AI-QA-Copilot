@@ -180,3 +180,28 @@ export function getTestCaseTries(testCaseId) {
 export function downloadTestCaseTrace(testCaseId) {
   return download(`/test-cases/${testCaseId}/trace`, `trace-${testCaseId}.zip`);
 }
+
+// Project knowledge
+
+export function listKnowledge(projectId) {
+  return request(`/projects/${projectId}/knowledge`);
+}
+
+export function uploadKnowledge(projectId, { name, text, file }) {
+  const formData = new FormData();
+  if (name) formData.append("source_name", name);
+  if (file) {
+    formData.append("file", file);
+  } else {
+    formData.append("text", text);
+  }
+  return request(`/projects/${projectId}/knowledge`, { method: "POST", body: formData });
+}
+
+export function deleteKnowledge(projectId, documentId) {
+  return request(`/projects/${projectId}/knowledge/${documentId}`, { method: "DELETE" });
+}
+
+export function searchKnowledge(projectId, query) {
+  return request(`/projects/${projectId}/knowledge/search`, { method: "POST", json: { query } });
+}
