@@ -105,7 +105,17 @@ def test_cli_usage_is_recorded_per_thread(monkeypatch):
 def test_compare_marks_direction():
     before = {"summary": {"cases": 4, "passed": 2, "dead_end_rate": 0.2}}
     after = {"summary": {"cases": 4, "passed": 3, "dead_end_rate": 0.3}}
-    lines = compare(before, after).splitlines()
-    assert lines[0].startswith("cases") and lines[0].endswith("(+0)")
-    assert lines[1].endswith("better")  # more passed
-    assert lines[2].endswith("worse")  # more dead ends
+    lines = {line.split()[0]: line for line in compare(before, after).splitlines()}
+    assert lines["cases"].endswith("(+0)")
+    assert lines["passed"].endswith("(+1)")  # a count: no verdict, the rate carries it
+    assert lines["passed_rate"].endswith("better")
+    assert lines["dead_end_rate"].endswith("worse")
+
+
+def test_compare_judges_rates_when_case_counts_differ():
+    before = {"summary": {"cases": 40, "passed": 30, "passed_despite_dead_ends": 8}}
+    after = {"summary": {"cases": 10, "passed": 9, "passed_despite_dead_ends": 0}}
+    lines = {line.split()[0]: line for line in compare(before, after).splitlines()}
+    assert not lines["passed"].endswith("worse")
+    assert lines["passed_rate"].endswith("better")
+    assert lines["passed_despite_dead_ends_rate"].endswith("better")
