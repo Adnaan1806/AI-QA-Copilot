@@ -1,7 +1,12 @@
 from app.database.models import Requirement, TestCase
 from app.schemas.report import ReportResponse
 from app.schemas.requirement import CaseCounts, RequirementDetailResponse
-from app.schemas.test_case import AutomationRunItem, AutomationScriptItem, TestCaseItem
+from app.schemas.test_case import (
+    AutomationRunItem,
+    AutomationScriptItem,
+    TestCaseItem,
+    clean_steps,
+)
 
 # How many recent runs to send per case -- enough to judge flakiness.
 RUN_HISTORY_LIMIT = 10
@@ -34,7 +39,7 @@ def to_test_case_item(tc: TestCase) -> TestCaseItem:
         id=tc.id,
         title=tc.title,
         type=tc.test_type,
-        steps=tc.steps,
+        steps=clean_steps(tc.steps),  # cases saved before steps were cleaned on write
         expected_result=tc.expected_result,
         priority=tc.priority,
         status=tc.status,

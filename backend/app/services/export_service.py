@@ -5,6 +5,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 from app.database.models import TestCase
+from app.schemas.test_case import clean_steps
 
 HEADERS = ["Title", "Type", "Steps", "Expected Result", "Priority"]
 COLUMN_WIDTHS = [35, 14, 55, 45, 12]
@@ -27,7 +28,7 @@ def build_test_cases_workbook(test_cases: list[TestCase]) -> bytes:
 
     wrap = Alignment(wrap_text=True, vertical="top")
     for tc in test_cases:
-        steps_text = "\n".join(tc.steps)
+        steps_text = "\n".join(f"{i}. {step}" for i, step in enumerate(clean_steps(tc.steps), 1))
         row = [
             tc.title,
             tc.test_type.replace("_", " ").title(),

@@ -24,7 +24,7 @@ from app.schemas.requirement import (
     RequirementListItem,
     RequirementUpdateRequest,
 )
-from app.schemas.test_case import TestCaseCreateRequest, TestCaseItem
+from app.schemas.test_case import TestCaseCreateRequest, TestCaseItem, clean_steps
 from app.services.automation_service import (
     analysis_payload,
     replace_report,
@@ -92,7 +92,7 @@ def create_requirement(
                 requirement_id=requirement.id,
                 title=item.get("title", ""),
                 test_type=item.get("type", "functional"),
-                steps=item.get("steps", []),
+                steps=clean_steps(item.get("steps", [])),
                 expected_result=item.get("expected_result", ""),
                 priority=item.get("priority", "medium"),
             )

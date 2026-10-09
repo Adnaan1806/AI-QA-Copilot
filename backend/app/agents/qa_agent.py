@@ -20,7 +20,7 @@ Respond with a JSON object matching exactly this shape:
     {
       "title": "short descriptive scenario name",
       "type": "functional" | "negative" | "edge_case" | "security",
-      "steps": ["numbered, actionable steps to execute the test"],
+      "steps": ["one actionable step per item, in order, without step numbers"],
       "expected_result": "the single expected outcome of the test",
       "priority": "high" | "medium" | "low"
     }
