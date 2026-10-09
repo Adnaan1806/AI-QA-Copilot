@@ -53,7 +53,7 @@ def automate_test_case(
         result = run(saved_code, "replayed")
         if result["passed"]:
             report("passed", attempt=1)
-            return _outcome(test_case, saved_code, result, tries)
+            return _outcome(test_case, saved_code, result, tries, trace=None)
 
     try:
         report("exploring")
@@ -85,7 +85,7 @@ def automate_test_case(
         return _stopped(test_case, exc, tries, saved_code)
 
     report("passed" if result["passed"] else "needs_review", attempt=len(tries))
-    return _outcome(test_case, code, result, tries)
+    return _outcome(test_case, code, result, tries, trace)
 
 
 # Enough of a failing run's output to see the error without storing whole logs.
@@ -115,7 +115,7 @@ def _stopped(test_case: dict, exc: Exception, tries: list[dict], saved_code: Opt
     }
 
 
-def _outcome(test_case: dict, code: str, result: dict, tries: list[dict]) -> dict:
+def _outcome(test_case: dict, code: str, result: dict, tries: list[dict], trace: Optional[dict]) -> dict:
     return {
         "test_case_id": test_case.get("id", ""),
         "code": code,
@@ -124,4 +124,7 @@ def _outcome(test_case: dict, code: str, result: dict, tries: list[dict]) -> dic
         "last_output": None if result["passed"] else result["output"],
         "trace_path": result.get("trace_path"),
         "tries": tries,
+        # What the Explorer did, kept so a pass can teach the project how the
+        # flow works; None when the saved script was only replayed.
+        "trace": trace,
     }

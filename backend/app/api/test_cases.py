@@ -21,6 +21,7 @@ from app.schemas.test_case import (
     TestCaseUpdateRequest,
 )
 from app.services.review_service import set_review_status
+from app.services.workflow_service import learn_from_run
 from app.services.automation_service import (
     analysis_payload,
     replace_report,
@@ -124,6 +125,7 @@ def automate_one_test_case(
         progress.clear_progress(requirement_id)
 
     save_automation_script(db, test_case, script)
+    learn_from_run(db, test_case, script)
     db.commit()
     db.refresh(requirement)
 
