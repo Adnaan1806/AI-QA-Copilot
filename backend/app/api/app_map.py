@@ -45,6 +45,14 @@ def _skipped_sample(skipped: dict) -> list[SkippedLink]:
     return sample[:SKIPPED_SAMPLE]
 
 
+def _fact_detail(fact: KnowledgeFact) -> FactDetail:
+    return FactDetail(
+        id=fact.id, kind=fact.kind, key=fact.key, title=fact.title, content=fact.content,
+        source=fact.source, status=fact.status,
+        first_seen_at=fact.first_seen_at, last_seen_at=fact.last_seen_at,
+    )
+
+
 def to_app_map(project: Project) -> AppMapResponse:
     app_crawl = project.app_crawl
     pages = sorted(
@@ -142,8 +150,20 @@ def get_fact(
     fact = db.get(KnowledgeFact, fact_id)
     if fact is None or fact.project_id != project.id:
         raise HTTPException(404, "Fact not found")
-    return FactDetail(
-        id=fact.id, kind=fact.kind, key=fact.key, title=fact.title, content=fact.content,
-        source=fact.source, status=fact.status,
-        first_seen_at=fact.first_seen_at, last_seen_at=fact.last_seen_at,
+    return _fact_detail(fact)
+
+
+@router.get("/facts", response_model=list[FactDetail])
+def list_facts(
+    project_id: uuid.UUID,
+    kind: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    project = get_owned_project(project_id, current_user, db)
+    facts = sorted(
+        (f for f in project.knowledge_facts if f.kind == kind),
+        key=lambda f: f.last_seen_at,
+        reverse=True,
     )
+    return [_fact_detail(f) for f in facts]
