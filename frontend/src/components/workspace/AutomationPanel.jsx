@@ -58,6 +58,45 @@ function RunDots({ runs }) {
   );
 }
 
+// Collapsed to a one-line summary; runs that disagree show in amber so a flaky
+// case stands out without opening the list.
+function RunHistory({ runs }) {
+  const [open, setOpen] = useState(false);
+  const failed = runs.filter((run) => run.status !== "passed").length;
+  const passed = runs.length - failed;
+  const outcome =
+    failed === 0 ? "all passed" : passed === 0 ? "all need review" : `${passed} passed, ${failed} needs review`;
+
+  return (
+    <div className="space-y-1.5">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        className="tabular flex items-center gap-1 text-left text-xs text-muted-foreground hover:text-foreground"
+      >
+        <ChevronRight className={cn("size-3.5 shrink-0 transition-transform", open && "rotate-90")} />
+        <span>
+          Run history · {plural(runs.length, "run")},{" "}
+          <span className={failed ? "text-review" : undefined}>{outcome}</span> · latest{" "}
+          {formatDate(runs[0].created_at)}
+        </span>
+      </button>
+      {open && (
+        <ol className="tabular space-y-0.5 pl-[18px] text-xs">
+          {runs.map((run, i) => (
+            <li key={i} className="flex items-center gap-2">
+              <span className={cn("size-2 rounded-full", run.status === "passed" ? "bg-pass" : "bg-review")} />
+              <span className={run.status === "passed" ? undefined : "text-review"}>{runLabel(run)}</span>
+              {i === 0 && <span className="text-muted-foreground">(latest)</span>}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+
 function ScriptDetail({ testCaseId, script }) {
   return (
     <div className="space-y-3">
@@ -69,20 +108,7 @@ function ScriptDetail({ testCaseId, script }) {
           </pre>
         </div>
       )}
-      {script.runs.length > 1 && (
-        <div className="space-y-1.5">
-          <h4 className="text-xs text-muted-foreground">Run history</h4>
-          <ol className="tabular space-y-0.5 text-xs">
-            {script.runs.map((run, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <span className={cn("size-2 rounded-full", run.status === "passed" ? "bg-pass" : "bg-review")} />
-                <span className={run.status === "passed" ? undefined : "text-review"}>{runLabel(run)}</span>
-                {i === 0 && <span className="text-muted-foreground">(latest)</span>}
-              </li>
-            ))}
-          </ol>
-        </div>
-      )}
+      {script.runs.length > 1 && <RunHistory runs={script.runs} />}
       {/* Refetch whenever a new run lands, so the tries match the result shown. */}
       <TryHistory testCaseId={testCaseId} currentCode={script.code} version={script.runs[0]?.created_at ?? ""} />
       <div className="space-y-1.5">
