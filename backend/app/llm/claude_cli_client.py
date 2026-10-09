@@ -1,6 +1,7 @@
 import json
 import re
 import subprocess
+import threading
 
 from app import config
 from app.llm.client import LLMClient
@@ -11,6 +12,17 @@ REQUEST_TIMEOUT_S = 120
 # The JSON contract lives in the system prompt only (a permissive --json-schema
 # made the CLI wrap answers under invented keys). The model still sometimes
 # fences its answer in ```json, so that is stripped before parsing.
+# Token usage of each call, per calling thread, for scripts/benchmark.py.
+_usage = threading.local()
+
+
+def take_usage() -> list[dict]:
+    """Usage of every call this thread made since the last take_usage()."""
+    calls = getattr(_usage, "calls", [])
+    _usage.calls = []
+    return calls
+
+
 _FENCE_RE = re.compile(r"^```[a-zA-Z]*\n(.*)\n```$", re.DOTALL)
 
 
@@ -49,6 +61,18 @@ class ClaudeCliClient(LLMClient):
             raise RuntimeError(f"claude CLI exited {result.returncode}: {result.stderr.strip()}")
 
         envelope = json.loads(result.stdout)
+        usage = envelope.get("usage") or {}
+        _usage.calls = getattr(_usage, "calls", []) + [
+            {
+                # Cached prompt tokens are still input the model read.
+                "input_tokens": sum(
+                    usage.get(key) or 0
+                    for key in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens")
+                ),
+                "output_tokens": usage.get("output_tokens") or 0,
+                "cost_usd": envelope.get("total_cost_usd") or 0,
+            }
+        ]
         if envelope.get("is_error"):
             raise RuntimeError(f"claude CLI returned an error: {envelope.get('result')}")
 
