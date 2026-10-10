@@ -49,7 +49,7 @@ def test_logs_in_once_per_account(monkeypatch):
 
     def log_in(db, acc):
         logins.append(acc.name)
-        return SimpleNamespace(storage_state={"cookies": [acc.name]})
+        return SimpleNamespace(storage_state={"cookies": [acc.name]}, final_url="https://app.test/home")
 
     monkeypatch.setattr(session_service, "log_in_account", log_in)
     cases = [case(), case(), case(account_id=ADMIN.id), case(title="Log in")]
@@ -57,7 +57,11 @@ def test_logs_in_once_per_account(monkeypatch):
     starts = starts_for(None, PROJECT, cases)
 
     assert sorted(logins) == ["Admin", "Standard user"]
-    assert starts[str(cases[0].id)] == {"account": "Standard user", "storage_state": {"cookies": ["Standard user"]}}
+    assert starts[str(cases[0].id)] == {
+        "account": "Standard user",
+        "storage_state": {"cookies": ["Standard user"]},
+        "start_url": "https://app.test/home",
+    }
     assert starts[str(cases[2].id)]["account"] == "Admin"
     assert str(cases[3].id) not in starts
 

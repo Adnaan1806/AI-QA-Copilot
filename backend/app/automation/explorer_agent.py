@@ -73,7 +73,8 @@ class ExplorerAgent:
         self._llm_client = llm_client
 
     def explore(self, test_case: dict, base_url: str, start: Optional[dict] = None) -> dict:
-        """`start` ({"account", "storage_state"}) starts the browser logged in;
+        """`start` ({"account", "storage_state", "start_url"}) starts the browser
+        logged in, on the page the login landed on;
         the LLM only hears the account's name."""
         _ensure_proactor_policy()
         return self._explore(test_case, base_url, start)
@@ -88,15 +89,16 @@ class ExplorerAgent:
                 page = context.new_page()
                 page.set_default_timeout(ACTION_TIMEOUT_MS)
                 try:
-                    trace = self._run(page, test_case, base_url, start["account"] if start else None)
-                    return trace
+                    return self._run(page, test_case, base_url, start)
                 finally:
                     context.close()
             finally:
                 browser.close()
 
-    def _run(self, page, test_case: dict, base_url: str, logged_in_as: Optional[str] = None) -> dict:
-        page.goto("/")
+    def _run(self, page, test_case: dict, base_url: str, start: Optional[dict] = None) -> dict:
+        start_url = start["start_url"] if start else base_url
+        logged_in_as = start["account"] if start else None
+        page.goto(start_url)
         actions: list[dict] = []
         dead_ends: list[dict] = []
         total_turns = 0
@@ -162,6 +164,7 @@ class ExplorerAgent:
             "base_url": base_url,
             # The generated script starts logged in the same way, from the test setup.
             "starts_logged_in_as": logged_in_as,
+            "start_url": start_url,
             "actions": actions,
             "dead_ends": dead_ends,
             "final_url": page.url,

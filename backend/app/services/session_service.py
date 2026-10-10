@@ -50,7 +50,8 @@ class StartFailed(Exception):
 
 def starts_for(db: Session, project: Project, test_cases: list[TestCase]) -> dict[str, dict]:
     """Log in once per account the cases need. Returns test case id ->
-    {"account": name, "storage_state": session} for cases that start logged in."""
+    {"account": name, "storage_state": session, "start_url": page the login
+    landed on} for cases that start logged in."""
     accounts = {}
     for tc in test_cases:
         account = start_account(tc, project)
@@ -63,5 +64,10 @@ def starts_for(db: Session, project: Project, test_cases: list[TestCase]) -> dic
         except LoginFailed as exc:
             raise StartFailed(f"Couldn't log in as {account.name}: {exc}") from None
         for case_id in case_ids:
-            starts[case_id] = {"account": account.name, "storage_state": login.storage_state}
+            starts[case_id] = {
+                "account": account.name,
+                "storage_state": login.storage_state,
+                # Some apps show the login form at the base URL even when logged in.
+                "start_url": login.final_url,
+            }
     return starts
