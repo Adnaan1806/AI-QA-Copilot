@@ -130,6 +130,7 @@ def test_logs_in_with_a_plain_form(page):
     assert result.final_url.startswith("https://app.test/home")
     assert any(c["name"] == "session" for c in result.storage_state["cookies"])
     assert page.locator("#u").count() == 0
+    assert result.screenshot[:2] == bytes([0xFF, 0xD8])  # a JPEG of the page, as proof
 
 
 def test_reports_the_apps_error_on_a_wrong_password(page):
@@ -144,7 +145,7 @@ def test_two_step_login(page):
 
 def test_no_login_form(page):
     with pytest.raises(LoginFailed, match="No login form found"):
-        log_in(page, "https://app.test/nothing", "u", "p")
+        log_in(page, "https://app.test/nothing?state=very-long-sign-in-parameters", "u", "p")
 
 
 def test_signs_in_through_a_microsoft_like_provider(page):
@@ -174,3 +175,11 @@ def test_reports_the_providers_error(page):
 def test_says_so_when_the_account_needs_mfa(page):
     with pytest.raises(LoginFailed, match="second factor"):
         log_in(page, "https://app.test/sso", "mfa@corp.test", "secret")
+
+
+def test_errors_leave_out_the_urls_query():
+    from app.access.login import short_url
+
+    assert short_url("https://login.microsoftonline.com/t/oauth2/v2.0/authorize?client_id=x&state=y") == (
+        "https://login.microsoftonline.com/t/oauth2/v2.0/authorize"
+    )

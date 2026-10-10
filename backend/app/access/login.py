@@ -56,6 +56,8 @@ class LoginFailed(Exception):
 class LoginResult:
     storage_state: dict
     final_url: str
+    # What the page looked like once logged in, as proof for the person checking.
+    screenshot: Optional[bytes] = None
 
 
 def _usable(el) -> bool:
@@ -135,6 +137,12 @@ def _fill(field, value: str):
         field.fill(value)
 
 
+def short_url(url: str) -> str:
+    """The URL without its query: sign-in URLs carry kilobytes of parameters."""
+    parts = urlparse(url)
+    return f"{parts.scheme}://{parts.netloc}{parts.path}"
+
+
 def _host(url: str) -> str:
     return urlparse(url).hostname or ""
 
@@ -210,7 +218,7 @@ def log_in(page, login_url: str, username: str, password: str) -> LoginResult:
         _settle(page)
 
     if "password" not in done:
-        raise LoginFailed(_visible_error(page) or f"No login form found at {page.url}")
+        raise LoginFailed(_visible_error(page) or f"No login form found at {short_url(page.url)}")
 
     # Back to the app: a provider redirects there, maybe through a few pages.
     try:
@@ -222,7 +230,11 @@ def log_in(page, login_url: str, username: str, password: str) -> LoginResult:
     _settle(page)
     if _on_login_step(page):
         raise LoginFailed(_visible_error(page) or "The login form was still showing after submitting.")
-    return LoginResult(storage_state=page.context.storage_state(), final_url=page.url)
+    return LoginResult(
+        storage_state=page.context.storage_state(),
+        final_url=page.url,
+        screenshot=page.screenshot(type="jpeg", quality=70),
+    )
 
 
 def _account_tile(page, username: str):

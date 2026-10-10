@@ -1,3 +1,4 @@
+import base64
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -176,4 +177,7 @@ def check_login(
         db.refresh(account)
         return LoginCheckResponse(ok=False, error=str(exc), account=_item(account))
     db.refresh(account)
-    return LoginCheckResponse(ok=True, landed_on=result.final_url, account=_item(account))
+    screenshot = (
+        "data:image/jpeg;base64," + base64.b64encode(result.screenshot).decode() if result.screenshot else None
+    )
+    return LoginCheckResponse(ok=True, landed_on=result.final_url, screenshot=screenshot, account=_item(account))
