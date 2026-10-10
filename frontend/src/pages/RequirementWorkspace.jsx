@@ -102,7 +102,7 @@ export default function RequirementWorkspace({ tab }) {
         setRequirement(r);
         setSuite(s);
         setProject(p);
-        setAccounts(a);
+        setAccounts(a.accounts);
       })
       .catch((err) => !cancelled && setError(err.message))
       .finally(() => !cancelled && setLoading(false));
