@@ -44,4 +44,6 @@ class LoginCheckResponse(BaseModel):
     ok: bool
     error: Optional[str] = None
     landed_on: Optional[str] = None
+    # The page right after logging in, as a data: URL (not stored).
+    screenshot: Optional[str] = None
     account: AccountItem

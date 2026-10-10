@@ -8,6 +8,7 @@ import {
   updateAccount,
 } from "../../services/api";
 import { formatDate } from "../../lib/qa";
+import { cn } from "../../lib/utils";
 import Spinner from "../../motion/Spinner";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
@@ -124,19 +125,67 @@ function AccountForm({ account, onSave, onCancel }) {
   );
 }
 
-function LoginStatus({ account }) {
-  if (account.last_login_error) {
-    return (
-      <p className="text-xs text-fail">
-        Login failed: {account.last_login_error}
+// Login errors can quote a provider's page at length: two lines, then "Show all".
+function LoginError({ message }) {
+  const [open, setOpen] = useState(false);
+  const long = message.length > 160;
+  return (
+    <div className="text-xs text-fail">
+      <p className={cn("[overflow-wrap:anywhere]", long && !open && "line-clamp-2")}>
+        Login failed: {message}
       </p>
-    );
+      {long && (
+        <button type="button" onClick={() => setOpen((v) => !v)} className="text-muted-foreground hover:underline">
+          {open ? "Show less" : "Show all"}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function shortUrl(url) {
+  try {
+    const u = new URL(url);
+    return u.host + u.pathname;
+  } catch {
+    return url;
   }
+}
+
+// What a Test login just saw: where the browser ended up, and the page itself.
+function LoginProof({ proof }) {
+  const [enlarged, setEnlarged] = useState(false);
+  return (
+    <div className="space-y-1.5 pt-1">
+      <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
+        Landed on <span className="font-mono text-foreground">{shortUrl(proof.landed_on)}</span>
+      </p>
+      {proof.screenshot && (
+        <button
+          type="button"
+          onClick={() => setEnlarged((v) => !v)}
+          aria-label={enlarged ? "Shrink the screenshot" : "Enlarge the screenshot"}
+          className="block overflow-hidden rounded-md border border-border"
+        >
+          <img
+            src={proof.screenshot}
+            alt="The app's page right after logging in"
+            className={enlarged ? "w-full max-w-3xl" : "w-56"}
+          />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function LoginStatus({ account, proof }) {
+  if (account.last_login_error) return <LoginError message={account.last_login_error} />;
   if (account.last_login_at) {
     return (
-      <p className="text-xs text-pass">
-        Logged in {formatDate(account.last_login_at)}
-      </p>
+      <>
+        <p className="text-xs text-pass">Logged in {formatDate(account.last_login_at)}</p>
+        {proof && <LoginProof proof={proof} />}
+      </>
     );
   }
   return <p className="text-xs text-muted-foreground">Not tried yet</p>;
@@ -147,6 +196,7 @@ export default function AccountsPanel({ projectId }) {
   const [error, setError] = useState(null);
   const [mode, setMode] = useState(null); // null | "new" | account id being edited
   const [checking, setChecking] = useState(null);
+  const [proofs, setProofs] = useState({}); // account id -> last successful Test login
   const [deleting, setDeleting] = useState(null);
   const [confirming, setConfirming] = useState(false);
 
@@ -172,7 +222,9 @@ export default function AccountsPanel({ projectId }) {
     setChecking(account.id);
     setError(null);
     try {
-      replace((await checkAccountLogin(projectId, account.id)).account);
+      const result = await checkAccountLogin(projectId, account.id);
+      replace(result.account);
+      setProofs((p) => ({ ...p, [account.id]: result.ok ? result : undefined }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -289,7 +341,7 @@ export default function AccountsPanel({ projectId }) {
                       </span>
                     )}
                   </div>
-                  <LoginStatus account={account} />
+                  <LoginStatus account={account} proof={proofs[account.id]} />
                 </div>
                 <div className="flex gap-1.5">
                   <Button
