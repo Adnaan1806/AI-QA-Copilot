@@ -1,4 +1,5 @@
 import glob
+import json
 import os
 import shutil
 import signal
@@ -35,11 +36,27 @@ def _kill_tree(proc: subprocess.Popen) -> None:
         pass
 
 
-def execute_script(code: str, test_case_id: Optional[str] = None) -> dict:
+# Starts every test's browser context from a saved login. Written next to the
+# script only for runs that start logged in, and deleted with it.
+_LOGGED_IN_CONFTEST = """import pytest
+
+
+@pytest.fixture(scope="session")
+def browser_context_args(browser_context_args):
+    return {**browser_context_args, "storage_state": "storage_state.json"}
+"""
+
+
+def execute_script(code: str, test_case_id: Optional[str] = None, storage_state: Optional[dict] = None) -> dict:
     with tempfile.TemporaryDirectory() as tmp_dir:
         script_path = os.path.join(tmp_dir, f"test_{uuid.uuid4().hex}.py")
         with open(script_path, "w", encoding="utf-8") as f:
             f.write(code)
+        if storage_state is not None:
+            with open(os.path.join(tmp_dir, "storage_state.json"), "w", encoding="utf-8") as f:
+                json.dump(storage_state, f)
+            with open(os.path.join(tmp_dir, "conftest.py"), "w", encoding="utf-8") as f:
+                f.write(_LOGGED_IN_CONFTEST)
 
         args = [sys.executable, "-m", "pytest", script_path, "-v", "--tb=short", "-q"]
         if not config.PLAYWRIGHT_HEADLESS:
@@ -55,6 +72,7 @@ def execute_script(code: str, test_case_id: Optional[str] = None) -> dict:
 
         proc = subprocess.Popen(
             args,
+            cwd=tmp_dir,  # the conftest's storage_state.json path is relative
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,

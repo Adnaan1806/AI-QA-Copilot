@@ -35,6 +35,7 @@ from app.services.automation_service import (
 )
 from app.services.document_service import extract_text_from_pdf
 from app.services.review_service import set_review_status
+from app.services.session_service import StartFailed, starts_for
 from app.services.workflow_service import learn_from_run
 from app.services.export_service import build_test_cases_workbook
 
@@ -231,6 +232,11 @@ def generate_automation_and_report(
         )
 
     try:
+        starts = starts_for(db, requirement.suite.project, approved)
+    except StartFailed as exc:
+        raise HTTPException(400, str(exc))
+
+    try:
         with llm_errors_as_http():
             result = automation_report_graph.invoke(
                 {
@@ -240,6 +246,7 @@ def generate_automation_and_report(
                     "approved_test_cases": [test_case_payload(tc) for tc in approved],
                     "base_url": base_url,
                     "saved_scripts": saved_passing_scripts(approved),
+                    "starts": starts,
                     "reported_statuses": reported_statuses(requirement),
                 }
             )

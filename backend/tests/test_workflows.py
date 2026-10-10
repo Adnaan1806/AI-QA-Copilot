@@ -72,10 +72,10 @@ def test_a_replayed_pass_reproves_the_workflow(monkeypatch):
 
 
 def test_runner_hands_back_the_trace(monkeypatch):
-    monkeypatch.setattr(runner, "execute_script", lambda code, test_case_id=None: {"passed": True, "output": ""})
+    monkeypatch.setattr(runner, "execute_script", lambda code, test_case_id=None, storage_state=None: {"passed": True, "output": ""})
 
     class Explorer:
-        def explore(self, test_case, base_url):
+        def explore(self, test_case, base_url, start=None):
             return TRACE
 
     class Codegen:

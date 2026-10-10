@@ -27,6 +27,9 @@ Respond with a JSON object matching exactly this shape:
 Rules:
 - The test function must accept the `page` fixture (from pytest-playwright) as its only parameter.
 - Navigate to the trace's base_url first (page.goto(base_url)) if the trace doesn't already start there.
+- If the trace's "starts_logged_in_as" names an account, the test setup has already logged the browser in \
+as it (through the `page` fixture's storage state). Do not write login steps and never put credentials in \
+the script; start from the page the case is about.
 - After replaying the grounded actions, add an assertion checking the test case's expected_result (e.g. \
 expect(page).to_have_url(...), expect(locator).to_be_visible(), or similar) using \
 `from playwright.sync_api import expect`.

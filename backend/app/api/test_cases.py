@@ -21,6 +21,7 @@ from app.schemas.test_case import (
     TestCaseUpdateRequest,
 )
 from app.services.review_service import set_review_status
+from app.services.session_service import StartFailed, starts_for
 from app.services.workflow_service import learn_from_run
 from app.services.automation_service import (
     analysis_payload,
@@ -112,6 +113,11 @@ def automate_one_test_case(
     if not base_url:
         raise HTTPException(400, "Set a base URL on this project before generating automation")
 
+    try:
+        start = starts_for(db, requirement.suite.project, [test_case]).get(str(test_case.id))
+    except StartFailed as exc:
+        raise HTTPException(400, str(exc))
+
     requirement_id = str(requirement.id)
     try:
         with llm_errors_as_http():
@@ -120,6 +126,7 @@ def automate_one_test_case(
                 base_url,
                 requirement_id,
                 saved_code=saved_passing_scripts([test_case]).get(str(test_case.id)),
+                start=start,
             )
     finally:
         progress.clear_progress(requirement_id)

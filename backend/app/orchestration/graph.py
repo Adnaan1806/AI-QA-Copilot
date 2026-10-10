@@ -24,7 +24,11 @@ _report_agent = ReportAgent(get_llm_client())
 
 
 def automate_single_test_case(
-    test_case: dict, base_url: str, requirement_id: str, saved_code: Optional[str] = None
+    test_case: dict,
+    base_url: str,
+    requirement_id: str,
+    saved_code: Optional[str] = None,
+    start: Optional[dict] = None,
 ) -> dict:
     """Rerun automation for one test case outside the full graph -- e.g. a
     targeted retry on a "needs_review" result, without re-running every other
@@ -38,6 +42,7 @@ def automate_single_test_case(
         test_case_index=1,
         test_case_total=1,
         saved_code=saved_code,
+        start=start,
     )
 
 
@@ -97,6 +102,8 @@ class AutomationReportState(TypedDict):
     base_url: str
     # Test case id -> code of its last passing script, replayed before re-exploring.
     saved_scripts: dict[str, str]
+    # Test case id -> {"account", "storage_state"} for cases that start logged in.
+    starts: dict[str, dict]
     # Test case id -> status the current report was written for; empty when the
     # requirement has no report yet.
     reported_statuses: dict[str, str]
@@ -119,9 +126,11 @@ def _automation_node(state: AutomationReportState) -> dict:
             test_case_index=i,
             test_case_total=total,
             saved_code=saved.get(tc["id"]),
+            start=starts.get(tc["id"]),
         )
 
     saved = state.get("saved_scripts") or {}
+    starts = state.get("starts") or {}
     with ThreadPoolExecutor(max_workers=config.AUTOMATION_CONCURRENCY) as executor:
         results = list(executor.map(run_one, range(1, total + 1), test_cases))
     return {"automation_scripts": results}

@@ -20,12 +20,16 @@ def automate_test_case(
     test_case_index: int = 0,
     test_case_total: int = 0,
     saved_code: Optional[str] = None,
+    start: Optional[dict] = None,
 ) -> dict:
     """Automate one approved test case.
 
     With `saved_code` (the script that passed last time) the script is replayed
     first, which takes seconds and no LLM calls. Only if it fails does the case
     go through exploration, generation and healing again.
+
+    With `start` ({"account", "storage_state"}) every browser -- the Explorer's
+    and each script run's -- starts logged in as that account.
     """
     def report(stage: str, **extra):
         if requirement_id:
@@ -45,7 +49,9 @@ def automate_test_case(
 
     def run(code: str, kind: str, reason: str = "") -> dict:
         report("running_tests", attempt=len(tries) + 1)
-        result = execute_script(code, test_case_id=test_case.get("id"))
+        result = execute_script(
+            code, test_case_id=test_case.get("id"), storage_state=start["storage_state"] if start else None
+        )
         tries.append(_try(kind, code, result, reason))
         return result
 
@@ -57,7 +63,7 @@ def automate_test_case(
 
     try:
         report("exploring")
-        trace = explorer.explore(test_case, base_url)
+        trace = explorer.explore(test_case, base_url, start=start)
 
         report("generating_script")
         code = codegen.generate(trace, test_case)
