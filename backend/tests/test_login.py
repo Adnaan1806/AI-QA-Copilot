@@ -1,5 +1,7 @@
 """The login runner against fake login pages in a real (hidden) browser."""
 
+import re
+
 import pytest
 from playwright.sync_api import sync_playwright
 
@@ -33,7 +35,65 @@ function next() {
 </script>
 """
 
-PAGES = {"/login": ONE_STEP, "/two-step": TWO_STEP, "/home": "<h1>Welcome</h1>", "/nothing": "<p>Hello</p>"}
+# A Microsoft-like identity provider on its own site. Like Microsoft's, the email
+# page already holds a password field, moved off screen.
+IDP_SIGN_IN = """
+<div id="view">
+  <input type="email" name="loginfmt" placeholder="Email, phone, or Skype">
+  <input type="password" name="passwd" style="position:absolute;left:-10000px">
+  <input type="submit" value="Next" onclick="next()">
+</div>
+<script>
+let email = '';
+function next() {
+  email = document.querySelector('[name=loginfmt]').value;
+  document.getElementById('view').innerHTML =
+    '<div role="alert" id="err"></div><p>' + email + '</p><input type="password" name="passwd">'
+    + '<input type="submit" value="Sign in" onclick="signIn()">';
+}
+function signIn() {
+  if (document.querySelector('[name=passwd]').value !== 'secret') {
+    document.getElementById('err').textContent = 'Your account or password is incorrect.'; return;
+  }
+  if (email.startsWith('mfa')) { document.body.innerHTML = '<h1>Approve sign in request</h1><p>Open your Authenticator app</p>'; return; }
+  document.cookie = 'idp_session=ok; path=/';
+  location = 'https://idp.test/kmsi';
+}
+</script>
+"""
+
+STAY_SIGNED_IN = """
+<h1>Stay signed in?</h1>
+<label><input type="checkbox"> Don't show this again</label>
+<input type="button" value="No" onclick="location='https://app.test/home?no'">
+<input type="submit" value="Yes" onclick="location='https://app.test/home'">
+"""
+
+PICK_AN_ACCOUNT = """
+<h1>Pick an account</h1>
+<div role="button" onclick="location='https://idp.test/password'">me@corp.test<br>Signed in</div>
+<div role="button" onclick="location='https://idp.test/authorize'">Use another account</div>
+"""
+
+IDP_PASSWORD = """
+<div role="alert" id="err"></div><p>me@corp.test</p>
+<input type="password" name="passwd"><input type="submit" value="Sign in" onclick="location='https://idp.test/kmsi'">
+"""
+
+PAGES = {
+    "app.test/login": ONE_STEP,
+    "app.test/two-step": TWO_STEP,
+    "app.test/home": "<h1>Welcome</h1>",
+    "app.test/nothing": "<p>Hello</p>",
+    # An app with a sign-in button, and one (like Power Apps) that sends you straight to the provider.
+    "app.test/sso": "<h1>Firm Manager</h1><button onclick=\"location='https://idp.test/authorize'\">Sign in with Microsoft</button>",
+    "app.test/play": "<script>location.replace('https://idp.test/authorize')</script>",
+    "app.test/picker": "<script>location.replace('https://idp.test/pick')</script>",
+    "idp.test/authorize": IDP_SIGN_IN,
+    "idp.test/kmsi": STAY_SIGNED_IN,
+    "idp.test/pick": PICK_AN_ACCOUNT,
+    "idp.test/password": IDP_PASSWORD,
+}
 
 
 @pytest.fixture(scope="module")
@@ -48,10 +108,10 @@ def browser():
 def page(browser):
     context = browser.new_context()
     context.route(
-        "https://app.test/**",
+        re.compile(r"https://(app|idp)\.test/.*"),
         lambda route: route.fulfill(
             content_type="text/html",
-            body=PAGES.get(route.request.url.split("app.test")[1].split("?")[0], "<p>404</p>"),
+            body=PAGES.get(route.request.url.split("://")[1].split("?")[0], "<p>404</p>"),
         ),
     )
     page = context.new_page()
@@ -79,3 +139,28 @@ def test_two_step_login(page):
 def test_no_login_form(page):
     with pytest.raises(LoginFailed, match="No login form found"):
         log_in(page, "https://app.test/nothing", "u", "p")
+
+
+def test_signs_in_through_a_microsoft_like_provider(page):
+    result = log_in(page, "https://app.test/sso", "me@corp.test", "secret")
+    # Answered "Stay signed in?" with Yes, and kept the provider's cookie for later runs.
+    assert result.final_url == "https://app.test/home"
+    assert any(c["name"] == "idp_session" for c in result.storage_state["cookies"])
+
+
+def test_an_app_that_redirects_straight_to_the_provider(page):
+    assert log_in(page, "https://app.test/play", "me@corp.test", "secret").final_url == "https://app.test/home"
+
+
+def test_picks_the_account_on_an_account_picker(page):
+    assert log_in(page, "https://app.test/picker", "me@corp.test", "secret").final_url == "https://app.test/home"
+
+
+def test_reports_the_providers_error(page):
+    with pytest.raises(LoginFailed, match="Your account or password is incorrect"):
+        log_in(page, "https://app.test/sso", "me@corp.test", "wrong")
+
+
+def test_says_so_when_the_account_needs_mfa(page):
+    with pytest.raises(LoginFailed, match="second factor"):
+        log_in(page, "https://app.test/sso", "mfa@corp.test", "secret")
