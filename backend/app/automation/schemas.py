@@ -6,6 +6,9 @@ class GroundedAction(TypedDict):
     action: str
     locator_strategy: str
     locator_value: str
+    # Playwright code checked to match only this element; fragile = by position.
+    locator: str
+    locator_fragile: bool
     value: Optional[str]
     resulting_url: str
 

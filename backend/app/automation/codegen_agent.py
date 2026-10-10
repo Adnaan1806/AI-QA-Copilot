@@ -6,11 +6,13 @@ GENERATE_SYSTEM_PROMPT = """You are a Senior SDET writing a pytest-playwright te
 `page` fixture provided by pytest-playwright) for one approved manual test case.
 
 You will be given the test case (title, steps, expected_result) and a "grounded trace" -- a list of \
-actions that were actually performed and verified against the real running application, each with a \
-locator_strategy and locator_value that are known to work. You MUST use exactly these locators when \
-writing the script; do not invent, guess, or substitute different selectors.
+actions that were actually performed and verified against the real running application. Each action's \
+"locator" is Playwright Python code that was checked on the live page to match exactly the element acted \
+on. Use it verbatim, e.g. page.get_by_role("button", name="Continue", exact=True).click(); do not \
+invent, guess, shorten, or substitute different selectors. If "locator_fragile" is true the locator \
+relies on the element's position: keep it, with a comment saying so.
 
-locator_strategy values map to Playwright locator calls as follows:
+Older traces have no "locator", only locator_strategy and locator_value, which map to Playwright calls:
 - "role" -> value is "role|accessible_name" -> page.get_by_role("role", name="accessible_name")
 - "placeholder" -> page.get_by_placeholder(value)
 - "label" -> page.get_by_label(value)
@@ -49,8 +51,8 @@ which retry attempt this is.
 
 First decide whether the failure is in the script or in the application:
 - Script problem: a locator that doesn't match, a missing wait for content that loads later, a wrong \
-navigation step, a typo. Fix it. Prefer a locator_strategy/locator_value from the grounded trace over \
-inventing a new one, and change only what the failure points at.
+navigation step, a typo. Fix it. Prefer a "locator" from the grounded trace over inventing a new one, \
+and change only what the failure points at.
 - Application problem: the page was reached correctly but does not show what the test case's \
 expected_result describes. Do not fix this -- the test is doing its job by failing. Set "fixable" to false.
 

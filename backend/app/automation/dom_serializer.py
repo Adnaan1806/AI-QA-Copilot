@@ -26,7 +26,8 @@ def _element_info(locator, index: int) -> dict:
         text = locator.inner_text(timeout=500).strip()
     except Exception:
         text = ""
-    name = _first_nonempty(aria_label, text, placeholder)
+    button_value = (locator.get_attribute("value") or "") if input_type in ("submit", "button", "reset") else ""
+    name = _first_nonempty(aria_label, text, button_value, placeholder)
 
     if role and name:
         strategy, value = "role", f"{role}|{name}"

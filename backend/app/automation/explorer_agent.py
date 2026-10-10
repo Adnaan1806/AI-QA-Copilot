@@ -9,6 +9,7 @@ from playwright.sync_api import sync_playwright
 
 from app import config
 from app.automation.dom_serializer import serialize_page
+from app.automation.locators import unique_locator
 from app.llm.client import LLMClient
 
 logger = logging.getLogger(__name__)
@@ -139,6 +140,8 @@ class ExplorerAgent:
                 element = elements[index]
                 value = decision.get("value")
                 try:
+                    # Before acting: a click may navigate away from the element.
+                    located = unique_locator(page, element["locator"])
                     self._act(element["locator"], action, value)
                 except Exception as exc:
                     history.append(f"Action {action} on [{index}] failed: {exc}")
@@ -150,6 +153,8 @@ class ExplorerAgent:
                         "action": action,
                         "locator_strategy": element["strategy"],
                         "locator_value": element["value"],
+                        "locator": located["locator"],
+                        "locator_fragile": located["fragile"],
                         "value": value,
                         "resulting_url": page.url,
                     }
