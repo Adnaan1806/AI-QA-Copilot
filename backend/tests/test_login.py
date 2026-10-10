@@ -45,8 +45,12 @@ IDP_SIGN_IN = """
 </div>
 <script>
 let email = '';
+// Like Microsoft, each step stays on screen for a moment while it's checked.
 function next() {
   email = document.querySelector('[name=loginfmt]').value;
+  setTimeout(showPassword, 1500);
+}
+function showPassword() {
   document.getElementById('view').innerHTML =
     '<div role="alert" id="err"></div><p>' + email + '</p><input type="password" name="passwd">'
     + '<input type="submit" value="Sign in" onclick="signIn()">';
@@ -57,7 +61,7 @@ function signIn() {
   }
   if (email.startsWith('mfa')) { document.body.innerHTML = '<h1>Approve sign in request</h1><p>Open your Authenticator app</p>'; return; }
   document.cookie = 'idp_session=ok; path=/';
-  location = 'https://idp.test/kmsi';
+  setTimeout(() => { location = 'https://idp.test/kmsi'; }, 1500);
 }
 </script>
 """
@@ -88,6 +92,8 @@ PAGES = {
     # An app with a sign-in button, and one (like Power Apps) that sends you straight to the provider.
     "app.test/sso": "<h1>Firm Manager</h1><button onclick=\"location='https://idp.test/authorize'\">Sign in with Microsoft</button>",
     "app.test/play": "<script>location.replace('https://idp.test/authorize')</script>",
+    # Loads its scripts first, then redirects, like Power Apps does.
+    "app.test/slow": "<script>setTimeout(() => location.replace('https://idp.test/authorize'), 7000)</script>",
     "app.test/picker": "<script>location.replace('https://idp.test/pick')</script>",
     "idp.test/authorize": IDP_SIGN_IN,
     "idp.test/kmsi": STAY_SIGNED_IN,
@@ -150,6 +156,10 @@ def test_signs_in_through_a_microsoft_like_provider(page):
 
 def test_an_app_that_redirects_straight_to_the_provider(page):
     assert log_in(page, "https://app.test/play", "me@corp.test", "secret").final_url == "https://app.test/home"
+
+
+def test_waits_for_an_app_that_redirects_after_loading(page):
+    assert log_in(page, "https://app.test/slow", "me@corp.test", "secret").final_url == "https://app.test/home"
 
 
 def test_picks_the_account_on_an_account_picker(page):

@@ -20,6 +20,7 @@ STEP_TIMEOUT_MS = 15000
 MAX_TURNS = 10
 # How long to wait for the redirects back to the app once the login is done.
 RETURN_TIMEOUT_MS = 30000
+POLL_MS = 500
 
 # Buttons that move a login form on, by their visible text.
 SUBMIT_TEXT = re.compile(r"^\s*(log\s*-?in|sign\s*-?in|continue|next|submit|go|verify)\s*$", re.IGNORECASE)
@@ -149,11 +150,24 @@ def log_in(page, login_url: str, username: str, password: str) -> LoginResult:
     app_host = _host(login_url)
     done: set[str] = set()  # each kind of step at most once, so a rejected one isn't retried forever
 
-    for _ in range(MAX_TURNS):
+    turns, idle_ms = 0, 0
+
+    def still_showing(message: str):
+        """A step already done is still on screen: an error now, or the page is
+        still checking it -- keep looking until STEP_TIMEOUT_MS has passed."""
+        nonlocal idle_ms
+        error = _visible_error(page)
+        if error or idle_ms >= STEP_TIMEOUT_MS:
+            raise LoginFailed(error or message)
+        page.wait_for_timeout(POLL_MS)
+        idle_ms += POLL_MS
+
+    while turns < MAX_TURNS:
         passwords = _visible(page.locator("input[type=password]"))
         if passwords:
             if "password" in done:
-                raise LoginFailed(_visible_error(page) or "The login form was still showing after submitting.")
+                still_showing("The login form was still showing after submitting.")
+                continue
             user = _username_field(_form_of(page, passwords[0]), passwords[0])
             if user is not None:
                 _fill(user, username)
@@ -164,7 +178,8 @@ def log_in(page, login_url: str, username: str, password: str) -> LoginResult:
             done.add("password")
         elif "password" not in done and (user := _username_field(page.locator("body"))) is not None:
             if "username" in done:
-                raise LoginFailed(_visible_error(page) or "After the username, no password field appeared.")
+                still_showing("After the username, no password field appeared.")
+                continue
             _fill(user, username)
             _submit(_form_of(page, user), user)
             done.add("username")
@@ -183,8 +198,15 @@ def log_in(page, login_url: str, username: str, password: str) -> LoginResult:
         elif "sign-in" not in done and "password" not in done and (start := _button(page.locator("body"), SIGN_IN_TEXT)):
             start.click()
             done.add("sign-in")
-        else:
+        elif ("password" in done and _host(page.url) == app_host) or idle_ms >= STEP_TIMEOUT_MS:
             break
+        else:
+            # Nothing to do yet: the page may still be loading or redirecting
+            # (Power Apps loads its scripts before sending you to Microsoft).
+            page.wait_for_timeout(POLL_MS)
+            idle_ms += POLL_MS
+            continue
+        turns, idle_ms = turns + 1, 0
         _settle(page)
 
     if "password" not in done:
