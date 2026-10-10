@@ -9,6 +9,7 @@ from app.schemas.test_case import (
     TestCaseItem,
     clean_steps,
 )
+from app.services.session_service import start_account
 
 # How many recent runs to send per case -- enough to judge flakiness.
 RUN_HISTORY_LIMIT = 10
@@ -50,6 +51,7 @@ def suggested_cases(raw: Optional[list]) -> list[SuggestedCase]:
                 steps=clean_steps([str(step) for step in item.get("steps") or []]),
                 expected_result=str(item.get("expected_result") or ""),
                 priority=item.get("priority") or "medium",
+                starts_logged_out=item.get("starts_logged_out") is True,
                 why=str(item.get("why") or ""),
             )
         )
@@ -65,6 +67,9 @@ def to_test_case_item(tc: TestCase) -> TestCaseItem:
         expected_result=tc.expected_result,
         priority=tc.priority,
         covers=tc.covers,
+        start_state=tc.start_state,
+        account_id=tc.account_id,
+        starts_as=getattr(start_account(tc, tc.requirement.suite.project), "name", None),
         status=tc.status,
         reviewed_by_name=tc.reviewed_by.name if tc.reviewed_by else None,
         reviewed_at=tc.reviewed_at,

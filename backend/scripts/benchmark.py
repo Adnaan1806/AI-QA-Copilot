@@ -38,8 +38,8 @@ class RecordingExplorer:
         self._explorer = explorer
         self.trace = None
 
-    def explore(self, test_case, base_url):
-        self.trace = self._explorer.explore(test_case, base_url)
+    def explore(self, test_case, base_url, start=None):
+        self.trace = self._explorer.explore(test_case, base_url, start=start)
         return self.trace
 
 

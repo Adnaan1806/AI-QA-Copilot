@@ -208,6 +208,7 @@ PYTHONPATH=. python scripts/migrate_run_tries.py       # code and output of ever
 PYTHONPATH=. python scripts/migrate_report_statuses.py # case statuses each report was written for
 PYTHONPATH=. python scripts/migrate_case_coverage.py   # criterion each case covers, suggested cases
 PYTHONPATH=. python scripts/migrate_knowledge_kind.py   # tag older knowledge chunks as documents
+PYTHONPATH=. python scripts/migrate_case_start.py       # whether each case starts logged in, and as which account
 ```
 
 </details>

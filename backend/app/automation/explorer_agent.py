@@ -3,6 +3,7 @@ import json
 import logging
 import sys
 import threading
+from typing import Optional
 
 from playwright.sync_api import sync_playwright
 
@@ -55,6 +56,8 @@ Respond with a JSON object matching exactly this shape:
 }
 
 Rules:
+- If "browser_started_logged_in_as" names an account, the browser is already logged in as it. A step \
+that logs in is then already done: use "step_complete" for it.
 - Use "step_complete" (element_index and value can be null) once the page state shows the current step \
 has already been accomplished (e.g. navigation happened, expected content appeared).
 - Use "dead_end" (element_index and value can be null) only if none of the visible elements can \
@@ -69,26 +72,33 @@ class ExplorerAgent:
     def __init__(self, llm_client: LLMClient):
         self._llm_client = llm_client
 
-    def explore(self, test_case: dict, base_url: str) -> dict:
+    def explore(self, test_case: dict, base_url: str, start: Optional[dict] = None) -> dict:
+        """`start` ({"account", "storage_state", "start_url"}) starts the browser
+        logged in, on the page the login landed on;
+        the LLM only hears the account's name."""
         _ensure_proactor_policy()
-        return self._explore(test_case, base_url)
+        return self._explore(test_case, base_url, start)
 
-    def _explore(self, test_case: dict, base_url: str) -> dict:
+    def _explore(self, test_case: dict, base_url: str, start: Optional[dict] = None) -> dict:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=config.PLAYWRIGHT_HEADLESS)
             try:
-                context = browser.new_context(base_url=base_url)
+                context = browser.new_context(
+                    base_url=base_url, storage_state=start["storage_state"] if start else None
+                )
                 page = context.new_page()
                 page.set_default_timeout(ACTION_TIMEOUT_MS)
                 try:
-                    return self._run(page, test_case, base_url)
+                    return self._run(page, test_case, base_url, start)
                 finally:
                     context.close()
             finally:
                 browser.close()
 
-    def _run(self, page, test_case: dict, base_url: str) -> dict:
-        page.goto("/")
+    def _run(self, page, test_case: dict, base_url: str, start: Optional[dict] = None) -> dict:
+        start_url = start["start_url"] if start else base_url
+        logged_in_as = start["account"] if start else None
+        page.goto(start_url)
         actions: list[dict] = []
         dead_ends: list[dict] = []
         total_turns = 0
@@ -108,7 +118,7 @@ class ExplorerAgent:
                 total_turns += 1
 
                 snapshot, elements = serialize_page(page)
-                decision = self._decide(test_case, step_text, snapshot, history)
+                decision = self._decide(test_case, step_text, snapshot, history, logged_in_as)
                 action = decision.get("action")
 
                 if action == "step_complete":
@@ -152,15 +162,21 @@ class ExplorerAgent:
         return {
             "test_case_id": test_case.get("id", ""),
             "base_url": base_url,
+            # The generated script starts logged in the same way, from the test setup.
+            "starts_logged_in_as": logged_in_as,
+            "start_url": start_url,
             "actions": actions,
             "dead_ends": dead_ends,
             "final_url": page.url,
         }
 
-    def _decide(self, test_case: dict, step_text: str, snapshot: str, history: list[str]) -> dict:
+    def _decide(
+        self, test_case: dict, step_text: str, snapshot: str, history: list[str], logged_in_as: Optional[str] = None
+    ) -> dict:
         user_prompt = json.dumps(
             {
                 "test_case_title": test_case.get("title", ""),
+                "browser_started_logged_in_as": logged_in_as,
                 "current_step": step_text,
                 "expected_result": test_case.get("expected_result", ""),
                 "page_snapshot": snapshot,

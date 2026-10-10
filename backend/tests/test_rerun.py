@@ -22,7 +22,7 @@ class FakeExplorer:
     def __init__(self):
         self.calls = 0
 
-    def explore(self, test_case, base_url):
+    def explore(self, test_case, base_url, start=None):
         self.calls += 1
         return {"actions": [], "dead_ends": []}
 
@@ -48,7 +48,7 @@ def fake_executor(monkeypatch, passing_code):
     """Scripts pass only when their code is in `passing_code`."""
     ran = []
 
-    def execute(code, test_case_id=None):
+    def execute(code, test_case_id=None, storage_state=None):
         ran.append(code)
         return {"passed": code in passing_code, "output": "boom", "trace_path": None}
 
@@ -297,7 +297,7 @@ def test_failure_before_any_script_keeps_the_saved_one(monkeypatch):
     assert result["last_output"].startswith("Automation stopped: Boom: generate timed out")
 
     class CrashingExplorer:
-        def explore(self, test_case, base_url):
+        def explore(self, test_case, base_url, start=None):
             raise Boom("browser crashed")
 
     result = runner.automate_test_case(CASE, "https://example.test", CrashingExplorer(), FakeCodegen())

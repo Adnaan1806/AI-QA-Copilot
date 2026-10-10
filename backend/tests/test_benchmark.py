@@ -8,11 +8,11 @@ CASE = {"title": "Search opens", "steps": ["Open docs", "Click Search", "Type x"
 
 def test_case_result_counts_tries_healing_and_dead_ends(monkeypatch):
     monkeypatch.setattr(
-        runner, "execute_script", lambda code, test_case_id=None: {"passed": code == "healed-1", "output": "boom"}
+        runner, "execute_script", lambda code, test_case_id=None, storage_state=None: {"passed": code == "healed-1", "output": "boom"}
     )
 
     class Explorer:
-        def explore(self, test_case, base_url):
+        def explore(self, test_case, base_url, start=None):
             return {"actions": [], "dead_ends": [{"step_text": "Type x", "reason": "no input"}]}
 
     class Codegen:
