@@ -31,13 +31,14 @@ Respond with a JSON object matching exactly this shape:
       "type": "functional" | "negative" | "edge_case" | "security",
       "steps": ["one actionable step per item, in order, without step numbers"],
       "expected_result": "the single expected outcome of the test",
-      "priority": "high" | "medium" | "low"
+      "priority": "high" | "medium" | "low",
+      "starts_logged_out": false
     }
   ],
   "suggestions": [
     {
       "title": "...", "covers": "...", "type": "...", "steps": ["..."],
-      "expected_result": "...", "priority": "...",
+      "expected_result": "...", "priority": "...", "starts_logged_out": false,
       "why": "one sentence: what this would catch that the cases don't"
     }
   ]
@@ -47,6 +48,7 @@ Rules:
 - Each test case must be independently executable -- steps must not assume another test ran first.
 - Use the requirement's own wording for labels and messages; do not invent UI text it doesn't give.
 - priority reflects business/quality risk, not implementation difficulty.
+- If the project has test accounts (listed after the requirement), the browser starts logged in, so do not write login steps for a case that is not about logging in. Set "starts_logged_out" to true only for a case that must begin with no one logged in (e.g. what a visitor sees, or that a page requires login). A case whose steps log in starts logged out anyway.
 - Do not include markdown, commentary, or text outside the JSON object.
 """
 
@@ -60,8 +62,9 @@ class QAAgent:
         requirement_text: str,
         analysis: dict[str, Any],
         context: Optional[list[dict[str, Any]]] = None,
+        account_names: Optional[list[str]] = None,
     ) -> dict:
-        user_prompt = self._build_user_prompt(requirement_text, analysis, context or [])
+        user_prompt = self._build_user_prompt(requirement_text, analysis, context or [], account_names or [])
         return self._llm_client.generate_json(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=user_prompt,
@@ -69,12 +72,21 @@ class QAAgent:
 
     @staticmethod
     def _build_user_prompt(
-        requirement_text: str, analysis: dict[str, Any], context: list[dict[str, Any]]
+        requirement_text: str,
+        analysis: dict[str, Any],
+        context: list[dict[str, Any]],
+        account_names: list[str] = (),
     ) -> str:
         sections = [
             f"Requirement:\n{requirement_text}",
             f"Requirement Analysis:\n{json.dumps(analysis, indent=2)}",
         ]
+        if account_names:
+            others = ", ".join(account_names[1:])
+            sections.append(
+                f"Test accounts: cases start logged in as {account_names[0]}"
+                + (f" (other accounts: {others})" if others else "")
+            )
         if context:
             knowledge = "\n\n".join(
                 f"[source: {item.get('source') or 'unknown'}]\n{item['content']}"

@@ -5,6 +5,15 @@ from typing import Optional
 
 from pydantic import BaseModel, field_validator
 
+# How a case starts when its project has accounts; None decides from the case.
+START_STATES = {"logged_in", "logged_out"}
+
+
+def check_start_state(value: Optional[str]) -> Optional[str]:
+    if value is not None and value not in START_STATES:
+        raise ValueError(f"start_state must be one of {sorted(START_STATES)} or null")
+    return value
+
 # "1. ", "2) ", "Step 3: ", "4 - " -- the UI numbers steps itself.
 _STEP_NUMBER = re.compile(r"^\s*(?:step\s*)?\d+\s*[.):-]\s+", re.IGNORECASE)
 
@@ -23,6 +32,10 @@ class TestCaseItem(BaseModel):
     expected_result: str
     priority: str
     covers: Optional[str] = None
+    start_state: Optional[str] = None
+    account_id: Optional[uuid.UUID] = None
+    # The account the case will start logged in as, or None for logged out.
+    starts_as: Optional[str] = None
     status: str
     reviewed_by_name: Optional[str] = None
     reviewed_at: Optional[datetime] = None
@@ -36,8 +49,11 @@ class TestCaseCreateRequest(BaseModel):
     expected_result: str = ""
     priority: str = "medium"
     covers: Optional[str] = None
+    start_state: Optional[str] = None
+    account_id: Optional[uuid.UUID] = None
 
     _clean_steps = field_validator("steps")(clean_steps)
+    _check_start_state = field_validator("start_state")(check_start_state)
 
 
 class TestCaseGenerationResponse(BaseModel):
@@ -53,11 +69,17 @@ class TestCaseUpdateRequest(BaseModel):
     priority: Optional[str] = None
     status: Optional[str] = None
 
+    reject_reason: Optional[str] = None
+    # Sent only to change them; null resets to automatic / the default account.
+    start_state: Optional[str] = None
+    account_id: Optional[uuid.UUID] = None
+
     @field_validator("steps")
     @classmethod
     def _clean_steps(cls, steps: Optional[list[str]]) -> Optional[list[str]]:
         return None if steps is None else clean_steps(steps)
-    reject_reason: Optional[str] = None
+
+    _check_start_state = field_validator("start_state")(check_start_state)
 
 
 class AutomationRunItem(BaseModel):

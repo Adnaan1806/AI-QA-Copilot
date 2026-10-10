@@ -47,6 +47,7 @@ class SuggestedCase(BaseModel):
     steps: list[str] = []
     expected_result: str = ""
     priority: str = "medium"
+    starts_logged_out: bool = False
     why: str = ""
 
 

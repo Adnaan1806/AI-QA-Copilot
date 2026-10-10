@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_owned_requirement, get_owned_suite
+from app.api.deps import check_project_account, get_owned_requirement, get_owned_suite
 from app.api.errors import llm_errors_as_http
 from app.api.serializers import (
     active_test_cases,
@@ -35,7 +35,12 @@ from app.services.automation_service import (
 )
 from app.services.document_service import extract_text_from_pdf
 from app.services.review_service import set_review_status
-from app.services.session_service import StartFailed, starts_for
+from app.services.session_service import (
+    StartFailed,
+    account_names,
+    generated_start_state,
+    starts_for,
+)
 from app.services.workflow_service import learn_from_run
 from app.services.export_service import build_test_cases_workbook
 
@@ -68,7 +73,11 @@ def create_requirement(
     with llm_errors_as_http():
         context = retrieve(requirement_text, suite.project_id)
         result = analysis_qa_graph.invoke(
-            {"requirement_text": requirement_text, "context": context}
+            {
+                "requirement_text": requirement_text,
+                "context": context,
+                "account_names": account_names(suite.project),
+            }
         )
 
     analysis = result["analysis"]
@@ -99,6 +108,7 @@ def create_requirement(
                 expected_result=item.get("expected_result", ""),
                 priority=item.get("priority", "medium"),
                 covers=item.get("covers") or None,
+                start_state=generated_start_state(item),
             )
         )
     db.commit()
@@ -193,6 +203,7 @@ def create_test_case(
     requirement = get_owned_requirement(requirement_id, current_user, db)
     if not payload.title.strip():
         raise HTTPException(400, "Title cannot be empty")
+    check_project_account(requirement.suite.project, payload.account_id)
 
     test_case = TestCase(
         requirement_id=requirement.id,
@@ -202,6 +213,8 @@ def create_test_case(
         expected_result=payload.expected_result,
         priority=payload.priority,
         covers=payload.covers,
+        start_state=payload.start_state,
+        account_id=payload.account_id,
     )
     db.add(test_case)
     db.commit()

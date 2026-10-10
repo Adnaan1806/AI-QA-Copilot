@@ -33,6 +33,17 @@ def start_account(test_case: TestCase, project: Project) -> Optional[ProjectAcco
     return chosen or default_account(project)
 
 
+def account_names(project: Project) -> list[str]:
+    """The project's account names, the default first -- all the QA agent hears."""
+    default = default_account(project)
+    return [a.name for a in sorted(project.accounts, key=lambda a: a is not default)]
+
+
+def generated_start_state(item: dict) -> Optional[str]:
+    """A generated case's start: logged out when the QA agent said so, else automatic."""
+    return "logged_out" if item.get("starts_logged_out") is True else None
+
+
 class StartFailed(Exception):
     pass
 

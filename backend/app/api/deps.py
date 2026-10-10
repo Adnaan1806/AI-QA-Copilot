@@ -1,6 +1,7 @@
 """Lookups that fetch a resource only if it belongs to the current user, else 404."""
 
 import uuid
+from typing import Optional
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -58,3 +59,9 @@ def get_owned_test_case(test_case_id: uuid.UUID, current_user: User, db: Session
     if test_case is None:
         raise HTTPException(404, "Test case not found")
     return test_case
+
+
+def check_project_account(project: Project, account_id: Optional[uuid.UUID]) -> None:
+    """A case may only start as one of its own project's accounts."""
+    if account_id is not None and all(a.id != account_id for a in project.accounts):
+        raise HTTPException(400, "That account isn't one of this project's accounts")

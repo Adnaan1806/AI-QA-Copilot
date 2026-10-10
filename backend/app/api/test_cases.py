@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_owned_test_case
+from app.api.deps import check_project_account, get_owned_test_case
 from app.api.errors import llm_errors_as_http
 from app.api.serializers import to_requirement_detail, to_test_case_item
 from app.auth.dependencies import get_current_user
@@ -74,13 +74,23 @@ def update_test_case(
     if payload.priority is not None:
         test_case.priority = payload.priority
 
+    # Sent fields only, so null can reset them to automatic / the default account.
+    start_changed = False
+    if "start_state" in payload.model_fields_set and payload.start_state != test_case.start_state:
+        test_case.start_state = payload.start_state
+        start_changed = True
+    if "account_id" in payload.model_fields_set and payload.account_id != test_case.account_id:
+        check_project_account(test_case.requirement.suite.project, payload.account_id)
+        test_case.account_id = payload.account_id
+        start_changed = True
+
     # Its automation script (if any) was generated from the old content, so it must be
     # re-approved before automation can run again. Sibling test cases are unaffected.
     if content_changed and payload.status is None:
         set_review_status(test_case, "draft", current_user)
     # Re-runs replay the saved script, so a script written for the old steps must
-    # not survive the edit. Run history is kept.
-    if content_changed and test_case.automation_script is not None:
+    # not survive the edit -- nor one recorded from a different start. Run history is kept.
+    if (content_changed or start_changed) and test_case.automation_script is not None:
         db.delete(test_case.automation_script)
 
     db.commit()

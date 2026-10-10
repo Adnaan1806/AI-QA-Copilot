@@ -11,6 +11,7 @@ import {
 } from "../../lib/qa";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { StateChip } from "../QaChips";
 import ConfirmDialog from "../ConfirmDialog";
 import Spinner from "../../motion/Spinner";
@@ -193,6 +194,63 @@ function Suggestions({ requirement, onAdd }) {
   );
 }
 
+// How a case starts when the project has accounts. "auto" logs in as the
+// default account unless the case deals with logging in itself.
+function startValue(testCase, accounts) {
+  if (testCase.start_state === "logged_out") return "logged_out";
+  if (testCase.start_state === "logged_in") {
+    const id = testCase.account_id ?? (accounts.find((a) => a.is_default) ?? accounts[0])?.id;
+    return `account:${id}`;
+  }
+  return "auto";
+}
+
+function startPatch(value) {
+  if (value === "auto") return { start_state: null, account_id: null };
+  if (value === "logged_out") return { start_state: "logged_out", account_id: null };
+  return { start_state: "logged_in", account_id: value.slice("account:".length) };
+}
+
+function CaseStart({ testCase, accounts, onChange }) {
+  const [saving, setSaving] = useState(false);
+  if (!accounts.length) return null;
+  const value = startValue(testCase, accounts);
+  const automatic = testCase.starts_as
+    ? `Automatic: logged in as ${testCase.starts_as}`
+    : "Automatic: logged out, the case logs in itself";
+
+  async function change(next) {
+    if (next === value) return;
+    setSaving(true);
+    try {
+      await onChange(startPatch(next));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span className="text-xs text-muted-foreground">Starts</span>
+      <Select value={value} onValueChange={change} disabled={saving}>
+        <SelectTrigger size="sm" className="min-w-0" aria-label="How the case starts">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="auto">{value === "auto" ? automatic : "Automatic"}</SelectItem>
+          {accounts.map((a) => (
+            <SelectItem key={a.id} value={`account:${a.id}`}>
+              Logged in as {a.name}
+            </SelectItem>
+          ))}
+          <SelectItem value="logged_out">Logged out</SelectItem>
+        </SelectContent>
+      </Select>
+      {saving && <Spinner className="size-3.5" />}
+    </div>
+  );
+}
+
 const MARK = {
   draft: "border-[1.5px] border-muted-foreground",
   approved: "border-graphite bg-graphite text-sheet",
@@ -218,6 +276,7 @@ function CaseDetail({
   index,
   state,
   script,
+  accounts,
   busy,
   rejecting,
   onApprove,
@@ -227,6 +286,7 @@ function CaseDetail({
   onRevert,
   onEdit,
   onDelete,
+  onChangeStart,
   onOpenAutomation,
 }) {
   const label = caseLabel(index);
@@ -249,6 +309,7 @@ function CaseDetail({
             Covers <span className="text-foreground">{testCase.covers}</span>
           </p>
         )}
+        <CaseStart testCase={testCase} accounts={accounts} onChange={onChangeStart} />
       </div>
 
       <div className="space-y-1.5">
@@ -442,6 +503,7 @@ export default function ReviewPanel({
   requirement,
   states,
   scriptsById,
+  accounts = [],
   onSetStatus,
   onSaveCase,
   onCreateCase,
@@ -626,6 +688,7 @@ export default function ReviewPanel({
               index={index}
               state={states[index]}
               script={scriptsById.get(selected.id)}
+              accounts={accounts}
               busy={busyId === selected.id}
               rejecting={mode === "reject"}
               onApprove={() => setStatus("approved")}
@@ -635,6 +698,7 @@ export default function ReviewPanel({
               onRevert={() => setStatus("draft")}
               onEdit={() => setMode("edit")}
               onDelete={() => setPendingDelete(selected)}
+              onChangeStart={(patch) => onSaveCase(selected.id, patch)}
               onOpenAutomation={onOpenAutomation}
             />
           )}
@@ -645,8 +709,8 @@ export default function ReviewPanel({
         requirement={requirement}
         onAdd={async (suggestion) => {
           // eslint-disable-next-line no-unused-vars
-          const { why, ...payload } = suggestion;
-          const created = await onCreateCase(payload);
+          const { why, starts_logged_out, ...payload } = suggestion;
+          const created = await onCreateCase({ ...payload, start_state: starts_logged_out ? "logged_out" : null });
           setSelectedId(created.id);
           setMode("view");
         }}

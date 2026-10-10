@@ -11,6 +11,7 @@ import {
   getProject,
   getRequirement,
   getTestSuite,
+  listAccounts,
   rerunTestCaseAutomation,
   updateRequirementName,
   updateTestCase,
@@ -68,6 +69,7 @@ export default function RequirementWorkspace({ tab }) {
   const [requirement, setRequirement] = useState(null);
   const [suite, setSuite] = useState(null);
   const [project, setProject] = useState(null);
+  const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [approvingAll, setApprovingAll] = useState(false);
@@ -95,11 +97,12 @@ export default function RequirementWorkspace({ tab }) {
     getRequirement(id)
       .then(async (r) => {
         const s = await getTestSuite(r.suite_id);
-        const p = await getProject(s.project_id);
+        const [p, a] = await Promise.all([getProject(s.project_id), listAccounts(s.project_id)]);
         if (cancelled) return;
         setRequirement(r);
         setSuite(s);
         setProject(p);
+        setAccounts(a);
       })
       .catch((err) => !cancelled && setError(err.message))
       .finally(() => !cancelled && setLoading(false));
@@ -341,6 +344,7 @@ export default function RequirementWorkspace({ tab }) {
           requirement={requirement}
           states={states}
           scriptsById={scriptsById}
+          accounts={accounts}
           initialCaseId={reviewFocus}
           onOpenAutomation={() => goTo("automation")}
           {...handlers}

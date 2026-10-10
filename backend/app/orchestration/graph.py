@@ -63,6 +63,8 @@ def generate_report(
 class AnalysisQAState(TypedDict):
     requirement_text: str
     context: list[dict[str, Any]]
+    # Names of the project's test accounts, default first; empty when it has none.
+    account_names: list[str]
     analysis: dict[str, Any]
     test_cases: list[dict[str, Any]]
     suggestions: list[dict[str, Any]]
@@ -78,6 +80,7 @@ def _qa_node(state: AnalysisQAState) -> dict:
         requirement_text=state["requirement_text"],
         analysis=state["analysis"],
         context=state.get("context") or [],
+        account_names=state.get("account_names") or [],
     )
     return {
         "test_cases": generated.get("test_cases", []),

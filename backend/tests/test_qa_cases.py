@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from app.agents import qa_agent
 from app.api.serializers import suggested_cases, to_test_case_item
 from app.orchestration import graph
+from app.services.session_service import generated_start_state
 
 
 def test_suggestions_are_capped_and_cases_kept(monkeypatch):
@@ -46,6 +47,30 @@ def test_case_item_includes_covers():
     tc = SimpleNamespace(
         id="00000000-0000-0000-0000-000000000001", title="t", test_type="functional", steps=["Open"],
         expected_result="e", priority="high", covers='"Pressing Escape closes the dialog"', status="draft",
-        reviewed_by=None, reviewed_at=None, reject_reason=None,
+        reviewed_by=None, reviewed_at=None, reject_reason=None, start_state=None, account_id=None,
+        requirement=SimpleNamespace(suite=SimpleNamespace(project=SimpleNamespace(accounts=[]))),
     )
     assert to_test_case_item(tc).covers == '"Pressing Escape closes the dialog"'
+
+
+def test_case_item_says_which_account_it_starts_as():
+    account = SimpleNamespace(id="a1", name="Standard user", is_default=True)
+    tc = SimpleNamespace(
+        id="00000000-0000-0000-0000-000000000001", title="Add to cart", test_type="functional",
+        steps=["Open the inventory"], expected_result="e", priority="high", covers=None, status="draft",
+        reviewed_by=None, reviewed_at=None, reject_reason=None, start_state=None, account_id=None,
+        requirement=SimpleNamespace(suite=SimpleNamespace(project=SimpleNamespace(accounts=[account]))),
+    )
+    assert to_test_case_item(tc).starts_as == "Standard user"
+    tc.start_state = "logged_out"
+    assert to_test_case_item(tc).starts_as is None
+
+
+def test_the_qa_agent_hears_account_names_and_can_start_a_case_logged_out():
+    prompt = qa_agent.QAAgent._build_user_prompt("req", {}, [], ["Standard user", "Admin"])
+    assert "cases start logged in as Standard user (other accounts: Admin)" in prompt
+    assert "Test accounts" not in qa_agent.QAAgent._build_user_prompt("req", {}, [], [])
+
+    assert generated_start_state({"starts_logged_out": True}) == "logged_out"
+    assert generated_start_state({"starts_logged_out": "yes"}) is None
+    assert suggested_cases([{"title": "Visitor", "starts_logged_out": True}])[0].starts_logged_out
