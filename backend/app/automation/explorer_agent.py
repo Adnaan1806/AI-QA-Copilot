@@ -10,6 +10,7 @@ from playwright.sync_api import sync_playwright
 from app import config
 from app.automation.dom_serializer import serialize_page
 from app.automation.locators import unique_locator
+from app.automation.readiness import APP_READY_TIMEOUT_MS, wait_until_ready
 from app.llm.client import LLMClient
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,10 @@ MAX_TURNS_PER_STEP = 6
 MAX_TOTAL_TURNS = 25
 # 5s caused navigation timeouts once several Explorer browsers ran concurrently.
 ACTION_TIMEOUT_MS = 15000
+# After an action, how long to let the page redraw before reading it again.
+SETTLE_AFTER_ACTION_MS = 20000
+# An app slower than this to load gets an explicit wait in its generated script.
+SLOW_APP_MS = 10000
 
 # uvicorn forces WindowsSelectorEventLoopPolicy, whose loops can't spawn
 # subprocesses -- so Playwright's driver launch fails with NotImplementedError.
@@ -100,6 +105,7 @@ class ExplorerAgent:
         start_url = start["start_url"] if start else base_url
         logged_in_as = start["account"] if start else None
         page.goto(start_url)
+        app_load_ms = wait_until_ready(page)
         actions: list[dict] = []
         dead_ends: list[dict] = []
         total_turns = 0
@@ -141,7 +147,7 @@ class ExplorerAgent:
                 value = decision.get("value")
                 try:
                     # Before acting: a click may navigate away from the element.
-                    located = unique_locator(page, element["locator"])
+                    located = unique_locator(page, element["locator"], element["frame"])
                     self._act(element["locator"], action, value)
                 except Exception as exc:
                     history.append(f"Action {action} on [{index}] failed: {exc}")
@@ -160,6 +166,7 @@ class ExplorerAgent:
                     }
                 )
                 history.append(f"{action} on {element['description']} -> ok")
+                wait_until_ready(page, timeout_ms=SETTLE_AFTER_ACTION_MS)
 
             if not resolved:
                 dead_ends.append({"step_text": step_text, "reason": "max turns per step exceeded"})
@@ -170,6 +177,12 @@ class ExplorerAgent:
             # The generated script starts logged in the same way, from the test setup.
             "starts_logged_in_as": logged_in_as,
             "start_url": start_url,
+            # How long the app took to draw its first page; slow apps (Power Apps
+            # canvas apps take minutes) need the script to wait just as long.
+            "app_load_ms": app_load_ms,
+            "first_wait_timeout_ms": (
+                min(APP_READY_TIMEOUT_MS, max(60000, 2 * app_load_ms)) if app_load_ms > SLOW_APP_MS else None
+            ),
             "actions": actions,
             "dead_ends": dead_ends,
             "final_url": page.url,

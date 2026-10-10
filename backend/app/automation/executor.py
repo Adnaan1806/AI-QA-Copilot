@@ -1,6 +1,7 @@
 import glob
 import json
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -12,6 +13,12 @@ from typing import Optional
 from app import config
 
 EXECUTION_TIMEOUT_SECONDS = 60
+# A script that waits for a slow app (wait_for(timeout=...)) gets that long on top.
+_EXPLICIT_WAIT = re.compile(r"wait_for\(\s*timeout\s*=\s*(\d+)")
+
+
+def script_timeout_seconds(code: str) -> int:
+    return EXECUTION_TIMEOUT_SECONDS + sum(int(ms) for ms in _EXPLICIT_WAIT.findall(code)) // 1000
 
 TRACES_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "traces"
@@ -48,6 +55,7 @@ def browser_context_args(browser_context_args):
 
 
 def execute_script(code: str, test_case_id: Optional[str] = None, storage_state: Optional[dict] = None) -> dict:
+    timeout = script_timeout_seconds(code)
     with tempfile.TemporaryDirectory() as tmp_dir:
         script_path = os.path.join(tmp_dir, f"test_{uuid.uuid4().hex}.py")
         with open(script_path, "w", encoding="utf-8") as f:
@@ -84,7 +92,7 @@ def execute_script(code: str, test_case_id: Optional[str] = None, storage_state:
             start_new_session=True,  # own process group, so a timeout can kill Playwright's browser child too
         )
         try:
-            output, _ = proc.communicate(timeout=EXECUTION_TIMEOUT_SECONDS)
+            output, _ = proc.communicate(timeout=timeout)
             trace_path = _find_trace(trace_output_dir) if trace_output_dir else None
             return {"passed": proc.returncode == 0, "output": output, "trace_path": trace_path}
         except subprocess.TimeoutExpired:
@@ -92,6 +100,6 @@ def execute_script(code: str, test_case_id: Optional[str] = None, storage_state:
             proc.communicate()
             return {
                 "passed": False,
-                "output": f"TIMEOUT: script did not finish within {EXECUTION_TIMEOUT_SECONDS}s",
+                "output": f"TIMEOUT: script did not finish within {timeout}s",
                 "trace_path": None,
             }
