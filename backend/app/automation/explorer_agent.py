@@ -104,7 +104,9 @@ class ExplorerAgent:
     def _run(self, page, test_case: dict, base_url: str, start: Optional[dict] = None) -> dict:
         start_url = start["start_url"] if start else base_url
         logged_in_as = start["account"] if start else None
-        page.goto(start_url)
+        # Only until the page starts: some apps never fire "load" in time, and
+        # wait_until_ready decides when they're done.
+        page.goto(start_url, wait_until="domcontentloaded", timeout=60000)
         app_load_ms = wait_until_ready(page)
         actions: list[dict] = []
         dead_ends: list[dict] = []
