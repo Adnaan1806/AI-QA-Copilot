@@ -35,12 +35,20 @@ action's locator with <locator>.wait_for(timeout=<first_wait_timeout_ms>) before
 - If the trace's "starts_logged_in_as" names an account, the test setup has already logged the browser in \
 as it (through the `page` fixture's storage state). Do not write login steps and never put credentials in \
 the script; start from the page the case is about.
+- Canvas apps (Power Apps) change screens without changing the URL. The trace's "start_screen" and each \
+action's "resulting_screen" give the screen shown ({"name", "locator"}). After an action that moves to a \
+different screen, assert it with expect(<resulting_screen.locator>).to_be_visible(timeout=60000), using \
+the locator verbatim -- canvas screens can take well over the default 5s to switch. When the \
+expected_result is about which screen is shown, this is the assertion to make.
+- Slow apps (the trace's "first_wait_timeout_ms" is set) keep talking to their servers in the background \
+and never reach "networkidle": never use page.wait_for_load_state("networkidle") in them; give expect() \
+assertions timeout=60000 instead.
 - After replaying the grounded actions, add an assertion checking the test case's expected_result (e.g. \
 expect(page).to_have_url(...), expect(locator).to_be_visible(), or similar) using \
 `from playwright.sync_api import expect`.
 - Before asserting an empty or negative outcome ("no results", an element is hidden or absent, a count \
 of 0), wait for the page to settle first: page.wait_for_load_state("networkidle") followed by \
-page.wait_for_timeout(1000). Pages often show an empty state for a moment while data loads, so \
+page.wait_for_timeout(1000) (in a slow app, only the wait_for_timeout). Pages often show an empty state for a moment while data loads, so \
 asserting straight away can pass for the wrong reason.
 - If the trace has dead_ends (steps that couldn't be grounded), still write the best possible script from \
 the actions that ARE present, and add a short comment noting which step(s) had no grounded action.
@@ -68,7 +76,9 @@ expected_result says, set "fixable" to false.
 
 An assertion on an empty or negative outcome ("no results", hidden, absent, a count of 0) must come \
 after the page settles -- page.wait_for_load_state("networkidle") then page.wait_for_timeout(1000); \
-add these if missing, since the page may show that state for a moment while loading.
+add these if missing, since the page may show that state for a moment while loading. A slow app (the \
+trace's "first_wait_timeout_ms" is set) never reaches "networkidle": there, use only the \
+wait_for_timeout, and give expect() assertions timeout=60000.
 
 Respond with a JSON object matching exactly this shape:
 

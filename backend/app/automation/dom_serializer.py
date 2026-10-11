@@ -98,6 +98,21 @@ def _strategy(index: int, info: dict) -> tuple[str, str]:
     return "nth", str(index)
 
 
+def active_screen(page):
+    """A canvas app's current screen as (name, frame), or None for other apps.
+    Power Apps marks the screen being shown with the class activeScreen."""
+    for frame in _visible_frames(page):
+        try:
+            name = frame.evaluate(
+                "() => document.querySelector('.activeScreen[data-control-name]')?.getAttribute('data-control-name')"
+            )
+        except Exception:
+            continue
+        if name:
+            return name, frame
+    return None
+
+
 def serialize_page(page, max_elements: int = 80):
     elements = []
     for frame in _visible_frames(page):
@@ -121,6 +136,10 @@ def serialize_page(page, max_elements: int = 80):
                 }
             )
 
-    header = [f"URL: {page.url}", f"Title: {page.title()}", ""]
+    header = [f"URL: {page.url}", f"Title: {page.title()}"]
+    screen = active_screen(page)
+    if screen:
+        header.append(f"Screen: {screen[0]}")
+    header.append("")
     body = [e["description"] for e in elements]
     return "\n".join(header + body), elements

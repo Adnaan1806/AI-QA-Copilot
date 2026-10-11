@@ -8,8 +8,8 @@ from typing import Optional
 from playwright.sync_api import sync_playwright
 
 from app import config
-from app.automation.dom_serializer import serialize_page
-from app.automation.locators import unique_locator
+from app.automation.dom_serializer import active_screen, serialize_page
+from app.automation.locators import frame_code, unique_locator
 from app.automation.readiness import APP_READY_TIMEOUT_MS, wait_until_ready
 from app.llm.client import LLMClient
 
@@ -108,6 +108,7 @@ class ExplorerAgent:
         # wait_until_ready decides when they're done.
         page.goto(start_url, wait_until="domcontentloaded", timeout=60000)
         app_load_ms = wait_until_ready(page)
+        start_screen = self._screen(page)
         actions: list[dict] = []
         dead_ends: list[dict] = []
         total_turns = 0
@@ -169,6 +170,8 @@ class ExplorerAgent:
                 )
                 history.append(f"{action} on {element['description']} -> ok")
                 wait_until_ready(page, timeout_ms=SETTLE_AFTER_ACTION_MS)
+                # A canvas app changes screens without changing its URL.
+                actions[-1]["resulting_screen"] = self._screen(page)
 
             if not resolved:
                 dead_ends.append({"step_text": step_text, "reason": "max turns per step exceeded"})
@@ -182,6 +185,7 @@ class ExplorerAgent:
             # How long the app took to draw its first page; slow apps (Power Apps
             # canvas apps take minutes) need the script to wait just as long.
             "app_load_ms": app_load_ms,
+            "start_screen": start_screen,
             "first_wait_timeout_ms": (
                 min(APP_READY_TIMEOUT_MS, max(60000, 2 * app_load_ms)) if app_load_ms > SLOW_APP_MS else None
             ),
@@ -189,6 +193,17 @@ class ExplorerAgent:
             "dead_ends": dead_ends,
             "final_url": page.url,
         }
+
+    @staticmethod
+    def _screen(page) -> Optional[dict]:
+        """{"name", "locator"} of a canvas app's current screen, or None."""
+        screen = active_screen(page)
+        if screen is None:
+            return None
+        name, frame = screen
+        root = frame_code(frame) if frame.parent_frame is not None else "page"
+        selector = f".activeScreen[data-control-name={json.dumps(name)}]"
+        return {"name": name, "locator": f"{root}.locator({json.dumps(selector)})"}
 
     def _decide(
         self, test_case: dict, step_text: str, snapshot: str, history: list[str], logged_in_as: Optional[str] = None
