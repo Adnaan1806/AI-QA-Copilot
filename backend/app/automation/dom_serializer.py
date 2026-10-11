@@ -1,74 +1,125 @@
 """Serializes a Playwright page into a compact, numbered list of visible interactive
 elements. The LLM only ever picks an index from this list -- it never emits a selector
 itself, which is the anti-hallucination mechanism the explorer relies on.
+
+Elements inside frames are listed too: a Power Apps canvas app draws every
+screen inside an iframe on another site. Each frame is read in one call --
+such apps have thousands of elements, and asking about them one by one took
+minutes. Listed elements are marked with a data attribute so the Explorer can
+act on the one the LLM picked.
 """
 
 INTERACTIVE_SELECTOR = (
     "button, a, input, textarea, select, "
-    "[role=button], [role=link], [role=checkbox], [role=combobox], [tabindex]"
+    "[role=button], [role=link], [role=checkbox], [role=combobox], [role=tab], [role=menuitem], "
+    "[role=option], [role=radio], [role=switch], [tabindex]"
 )
+# Marks the elements of the latest snapshot; never used in a recorded locator.
+MARK_ATTR = "data-qa-explore"
 
-
-def _first_nonempty(*values):
-    for value in values:
-        if value:
-            return value
-    return ""
-
-
-def _element_info(locator, index: int) -> dict:
-    tag = locator.evaluate("el => el.tagName.toLowerCase()")
-    role = locator.get_attribute("role") or ""
-    input_type = locator.get_attribute("type") or ""
-    placeholder = locator.get_attribute("placeholder") or ""
-    aria_label = locator.get_attribute("aria-label") or ""
-    try:
-        text = locator.inner_text(timeout=500).strip()
-    except Exception:
-        text = ""
-    button_value = (locator.get_attribute("value") or "") if input_type in ("submit", "button", "reset") else ""
-    name = _first_nonempty(aria_label, text, button_value, placeholder)
-
-    if role and name:
-        strategy, value = "role", f"{role}|{name}"
-    elif placeholder:
-        strategy, value = "placeholder", placeholder
-    elif aria_label:
-        strategy, value = "label", aria_label
-    elif text:
-        strategy, value = "text", text
-    else:
-        strategy, value = "nth", str(index)
-
-    description_parts = [tag]
-    if input_type:
-        description_parts.append(f"type={input_type}")
-    if name:
-        description_parts.append(f'"{name[:60]}"')
-    if role:
-        description_parts.append(f"(role={role})")
-    description = f"[{index}] " + " ".join(description_parts)
-
-    return {
-        "locator": locator,
-        "description": description,
-        "strategy": strategy,
-        "value": value,
+_READ_FRAME = """([selector, mark, start, budget]) => {
+  const text = s => (s || '').replace(/\\s+/g, ' ').trim();
+  document.querySelectorAll(`[${mark}]`).forEach(el => el.removeAttribute(mark));
+  const found = [];
+  for (const el of document.querySelectorAll(selector)) {
+    if (found.length >= budget) break;
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1 || r.bottom <= 0 || r.right <= 0 || r.top >= innerHeight || r.left >= innerWidth) continue;
+    const style = getComputedStyle(el);
+    if (style.visibility === 'hidden' || style.display === 'none' || el.closest('[aria-hidden=true]')) continue;
+    const type = (el.getAttribute('type') || '').toLowerCase();
+    const ariaLabel = text(el.getAttribute('aria-label'));
+    const innerText = text(el.innerText);
+    const placeholder = text(el.getAttribute('placeholder'));
+    const buttonValue = ['submit', 'button', 'reset'].includes(type) ? text(el.value) : '';
+    const name = ariaLabel || innerText || buttonValue || placeholder || text(el.getAttribute('title'));
+    // Canvas apps name every control (data-control-name); a nameless button
+    // (a gallery row's click target) is known by its control and the row's text.
+    const control = el.closest('[data-control-name]');
+    let context = '';
+    if (!name) {
+      for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
+        const t = text(a.innerText);
+        if (t) { context = t.slice(0, 80); break; }
+      }
     }
+    el.setAttribute(mark, String(start + found.length));
+    found.push({
+      tag: el.tagName.toLowerCase(), type, role: el.getAttribute('role') || '', name, ariaLabel, innerText,
+      placeholder, control: control ? control.getAttribute('data-control-name') : '', context,
+    });
+  }
+  return found;
+}"""
 
 
-def serialize_page(page, max_elements: int = 60):
-    raw = page.locator(INTERACTIVE_SELECTOR).all()
-    elements = []
-    for locator in raw:
+def _visible_frames(page):
+    """The main frame, then every frame whose iframe is shown on the page."""
+    frames = [page.main_frame]
+    for frame in page.frames:
+        if frame is page.main_frame:
+            continue
         try:
-            if not locator.is_visible():
-                continue
+            box = frame.frame_element().bounding_box()
         except Exception:
             continue
-        elements.append(_element_info(locator, len(elements)))
-        if len(elements) >= max_elements:
+        if box and box["width"] > 1 and box["height"] > 1:
+            frames.append(frame)
+    return frames
+
+
+def _describe(index: int, info: dict) -> str:
+    parts = [f"[{index}]", info["tag"]]
+    if info["type"]:
+        parts.append(f"type={info['type']}")
+    if info["name"]:
+        parts.append(f'"{info["name"][:60]}"')
+    elif info["context"]:
+        parts.append(f'in "{info["context"][:60]}"')
+    if info["role"]:
+        parts.append(f"(role={info['role']})")
+    if info["control"]:
+        parts.append(f"(control {info['control']})")
+    return " ".join(parts)
+
+
+def _strategy(index: int, info: dict) -> tuple[str, str]:
+    """How a tester would name the element, for learned workflows."""
+    if info["role"] and info["name"]:
+        return "role", f"{info['role']}|{info['name']}"
+    if info["placeholder"]:
+        return "placeholder", info["placeholder"]
+    if info["ariaLabel"]:
+        return "label", info["ariaLabel"]
+    if info["innerText"]:
+        return "text", info["innerText"]
+    if info["control"]:
+        return "control", info["control"]
+    return "nth", str(index)
+
+
+def serialize_page(page, max_elements: int = 80):
+    elements = []
+    for frame in _visible_frames(page):
+        budget = max_elements - len(elements)
+        if budget <= 0:
             break
+        try:
+            infos = frame.evaluate(_READ_FRAME, [INTERACTIVE_SELECTOR, MARK_ATTR, len(elements), budget])
+        except Exception:
+            continue  # a frame that navigated away mid-read
+        for info in infos:
+            index = len(elements)
+            strategy, value = _strategy(index, info)
+            elements.append(
+                {
+                    "locator": frame.locator(f'[{MARK_ATTR}="{index}"]'),
+                    "frame": frame,
+                    "description": _describe(index, info),
+                    "strategy": strategy,
+                    "value": value,
+                }
+            )
 
     header = [f"URL: {page.url}", f"Title: {page.title()}", ""]
     body = [e["description"] for e in elements]

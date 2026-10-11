@@ -16,6 +16,8 @@ from typing import Optional
 from urllib.parse import urlparse
 
 STEP_TIMEOUT_MS = 15000
+# Opening the app: Power Apps can take over 15s before its page even starts.
+PAGE_OPEN_TIMEOUT_MS = 60000
 # Pages a login may pass through, e.g. app -> provider email -> password -> stay signed in -> app.
 MAX_TURNS = 10
 # How long to wait for the redirects back to the app once the login is done.
@@ -153,7 +155,7 @@ def _on_login_step(page) -> bool:
 
 def log_in(page, login_url: str, username: str, password: str) -> LoginResult:
     """Log in on `page` (whose context keeps the cookies) and return the session."""
-    page.goto(login_url, wait_until="domcontentloaded", timeout=STEP_TIMEOUT_MS)
+    page.goto(login_url, wait_until="domcontentloaded", timeout=PAGE_OPEN_TIMEOUT_MS)
     _settle(page)
     app_host = _host(login_url)
     done: set[str] = set()  # each kind of step at most once, so a rejected one isn't retried forever

@@ -29,6 +29,9 @@ Respond with a JSON object matching exactly this shape:
 Rules:
 - The test function must accept the `page` fixture (from pytest-playwright) as its only parameter.
 - Navigate to the trace's start_url first (page.goto(start_url)) -- where the exploration began.
+- If the trace's "first_wait_timeout_ms" is set, the app is slow to load: open it with \
+page.goto(start_url, wait_until="domcontentloaded", timeout=60000), then wait for the first grounded \
+action's locator with <locator>.wait_for(timeout=<first_wait_timeout_ms>) before acting.
 - If the trace's "starts_logged_in_as" names an account, the test setup has already logged the browser in \
 as it (through the `page` fixture's storage state). Do not write login steps and never put credentials in \
 the script; start from the page the case is about.
