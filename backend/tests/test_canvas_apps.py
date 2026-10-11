@@ -5,6 +5,7 @@ import pytest
 from playwright.sync_api import sync_playwright
 
 from app.automation.dom_serializer import serialize_page
+from app.automation.explorer_agent import ExplorerAgent
 from app.automation.executor import script_timeout_seconds
 from app.automation.locators import unique_locator
 from app.automation.readiness import wait_until_ready
@@ -19,10 +20,16 @@ setTimeout(() => {
   const row = (name) => `<div data-control-name="Container5_3"><div data-control-name="Status_2">Pending</div>
     <div data-control-name="Report Name_2">${name}</div><button data-control-part="button"></button></div>`;
   document.getElementById('app').innerHTML = `
-    <div data-control-name="HomeButton_19"><button>Home</button></div>
-    <div data-control-name="ReportsButton_19"><button>Reports</button></div>
-    <div data-control-name="Gallery4_1">${row('United States 2020')}${row('Belgium 2021')}</div>`;
+    <div class="activeScreen" data-control-name="Home">
+      <div data-control-name="HomeButton_19"><button>Home</button></div>
+      <div data-control-name="ReportsButton_19"><button onclick="openReports()">Reports</button></div>
+      <div data-control-name="Gallery4_1">${row('United States 2020')}${row('Belgium 2021')}</div>
+    </div>`;
 }, 2500);
+// Screens swap in place; the URL never changes.
+function openReports() {
+  document.getElementById('app').innerHTML = '<div class="activeScreen" data-control-name="Reports Screen"><h1>Reports</h1></div>';
+}
 </script>
 """
 
@@ -87,3 +94,15 @@ def test_a_gallery_rows_button_is_scoped_to_its_row(page):
 def test_a_script_that_waits_for_a_slow_app_gets_that_long():
     assert script_timeout_seconds("page.goto(url)") == 60
     assert script_timeout_seconds('page.locator("x").wait_for(timeout=240000)') == 300
+
+
+def test_the_current_screen_is_named_and_checkable(page):
+    wait_until_ready(page)
+    snapshot, elements = serialize_page(page)
+    assert "Screen: Home" in snapshot
+
+    element(elements, '"Reports"')["locator"].click()
+    screen = ExplorerAgent._screen(page)
+    assert screen["name"] == "Reports Screen"
+    # The code codegen is told to assert with finds the screen now shown.
+    assert eval(screen["locator"], {"page": page}).count() == 1

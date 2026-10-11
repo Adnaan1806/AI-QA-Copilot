@@ -35,6 +35,10 @@ action's locator with <locator>.wait_for(timeout=<first_wait_timeout_ms>) before
 - If the trace's "starts_logged_in_as" names an account, the test setup has already logged the browser in \
 as it (through the `page` fixture's storage state). Do not write login steps and never put credentials in \
 the script; start from the page the case is about.
+- Canvas apps (Power Apps) change screens without changing the URL. The trace's "start_screen" and each \
+action's "resulting_screen" give the screen shown ({"name", "locator"}). After an action that moves to a \
+different screen, assert it with expect(<resulting_screen.locator>).to_be_visible(), using the locator \
+verbatim. When the expected_result is about which screen is shown, this is the assertion to make.
 - After replaying the grounded actions, add an assertion checking the test case's expected_result (e.g. \
 expect(page).to_have_url(...), expect(locator).to_be_visible(), or similar) using \
 `from playwright.sync_api import expect`.
