@@ -31,6 +31,17 @@
   --fail: #c0362c;
   --fail-wash: #f9e5e2;
   --spark: #c27c0e;
+  /* Project tiles: a tone per project, picked from its id. Decoration only. */
+  --tone-1: #d5efe7;
+  --tone-1-ink: #0b6b58;
+  --tone-2: #f6e7c8;
+  --tone-2-ink: #8a5a0b;
+  --tone-3: #e9def5;
+  --tone-3-ink: #5b3a86;
+  --tone-4: #dbe9f7;
+  --tone-4-ink: #1f5a8f;
+  --tone-5: #f6dfe5;
+  --tone-5-ink: #8c2f4b;
 
   /* shadcn semantic tokens, mapped onto the palette */
   --background: var(--paper);
@@ -84,6 +95,16 @@
   --fail: #f0685c;
   --fail-wash: rgb(240 104 92 / 0.13);
   --spark: #f0b44c;
+  --tone-1: #2f5d55;
+  --tone-1-ink: #9fe8d6;
+  --tone-2: #5a4a2e;
+  --tone-2-ink: #f3cf8d;
+  --tone-3: #4a3a5c;
+  --tone-3-ink: #d9c2f2;
+  --tone-4: #2c4560;
+  --tone-4-ink: #a9d0f5;
+  --tone-5: #5a2f3c;
+  --tone-5-ink: #f3b8c8;
   color-scheme: dark;
 }
 
