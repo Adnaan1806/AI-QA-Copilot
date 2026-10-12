@@ -9,26 +9,28 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * Review desk palette. Paper and graphite carry the page; blue pencil marks
- * anything you can act on. Pass / review / fail are reserved for test state
- * and never used as decoration.
+ * Jade palette. Green-tinted paper and graphite carry the page; the jade
+ * accent ("pencil") marks anything you can act on. Pass / review / fail are
+ * reserved for test state and never used as decoration; Passed is a leaf green
+ * so it never reads as the accent. Spark is the logo's AI mark only.
  */
 :root {
-  --paper: #f6f7f9;
+  --paper: #f4f7f5;
   --sheet: #ffffff;
-  --sheet-2: #eef1f5;
-  --graphite: #1b2030;
-  --graphite-2: #5a6275;
-  --rule: #dadfe7;
-  --pencil: #3044d0;
-  --pencil-wash: #e8ebfb;
+  --sheet-2: #e9f0ec;
+  --graphite: #15201b;
+  --graphite-2: #53655c;
+  --rule: #d3ded8;
+  --pencil: #0b7a64;
+  --pencil-wash: #def2ec;
   --on-pencil: #ffffff;
-  --pass: #1d7f4a;
-  --pass-wash: #e3f2e9;
+  --pass: #2f7d1f;
+  --pass-wash: #e5f2df;
   --review: #a86a12;
   --review-wash: #f7eedc;
   --fail: #c0362c;
   --fail-wash: #f9e5e2;
+  --spark: #c27c0e;
 
   /* shadcn semantic tokens, mapped onto the palette */
   --background: var(--paper);
@@ -66,21 +68,22 @@
 }
 
 .dark {
-  --paper: #13161d;
-  --sheet: #1a1e27;
-  --sheet-2: #212632;
-  --graphite: #e4e7ee;
-  --graphite-2: #9aa2b3;
-  --rule: #2a303c;
-  --pencil: #8d9bff;
-  --pencil-wash: rgb(141 155 255 / 0.14);
-  --on-pencil: #13161d;
-  --pass: #4cc38a;
-  --pass-wash: rgb(76 195 138 / 0.13);
+  --paper: #101614;
+  --sheet: #161e1b;
+  --sheet-2: #1d2622;
+  --graphite: #e2ebe7;
+  --graphite-2: #93a59d;
+  --rule: #283430;
+  --pencil: #3fd0b0;
+  --pencil-wash: rgb(63 208 176 / 0.14);
+  --on-pencil: #0d1412;
+  --pass: #7ccf5a;
+  --pass-wash: rgb(124 207 90 / 0.14);
   --review: #e0a53a;
   --review-wash: rgb(224 165 58 / 0.13);
   --fail: #f0685c;
   --fail-wash: rgb(240 104 92 / 0.13);
+  --spark: #f0b44c;
   color-scheme: dark;
 }
 
@@ -101,6 +104,7 @@
   --color-review-wash: var(--review-wash);
   --color-fail: var(--fail);
   --color-fail-wash: var(--fail-wash);
+  --color-spark: var(--spark);
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);

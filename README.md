@@ -1,10 +1,10 @@
 <div align="center">
 
-# AI QA Copilot
+# Testwright AI
 
 **Paste a requirement. Review what the AI drafts. Ship when the verdict says so.**
 
-AI QA Copilot turns a user story into reviewed test cases, real Playwright automation,<br/>and a release call you can take to the go/no-go meeting.
+Testwright AI turns a user story into reviewed test cases, real Playwright automation,<br/>and a release call you can take to the go/no-go meeting.
 
 [![Python](https://img.shields.io/badge/backend-Python%20%2F%20FastAPI-3776AB?logo=python&logoColor=white)](#-run-it-locally)
 [![React](https://img.shields.io/badge/frontend-React%2019%20%2B%20Vite-61DAFB?logo=react&logoColor=black)](#-run-it-locally)
@@ -46,7 +46,7 @@ The strip never hides the gaps. A requirement with three passing cases and two u
 
 ### 1. Write it down
 
-Paste a user story or acceptance criteria into a suite, or upload a PDF. The copilot reads it, pulls related context from the project's knowledge base, and drafts test cases: functional, negative, edge case and security. It also lists **open questions for the product owner** and **risks**, and one click copies the questions as a ready-to-send message.
+Paste a user story or acceptance criteria into a suite, or upload a PDF. Testwright reads it, pulls related context from the project's knowledge base, and drafts test cases: functional, negative, edge case and security. It also lists **open questions for the product owner** and **risks**, and one click copies the questions as a ready-to-send message.
 
 ### 2. Review the drafts
 
@@ -63,7 +63,7 @@ Every approval and rejection records **who** made it and **when**. Editing an ap
 
 ### 3. Automate what you approved
 
-Once every case is approved or rejected, generate automation. For each approved case the copilot:
+Once every case is approved or rejected, generate automation. For each approved case Testwright:
 
 1. drives a **real browser** through the steps to find locators that actually work,
 2. writes a `pytest-playwright` script from what it saw,
@@ -249,7 +249,7 @@ The benchmark runs the real agents on a project's requirements without saving an
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/login-dark.png">
-  <img alt="AI QA Copilot sign-in screen" src="docs/screenshots/login-light.png" width="560">
+  <img alt="Testwright AI sign-in screen" src="docs/screenshots/login-light.png" width="560">
 </picture>
 
 Built by [Adnaan Janees](https://github.com/Adnaan1806)

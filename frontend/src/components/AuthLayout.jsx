@@ -10,7 +10,9 @@ export default function AuthLayout({ title, children, footer }) {
         <div className="mx-auto w-full max-w-sm space-y-8">
           <div className="flex items-center gap-2.5">
             <BrandMark />
-            <span className="font-semibold">AI QA Copilot</span>
+            <span className="font-semibold">
+              Testwright <span className="font-medium text-primary">AI</span>
+            </span>
           </div>
           <div className="space-y-5">
             <h1 className="text-[22px] font-semibold">{title}</h1>
