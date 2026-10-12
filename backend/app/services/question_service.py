@@ -33,6 +33,21 @@ def unresolved(requirement: Requirement) -> list[dict]:
     return [{"question": q, "differs_from_app": differs} for q, differs in asked if q not in resolved]
 
 
+def answered(requirement: Requirement) -> list[dict]:
+    """The requirement's answered questions with their answers, so a reviewer
+    still sees what was asked. Answers saved before the text was kept have none."""
+    analysis = requirement.analysis_result
+    if analysis is None:
+        return []
+    resolved = analysis.question_answers or {}
+    asked = [(q, True) for q in analysis.open_questions or []] + [(q, False) for q in analysis.missing_info or []]
+    return [
+        {"question": q, "differs_from_app": differs, "answer": resolved[q].get("answer")}
+        for q, differs in asked
+        if resolved.get(q, {}).get("status") == "answered"
+    ]
+
+
 def open_questions(db: Session, project: Project) -> list[dict]:
     found = []
     for requirement in _requirements(db, project):
@@ -46,13 +61,15 @@ def _asked(requirement: Requirement, question: str) -> bool:
     return analysis is not None and question in (analysis.open_questions or []) + (analysis.missing_info or [])
 
 
-def _resolve(requirement: Requirement, question: str, status: str, rule_id: Optional[str] = None) -> None:
+def _resolve(
+    requirement: Requirement, question: str, status: str, rule_id: Optional[str] = None, answer: Optional[str] = None
+) -> None:
     analysis = requirement.analysis_result
+    entry = {"status": status, "rule_id": rule_id, "at": datetime.now(timezone.utc).isoformat()}
+    if answer is not None:
+        entry["answer"] = answer
     # A new dict: SQLAlchemy only notices a JSON column change on reassignment.
-    analysis.question_answers = {
-        **(analysis.question_answers or {}),
-        question: {"status": status, "rule_id": rule_id, "at": datetime.now(timezone.utc).isoformat()},
-    }
+    analysis.question_answers = {**(analysis.question_answers or {}), question: entry}
 
 
 def answer(db: Session, project: Project, requirement: Requirement, question: str, text: str):
@@ -61,7 +78,7 @@ def answer(db: Session, project: Project, requirement: Requirement, question: st
         return None
     rule = add_rule(db, project, text)
     rule.content = {**rule.content, "question": question, "requirement_id": str(requirement.id)}
-    _resolve(requirement, question, "answered", str(rule.id))
+    _resolve(requirement, question, "answered", str(rule.id), text)
     return rule
 
 

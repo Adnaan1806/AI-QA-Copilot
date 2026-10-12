@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ChevronDown, Download } from "lucide-react";
+import { toast } from "sonner";
 import {
   approveAllTestCases,
   createTestCase,
@@ -42,6 +43,40 @@ import {
 
 const TAB_PATH = { review: "", automation: "/automation", report: "/report" };
 
+// "5 of 8 approved" with a bar that fills as cases are signed off; the count
+// bumps when it goes up.
+function ReviewProgress({ signed, total, rejected, reviewedNow, toGo }) {
+  const previous = useRef(signed);
+  const grew = signed > previous.current;
+  useEffect(() => {
+    previous.current = signed;
+  }, [signed]);
+  const pct = total ? Math.round((signed / total) * 100) : 0;
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+      <div className="flex flex-col gap-1.5">
+        <span className="tabular flex gap-3 text-sm">
+          <span key={signed} className={grew ? "animate-count-bump" : undefined}>
+            {signed} of {plural(total, "case")} approved
+          </span>
+          {rejected > 0 && <span className="text-muted-foreground">{rejected} rejected</span>}
+        </span>
+        <span className="h-1 w-44 overflow-hidden rounded-full bg-muted" aria-hidden>
+          <span
+            className={cn("block h-full rounded-full transition-[width] duration-700 ease-out", pct === 100 ? "bg-pass" : "bg-primary")}
+            style={{ width: `${pct}%` }}
+          />
+        </span>
+      </div>
+      {reviewedNow > 0 && (
+        <span className="tabular text-xs text-muted-foreground">
+          {reviewedNow} reviewed this session{toGo > 0 && ` · ${toGo} to go`}
+        </span>
+      )}
+    </div>
+  );
+}
+
 function RequirementText({ content }) {
   const [expanded, setExpanded] = useState(false);
   const long = content.length > 280;
@@ -77,7 +112,10 @@ export default function RequirementWorkspace({ tab }) {
   const [generating, setGenerating] = useState(false);
   const [rerunningId, setRerunningId] = useState(null);
   const [downloadingTraceId, setDownloadingTraceId] = useState(null);
-  const [reviewFocus, setReviewFocus] = useState(null);
+  const [selectedCaseId, setSelectedCaseId] = useState(null);
+  // Cases signed off during this visit; finishing the last draft shows the done panel.
+  const [reviewedNow, setReviewedNow] = useState(() => new Set());
+  const [doneDismissed, setDoneDismissed] = useState(false);
 
   useSetBreadcrumbs(
     requirement && suite && project
@@ -121,6 +159,12 @@ export default function RequirementWorkspace({ tab }) {
   if (error && !requirement) return <PageError message={error} />;
 
   const counts = countStates(states);
+  const cases = requirement.test_cases;
+  const firstDraft = states.indexOf("draft");
+  const selectedId = cases.some((c) => c.id === selectedCaseId)
+    ? selectedCaseId
+    : cases[firstDraft >= 0 ? firstDraft : 0]?.id ?? null;
+  const celebrating = reviewedNow.size > 0 && counts.draft === 0 && cases.length > 0 && !doneDismissed;
   const caseTitles = requirement.test_cases.map((tc, i) => describeCase(tc, i, states[i]));
   const total = activeTotal(counts);
   const ready = readyToAutomate(counts);
@@ -142,6 +186,20 @@ export default function RequirementWorkspace({ tab }) {
     }
   }
 
+  function selectCase(caseId) {
+    setSelectedCaseId(caseId);
+    setDoneDismissed(true);
+  }
+
+  function noteReviewed(caseIds, reviewed) {
+    setReviewedNow((prev) => {
+      const next = new Set(prev);
+      caseIds.forEach((caseId) => (reviewed ? next.add(caseId) : next.delete(caseId)));
+      return next;
+    });
+    if (reviewed) setDoneDismissed(false);
+  }
+
   function replaceCase(updated) {
     setRequirement((prev) => ({
       ...prev,
@@ -152,7 +210,10 @@ export default function RequirementWorkspace({ tab }) {
 
   const handlers = {
     onSetStatus: (caseId, status, rejectReason) =>
-      run(async () => replaceCase(await updateTestCase(caseId, { status, reject_reason: rejectReason }))),
+      run(async () => {
+        replaceCase(await updateTestCase(caseId, { status, reject_reason: rejectReason }));
+        noteReviewed([caseId], status !== "draft");
+      }),
     onSaveCase: (caseId, patch) => run(async () => replaceCase(await updateTestCase(caseId, patch))),
     onCreateCase: (payload) =>
       run(async () => {
@@ -176,8 +237,11 @@ export default function RequirementWorkspace({ tab }) {
   async function handleApproveAll() {
     setApprovingAll(true);
     try {
+      const drafts = cases.filter((_, i) => states[i] === "draft").map((c) => c.id);
       const testCases = await run(() => approveAllTestCases(id));
       setRequirement((prev) => ({ ...prev, test_cases: testCases }));
+      noteReviewed(drafts, true);
+      toast.success(`Approved ${plural(drafts.length, "case")}`);
       bump();
     } catch {
       // Shown via `error`.
@@ -264,13 +328,22 @@ export default function RequirementWorkspace({ tab }) {
 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <CaseStrip states={states} titles={caseTitles} />
-            <span className="tabular text-sm">
-              {signedOff(counts)} of {plural(total, "case")} approved
-            </span>
-            {counts.rejected > 0 && (
-              <span className="tabular text-sm text-muted-foreground">{counts.rejected} rejected</span>
-            )}
+            <CaseStrip
+              states={states}
+              titles={caseTitles}
+              selectedIndex={tab === "review" && !celebrating ? cases.findIndex((c) => c.id === selectedId) : undefined}
+              onSelect={(i) => {
+                selectCase(cases[i].id);
+                if (tab !== "review") goTo("review");
+              }}
+            />
+            <ReviewProgress
+              signed={signedOff(counts)}
+              total={total}
+              rejected={counts.rejected}
+              reviewedNow={reviewedNow.size}
+              toGo={counts.draft}
+            />
           </div>
           <div className="flex flex-wrap gap-2">
             {ready && (
@@ -288,7 +361,7 @@ export default function RequirementWorkspace({ tab }) {
           </div>
         </div>
 
-        {automationDue && !generating && tab === "review" && (
+        {automationDue && !generating && tab === "review" && !celebrating && (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-primary/30 bg-pencil-wash px-4 py-3">
             <p className="text-sm">
               <span className="font-medium">Every case is reviewed.</span>{" "}
@@ -344,8 +417,26 @@ export default function RequirementWorkspace({ tab }) {
           requirement={requirement}
           states={states}
           scriptsById={scriptsById}
+          counts={counts}
           accounts={accounts}
-          initialCaseId={reviewFocus}
+          projectId={project.id}
+          selectedId={selectedId}
+          onSelect={selectCase}
+          celebrating={celebrating}
+          onDismissDone={() => setDoneDismissed(true)}
+          baseUrlMissing={baseUrlMissing}
+          exporting={exporting}
+          onGenerate={handleGenerate}
+          onExport={handleExport}
+          onAnswered={(answered) => {
+            setRequirement((prev) => ({
+              ...prev,
+              missing_info: prev.missing_info.filter((q) => q !== answered.question),
+              open_questions: (prev.open_questions ?? []).filter((q) => q !== answered.question),
+              answered_questions: [...(prev.answered_questions ?? []), answered],
+            }));
+            bump();
+          }}
           onOpenAutomation={() => goTo("automation")}
           {...handlers}
         />
@@ -366,7 +457,7 @@ export default function RequirementWorkspace({ tab }) {
           onRerun={handleRerun}
           onDownloadTrace={handleDownloadTrace}
           onOpenReview={(caseId) => {
-            setReviewFocus(caseId ?? null);
+            if (caseId) selectCase(caseId);
             goTo("review");
           }}
         />

@@ -52,6 +52,12 @@ class SuggestedCase(BaseModel):
     why: str = ""
 
 
+class AnsweredQuestion(BaseModel):
+    question: str
+    differs_from_app: bool
+    answer: Optional[str] = None
+
+
 class RequirementDetailResponse(BaseModel):
     requirement_id: uuid.UUID
     suite_id: uuid.UUID
@@ -63,6 +69,8 @@ class RequirementDetailResponse(BaseModel):
     missing_info: list[str]
     # Where the requirement and what the app map shows disagree.
     open_questions: list[str] = []
+    # Questions already answered; each answer became a project rule.
+    answered_questions: list[AnsweredQuestion] = []
     testing_considerations: list[str]
     suggestions: list[SuggestedCase]
     test_cases: list[TestCaseItem]
