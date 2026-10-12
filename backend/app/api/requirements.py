@@ -18,13 +18,12 @@ from app.automation import progress
 from app.database.connection import get_db
 from app.database.models import AnalysisResult, Project, Requirement, TestCase, TestSuite, User
 from app.orchestration.graph import analysis_qa_graph, automation_report_graph
-from app.rag.retriever import retrieve
 from app.schemas.requirement import (
     RequirementDetailResponse,
     RequirementListItem,
     RequirementUpdateRequest,
 )
-from app.schemas.test_case import TestCaseCreateRequest, TestCaseItem, clean_steps
+from app.schemas.test_case import TestCaseCreateRequest, TestCaseItem, clean_list, clean_steps
 from app.services.automation_service import (
     analysis_payload,
     replace_report,
@@ -34,10 +33,10 @@ from app.services.automation_service import (
     test_case_payload,
 )
 from app.services.document_service import extract_text_from_pdf
+from app.services.drafting_service import drafting_inputs
 from app.services.review_service import set_review_status
 from app.services.session_service import (
     StartFailed,
-    account_names,
     generated_start_state,
     starts_for,
 )
@@ -71,13 +70,8 @@ def create_requirement(
         raise HTTPException(400, "Requirement content is empty")
 
     with llm_errors_as_http():
-        context = retrieve(requirement_text, suite.project_id)
         result = analysis_qa_graph.invoke(
-            {
-                "requirement_text": requirement_text,
-                "context": context,
-                "account_names": account_names(suite.project),
-            }
+            {"requirement_text": requirement_text, **drafting_inputs(db, suite.project, requirement_text)}
         )
 
     analysis = result["analysis"]
@@ -95,6 +89,7 @@ def create_requirement(
             missing_info=analysis.get("missing_info", []),
             testing_considerations=analysis.get("testing_considerations", []),
             suggestions=result.get("suggestions", []),
+            open_questions=result.get("open_questions") or [],
         )
     )
 
@@ -108,6 +103,7 @@ def create_requirement(
                 expected_result=item.get("expected_result", ""),
                 priority=item.get("priority", "medium"),
                 covers=item.get("covers") or None,
+                assumptions=clean_list(item.get("assumptions")),
                 start_state=generated_start_state(item),
             )
         )
@@ -213,6 +209,7 @@ def create_test_case(
         expected_result=payload.expected_result,
         priority=payload.priority,
         covers=payload.covers,
+        assumptions=payload.assumptions,
         start_state=payload.start_state,
         account_id=payload.account_id,
     )

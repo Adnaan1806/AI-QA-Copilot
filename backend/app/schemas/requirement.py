@@ -48,6 +48,7 @@ class SuggestedCase(BaseModel):
     expected_result: str = ""
     priority: str = "medium"
     starts_logged_out: bool = False
+    assumptions: list[str] = []
     why: str = ""
 
 
@@ -60,6 +61,8 @@ class RequirementDetailResponse(BaseModel):
     requirements: list[str]
     risks: list[str]
     missing_info: list[str]
+    # Where the requirement and what the app map shows disagree.
+    open_questions: list[str] = []
     testing_considerations: list[str]
     suggestions: list[SuggestedCase]
     test_cases: list[TestCaseItem]

@@ -10,6 +10,12 @@ SYSTEM_PROMPT = """You are a Senior QA Engineer designing the test cases a revie
 
 You will be given the original requirement, a prior requirement analysis (functional requirements, risks, missing information, testing considerations), and optionally relevant context from this project's knowledge base (business rules, user guides, past stories). Ground your cases in that context when it is relevant and respect documented business rules.
 
+You may also be given what this project knows about the app itself ("What the app looks like"): pages seen in the app (status observed), the controls on every page, and workflows a passing test has performed (status proven). Use it for the STEPS, never for the EXPECTED RESULTS:
+- Write steps with the app's own labels for pages, buttons, links and fields, exactly as they appear there. Reuse a proven workflow's steps to get to the starting point of a case.
+- If a step needs a page, button or field the app knowledge doesn't show, write it from the requirement's wording and list it in that case's "assumptions".
+- The app knowledge shows what the app does today, not what it should do. Expected results come only from the requirement and the documents.
+- If the requirement describes something the app knowledge contradicts -- a field missing from a page that was seen, a different label, a page that doesn't exist -- still write the case (the app may be missing the feature, which the test should catch), and add an "open_questions" entry saying what the requirement says and what the app shows.
+
 Write the smallest set of cases that proves every acceptance criterion:
 - Start from the acceptance criteria. If the requirement has none, use the clear, testable statements in it, as listed under the analysis "requirements".
 - Each case covers exactly one criterion; name it in "covers", quoted from the requirement.
@@ -32,9 +38,11 @@ Respond with a JSON object matching exactly this shape:
       "steps": ["one actionable step per item, in order, without step numbers"],
       "expected_result": "the single expected outcome of the test",
       "priority": "high" | "medium" | "low",
-      "starts_logged_out": false
+      "starts_logged_out": false,
+      "assumptions": ["a page, button or field a step relies on that the app knowledge doesn't show"]
     }
   ],
+  "open_questions": ["where the requirement and the app knowledge disagree: what each says"],
   "suggestions": [
     {
       "title": "...", "covers": "...", "type": "...", "steps": ["..."],
@@ -63,8 +71,11 @@ class QAAgent:
         analysis: dict[str, Any],
         context: Optional[list[dict[str, Any]]] = None,
         account_names: Optional[list[str]] = None,
+        app_knowledge: Optional[list[dict[str, Any]]] = None,
     ) -> dict:
-        user_prompt = self._build_user_prompt(requirement_text, analysis, context or [], account_names or [])
+        user_prompt = self._build_user_prompt(
+            requirement_text, analysis, context or [], account_names or [], app_knowledge or []
+        )
         return self._llm_client.generate_json(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=user_prompt,
@@ -76,6 +87,7 @@ class QAAgent:
         analysis: dict[str, Any],
         context: list[dict[str, Any]],
         account_names: list[str] = (),
+        app_knowledge: list[dict[str, Any]] = (),
     ) -> str:
         sections = [
             f"Requirement:\n{requirement_text}",
@@ -93,4 +105,10 @@ class QAAgent:
                 for item in context
             )
             sections.append(f"Relevant Knowledge Base Context:\n{knowledge}")
+        if app_knowledge:
+            seen = "\n\n".join(
+                f"[{item.get('source') or 'unknown'} -- {item.get('status') or 'observed'}]\n{item['content']}"
+                for item in app_knowledge
+            )
+            sections.append(f"What the app looks like (for steps only, never for expected results):\n{seen}")
         return "\n\n".join(sections)

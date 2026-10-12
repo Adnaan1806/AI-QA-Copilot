@@ -18,6 +18,11 @@ def check_start_state(value: Optional[str]) -> Optional[str]:
 _STEP_NUMBER = re.compile(r"^\s*(?:step\s*)?\d+\s*[.):-]\s+", re.IGNORECASE)
 
 
+def clean_list(items) -> list[str]:
+    """An LLM's list of strings, without blanks or non-strings."""
+    return [str(i).strip() for i in items or [] if isinstance(i, str) and i.strip()]
+
+
 def clean_steps(steps: list[str]) -> list[str]:
     """Strip leading step numbers and drop blank steps."""
     cleaned = (_STEP_NUMBER.sub("", step, count=1).strip() for step in steps)
@@ -32,6 +37,8 @@ class TestCaseItem(BaseModel):
     expected_result: str
     priority: str
     covers: Optional[str] = None
+    # Pages, buttons or fields the steps rely on that the app map didn't show.
+    assumptions: list[str] = []
     start_state: Optional[str] = None
     account_id: Optional[uuid.UUID] = None
     # The account the case will start logged in as, or None for logged out.
@@ -49,6 +56,7 @@ class TestCaseCreateRequest(BaseModel):
     expected_result: str = ""
     priority: str = "medium"
     covers: Optional[str] = None
+    assumptions: list[str] = []
     start_state: Optional[str] = None
     account_id: Optional[uuid.UUID] = None
 
