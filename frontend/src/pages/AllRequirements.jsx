@@ -8,7 +8,7 @@ import RequirementTable from "../components/RequirementTable";
 import {
   EmptyState,
   ErrorMessage,
-  LoadingMessage,
+  PageLoading,
   Page,
   PageHeader,
 } from "../components/StatusMessages";
@@ -110,7 +110,7 @@ export default function AllRequirements() {
       <ErrorMessage message={error} />
 
       {loading ? (
-        <LoadingMessage />
+        <PageLoading className="min-h-[50vh]" />
       ) : visible.length === 0 ? (
         <EmptyState>
           {requirements.length === 0

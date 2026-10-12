@@ -24,8 +24,14 @@ export function ErrorMessage({ message, className }) {
   );
 }
 
-export function PageLoading() {
-  return <LoadingMessage className="px-6 py-8 md:px-8" />;
+// A page's first load: a spinner in the middle of the content area.
+export function PageLoading({ className }) {
+  return (
+    <div role="status" className={cn("grid min-h-[60vh] place-items-center", className)}>
+      <Spinner className="size-9 text-primary" />
+      <span className="sr-only">Loading</span>
+    </div>
+  );
 }
 
 export function PageError({ message }) {

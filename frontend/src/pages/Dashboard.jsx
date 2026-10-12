@@ -13,7 +13,7 @@ import RequirementTable from "../components/RequirementTable";
 import {
   EmptyState,
   ErrorMessage,
-  LoadingMessage,
+  PageLoading,
   Page,
   PageHeader,
 } from "../components/StatusMessages";
@@ -151,7 +151,7 @@ export default function Dashboard() {
       <ErrorMessage message={error} />
 
       {loading ? (
-        <LoadingMessage />
+        <PageLoading className="min-h-[50vh]" />
       ) : (
         <>
           {attention.length > 0 && (

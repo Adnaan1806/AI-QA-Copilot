@@ -1,13 +1,12 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { PageLoading } from "./StatusMessages";
 
 export default function ProtectedRoute() {
   const { token, loading } = useAuth();
 
   if (loading) {
-    return (
-      <p className="mx-auto max-w-5xl p-8 text-sm text-muted-foreground">Loading...</p>
-    );
+    return <PageLoading className="min-h-[80vh]" />;
   }
 
   if (!token) {
