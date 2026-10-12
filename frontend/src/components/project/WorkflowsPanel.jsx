@@ -15,6 +15,7 @@ function target(strategy, value) {
   if (strategy === "placeholder") return `the field "${value}"`;
   if (strategy === "label") return `"${value}"`;
   if (strategy === "text") return `the text "${value}"`;
+  if (strategy === "control") return `the control "${value}"`;
   return "an element";
 }
 
@@ -34,86 +35,91 @@ function describe(step) {
   }
 }
 
-export default function WorkflowsPanel({ projectId }) {
-  const [workflows, setWorkflows] = useState(null);
+// The pages a flow passes through, in order: "/inventory.html → /cart.html".
+function route(flow) {
+  const pages = [flow.content.start_url, ...(flow.content.steps ?? []).map((s) => s.url)]
+    .filter(Boolean)
+    .map((url) => url.replace(/^https?:\/\/[^/]+/, "") || "/");
+  return pages.filter((page, i) => page !== pages[i - 1]);
+}
+
+// The flows passing tests proved: one per path through the app, listing the
+// cases that took it. Steps only -- not what the app should do there.
+export default function WorkflowsPanel({ projectId, onCounts }) {
+  const [flows, setFlows] = useState(null);
   const [error, setError] = useState(null);
   const [openId, setOpenId] = useState(null);
 
+  function show(list) {
+    setFlows(list);
+    onCounts({ flows: list.length, flowCases: list.reduce((n, f) => n + (f.content.cases?.length ?? 1), 0) });
+  }
+
   useEffect(() => {
     listFacts(projectId, "workflow")
-      .then(setWorkflows)
+      .then(show)
       .catch((err) => setError(err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  return (
-    <section className="space-y-4">
-      <div className="max-w-prose space-y-1">
-        <h3 className="text-sm font-semibold">Flows</h3>
-        <p className="text-sm text-muted-foreground">
-          Paths through the app that passing test cases proved: each step and
-          the exact control it used. Cases that take the same path share one
-          flow. Steps only: a passing run shows how to get somewhere, not what
-          the app should do there.
-        </p>
-      </div>
+  const caseTotal = flows?.reduce((n, f) => n + (f.content.cases?.length ?? 1), 0) ?? 0;
 
+  return (
+    <div className="rounded-lg border border-border bg-card">
+      <div className="flex items-center justify-between border-b border-border px-4 py-2.5 text-sm">
+        <span className="font-medium">Flows</span>
+        <span className="tabular text-muted-foreground">
+          {flows && `${flows.length} · from ${plural(caseTotal, "passing case")}`}
+        </span>
+      </div>
       <ErrorMessage message={error} />
-      {workflows === null ? (
-        !error && <LoadingMessage />
-      ) : workflows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          None yet. They appear as automated test cases pass.
+      {flows === null ? (
+        !error && (
+          <div className="p-4">
+            <LoadingMessage />
+          </div>
+        )
+      ) : flows.length === 0 ? (
+        <p className="px-4 py-3 text-sm text-muted-foreground">
+          None yet. A flow appears when an automated test case passes: the path it took through the app.
         </p>
       ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border">
-          {workflows.map((wf) => {
-            const open = openId === wf.id;
-            const steps = wf.content.steps ?? [];
-            const cases = wf.content.cases ?? [];
-            const options = wf.content.options ?? {};
+        <ul className="max-h-[28rem] divide-y divide-border overflow-y-auto">
+          {flows.map((flow) => {
+            const open = openId === flow.id;
+            const steps = flow.content.steps ?? [];
+            const cases = flow.content.cases ?? [];
+            const options = flow.content.options ?? {};
             return (
-              <li key={wf.id}>
+              <li key={flow.id}>
                 <button
                   type="button"
-                  onClick={() => setOpenId(open ? null : wf.id)}
+                  onClick={() => setOpenId(open ? null : flow.id)}
                   aria-expanded={open}
                   className="flex w-full items-center gap-3 px-4 py-2 text-left text-sm hover:bg-muted/50"
                 >
                   <ChevronRight
-                    className={cn(
-                      "size-4 shrink-0 text-muted-foreground transition-transform",
-                      open && "rotate-90",
-                    )}
+                    className={cn("size-4 shrink-0 text-muted-foreground transition-transform", open && "rotate-90")}
                   />
-                  <span className="min-w-0 flex-1 truncate font-medium">
-                    {wf.title}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{flow.title}</span>
+                    <span className="block truncate font-mono text-xs text-muted-foreground">
+                      {route(flow).join(" → ")}
+                    </span>
                   </span>
-                  <span className="tabular hidden shrink-0 text-xs text-muted-foreground sm:inline">
-                    {plural(steps.length, "step")} · {plural(cases.length, "case")} · proven{" "}
-                    {formatDate(wf.last_seen_at)}
+                  <span className="tabular shrink-0 text-xs text-muted-foreground">
+                    {flow.status === "confirmed" ? "Confirmed" : plural(cases.length || 1, "case")}
                   </span>
                 </button>
                 {open && (
-                  <div className="space-y-2 border-t border-border bg-muted/30 px-4 py-3 pl-11 text-sm">
-                    <p className="font-mono text-xs text-muted-foreground">
-                      Starts at {wf.content.start_url}
-                    </p>
+                  <div className="space-y-3 border-t border-border bg-muted/30 px-4 py-3 pl-11 text-sm">
                     <ol className="space-y-1">
                       {steps.map((step, i) => (
-                        <li
-                          key={i}
-                          className="grid grid-cols-[1.5rem_1fr] gap-1"
-                        >
-                          <span className="tabular text-muted-foreground">
-                            {i + 1}
-                          </span>
+                        <li key={i} className="grid grid-cols-[1.5rem_1fr] gap-1">
+                          <span className="tabular text-muted-foreground">{i + 1}</span>
                           <span>
-                            <span className="text-muted-foreground">
-                              {step.step_text}
-                            </span>
-                            <span className="block font-mono text-xs">
-                              {describe(step)}
-                            </span>
+                            <span className="text-muted-foreground">{step.step_text}</span>
+                            <span className="block font-mono text-xs">{describe(step)}</span>
                             {options[String(i)]?.length > 1 && (
                               <span className="block text-xs text-muted-foreground">
                                 Proven with: {options[String(i)].join(", ")}
@@ -134,19 +140,15 @@ export default function WorkflowsPanel({ projectId }) {
                       </div>
                     )}
                     <p className="text-xs text-muted-foreground">
-                      {wf.status === "confirmed" ? "Confirmed by a person" : "Proven by a passing test"} · first{" "}
-                      {formatDate(wf.first_seen_at)}
-                      {wf.content.healed &&
-                        " · the passing script was healed, so it may differ slightly from these steps"}
+                      Last proven {formatDate(flow.last_seen_at)}
+                      {flow.content.healed && " · a passing script was healed, so it may differ slightly from these steps"}
                     </p>
                     <FactActions
                       projectId={projectId}
-                      fact={wf}
-                      what="workflow"
-                      onChanged={(updated) =>
-                        setWorkflows((list) => list.map((w) => (w.id === updated.id ? updated : w)))
-                      }
-                      onRemoved={(removed) => setWorkflows((list) => list.filter((w) => w.id !== removed.id))}
+                      fact={flow}
+                      what="flow"
+                      onChanged={(updated) => show(flows.map((f) => (f.id === updated.id ? updated : f)))}
+                      onRemoved={(removed) => show(flows.filter((f) => f.id !== removed.id))}
                     />
                   </div>
                 )}
@@ -155,6 +157,6 @@ export default function WorkflowsPanel({ projectId }) {
           })}
         </ul>
       )}
-    </section>
+    </div>
   );
 }

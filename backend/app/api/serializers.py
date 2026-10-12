@@ -10,6 +10,7 @@ from app.schemas.test_case import (
     clean_list,
     clean_steps,
 )
+from app.services.question_service import unresolved
 from app.services.session_service import start_account
 
 # How many recent runs to send per case -- enough to judge flakiness.
@@ -91,8 +92,8 @@ def to_requirement_detail(requirement: Requirement) -> RequirementDetailResponse
         created_at=requirement.created_at,
         requirements=analysis.requirements if analysis else [],
         risks=analysis.risks if analysis else [],
-        missing_info=analysis.missing_info if analysis else [],
-        open_questions=analysis.open_questions or [] if analysis else [],
+        missing_info=[q["question"] for q in unresolved(requirement) if not q["differs_from_app"]],
+        open_questions=[q["question"] for q in unresolved(requirement) if q["differs_from_app"]],
         testing_considerations=analysis.testing_considerations if analysis else [],
         suggestions=suggested_cases(analysis.suggestions if analysis else None),
         test_cases=[to_test_case_item(tc) for tc in requirement.test_cases],

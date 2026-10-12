@@ -133,6 +133,9 @@ class AnalysisResult(Base):
     suggestions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     # Where the requirement and what the project knows about its app disagree.
     open_questions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    # Question text -> {"status": "answered" | "dismissed", "rule_id", "at"}, for
+    # both missing_info and open_questions; answered ones became rules.
+    question_answers: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

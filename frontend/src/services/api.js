@@ -241,6 +241,26 @@ export function deleteFact(projectId, factId) {
   return request(`/projects/${projectId}/facts/${factId}`, { method: "DELETE" });
 }
 
+// Open questions across the project's requirements
+export function listOpenQuestions(projectId) {
+  return request(`/projects/${projectId}/open-questions`);
+}
+
+// The answer becomes a business rule.
+export function answerQuestion(projectId, { requirementId, question, answer }) {
+  return request(`/projects/${projectId}/open-questions/answer`, {
+    method: "POST",
+    json: { requirement_id: requirementId, question, answer },
+  });
+}
+
+export function dismissQuestion(projectId, { requirementId, question }) {
+  return request(`/projects/${projectId}/open-questions/dismiss`, {
+    method: "POST",
+    json: { requirement_id: requirementId, question },
+  });
+}
+
 // Accounts (logins to the project's app)
 
 export function listAccounts(projectId) {

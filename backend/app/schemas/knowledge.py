@@ -21,6 +21,8 @@ class SearchResult(BaseModel):
     content: str
     source: Optional[str] = None
     score: float
+    # Facts only: observed, proven, stated or confirmed.
+    status: Optional[str] = None
 
 
 class SearchResponse(BaseModel):
