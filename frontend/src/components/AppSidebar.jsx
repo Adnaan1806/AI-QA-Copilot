@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { CircleAlert, FolderOpen, Inbox, ListChecks, LogOut, Plus } from "lucide-react";
+import { CircleAlert, House, Inbox, ListChecks, LogOut, Plus, Search } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -20,30 +20,28 @@ import {
 } from "./ui/sidebar";
 import { Button } from "./ui/button";
 import BrandMark from "./BrandMark";
+import ProjectTile from "./ProjectTile";
+import SearchDialog from "./SearchDialog";
 import ThemeToggle from "./ThemeToggle";
 import { useAuth } from "../context/AuthContext";
 import { useDataVersion } from "../context/DataVersionContext";
+import { initials } from "../lib/project";
 import { listProjects, listRequirements, listTestSuites } from "../services/api";
 
 function useWorkspaceSummary() {
   const { version } = useDataVersion();
   const [projects, setProjects] = useState([]);
-  const [queue, setQueue] = useState({ cases: 0, requirements: 0, failing: 0 });
+  const [requirements, setRequirements] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
       try {
-        const [projectList, requirements] = await Promise.all([listProjects(), listRequirements()]);
+        const [projectList, requirementList] = await Promise.all([listProjects(), listRequirements()]);
         const suites = await Promise.all(projectList.map((p) => listTestSuites(p.id)));
         if (cancelled) return;
         setProjects(projectList.map((p, i) => ({ ...p, suites: suites[i] })));
-        const waiting = requirements.filter((r) => r.case_counts.draft > 0);
-        setQueue({
-          cases: waiting.reduce((sum, r) => sum + r.case_counts.draft, 0),
-          requirements: waiting.length,
-          failing: requirements.reduce((sum, r) => sum + r.case_counts.needs_review, 0),
-        });
+        setRequirements(requirementList);
       } catch {
         // The sidebar is a summary; pages surface their own load errors.
       }
@@ -54,14 +52,34 @@ function useWorkspaceSummary() {
     };
   }, [version]);
 
-  return { projects, queue };
+  const waiting = requirements.filter((r) => r.case_counts.draft > 0);
+  const queue = {
+    cases: waiting.reduce((sum, r) => sum + r.case_counts.draft, 0),
+    requirements: waiting.length,
+    failing: requirements.reduce((sum, r) => sum + r.case_counts.needs_review, 0),
+  };
+  return { projects, requirements, queue };
 }
+
+const COUNT = "tabular rounded-full px-1.5 font-mono text-[11px]";
 
 export default function AppSidebar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname, search } = useLocation();
-  const { projects, queue } = useWorkspaceSummary();
+  const { projects, requirements, queue } = useWorkspaceSummary();
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    function onKey(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearching(true);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   function handleLogout() {
     logout();
@@ -72,34 +90,56 @@ export default function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader>
+      <SidebarHeader className="gap-3">
         <Link to="/" className="flex items-center gap-2.5 px-1.5 py-1.5">
           <BrandMark on="sidebar" />
           <span className="truncate font-semibold group-data-[collapsible=icon]:hidden">
             Testwright <span className="font-medium text-primary">AI</span>
           </span>
         </Link>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={() => setSearching(true)}
+              tooltip="Search (Ctrl K)"
+              className="border border-sidebar-border bg-background text-muted-foreground hover:text-foreground"
+            >
+              <Search />
+              <span>Search</span>
+              <kbd className="ml-auto rounded border border-b-2 border-border px-1 font-mono text-[10px] group-data-[collapsible=icon]:hidden">
+                Ctrl K
+              </kbd>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Waiting for you</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/"} tooltip="Home">
+                  <Link to="/">
+                    <House />
+                    <span>Home</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton
                   asChild
                   isActive={onRequirements && search.includes("stage=review")}
-                  tooltip="Cases to review"
+                  tooltip="Review queue"
                 >
                   <Link to="/requirements?stage=review">
                     <Inbox />
-                    <span>Cases to review</span>
+                    <span>Review queue</span>
                   </Link>
                 </SidebarMenuButton>
                 {queue.cases > 0 && (
                   <SidebarMenuBadge
-                    className="tabular"
+                    className={`${COUNT} bg-primary text-primary-foreground peer-data-[active=true]/menu-button:text-primary-foreground`}
                     title={`${queue.cases} draft cases across ${queue.requirements} requirements`}
                   >
                     {queue.cases}
@@ -118,20 +158,19 @@ export default function AppSidebar() {
                       <span>Failing scripts</span>
                     </Link>
                   </SidebarMenuButton>
-                  <SidebarMenuBadge className="tabular text-review">{queue.failing}</SidebarMenuBadge>
+                  <SidebarMenuBadge className={`${COUNT} bg-review-wash text-review`}>{queue.failing}</SidebarMenuBadge>
                 </SidebarMenuItem>
               )}
               <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={onRequirements && !search}
-                  tooltip="All requirements"
-                >
+                <SidebarMenuButton asChild isActive={onRequirements && !search} tooltip="Requirements">
                   <Link to="/requirements">
                     <ListChecks />
-                    <span>All requirements</span>
+                    <span>Requirements</span>
                   </Link>
                 </SidebarMenuButton>
+                {requirements.length > 0 && (
+                  <SidebarMenuBadge className={`${COUNT} bg-muted text-muted-foreground`}>{requirements.length}</SidebarMenuBadge>
+                )}
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
@@ -154,7 +193,7 @@ export default function AppSidebar() {
                     tooltip={project.name}
                   >
                     <Link to={`/projects/${project.id}`}>
-                      <FolderOpen />
+                      <ProjectTile project={project} />
                       <span>{project.name}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -182,9 +221,19 @@ export default function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <div className="flex items-center justify-between gap-2 px-1 py-1 group-data-[collapsible=icon]:flex-col">
-          <span className="min-w-0 truncate text-sm text-muted-foreground group-data-[collapsible=icon]:hidden">
-            {user?.name}
+        <div className="flex items-center gap-2.5 border-t border-sidebar-border px-1 pt-3 pb-1 group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:border-t-0 group-data-[collapsible=icon]:pt-1">
+          {user && (
+            <span
+              className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-xs font-semibold text-primary-foreground"
+              title={user.name}
+              aria-hidden
+            >
+              {initials(user.name)}
+            </span>
+          )}
+          <span className="flex min-w-0 flex-1 flex-col group-data-[collapsible=icon]:hidden">
+            <span className="truncate text-sm font-medium">{user?.name}</span>
+            <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
           </span>
           <div className="flex shrink-0 items-center gap-0.5 group-data-[collapsible=icon]:flex-col">
             <ThemeToggle />
@@ -194,6 +243,8 @@ export default function AppSidebar() {
           </div>
         </div>
       </SidebarFooter>
+
+      <SearchDialog open={searching} onOpenChange={setSearching} projects={projects} requirements={requirements} />
     </Sidebar>
   );
 }
