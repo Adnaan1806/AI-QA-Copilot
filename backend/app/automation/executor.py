@@ -56,7 +56,9 @@ def browser_context_args(browser_context_args):
 
 def execute_script(code: str, test_case_id: Optional[str] = None, storage_state: Optional[dict] = None) -> dict:
     timeout = script_timeout_seconds(code)
-    with tempfile.TemporaryDirectory() as tmp_dir:
+    # On Windows the browser can still hold a file here for a moment after the run;
+    # a folder left behind must not fail the test.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as tmp_dir:
         script_path = os.path.join(tmp_dir, f"test_{uuid.uuid4().hex}.py")
         with open(script_path, "w", encoding="utf-8") as f:
             f.write(code)

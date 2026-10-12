@@ -7,6 +7,7 @@ from app.schemas.test_case import (
     AutomationRunItem,
     AutomationScriptItem,
     TestCaseItem,
+    clean_list,
     clean_steps,
 )
 from app.services.session_service import start_account
@@ -52,6 +53,7 @@ def suggested_cases(raw: Optional[list]) -> list[SuggestedCase]:
                 expected_result=str(item.get("expected_result") or ""),
                 priority=item.get("priority") or "medium",
                 starts_logged_out=item.get("starts_logged_out") is True,
+                assumptions=clean_list(item.get("assumptions")),
                 why=str(item.get("why") or ""),
             )
         )
@@ -67,6 +69,7 @@ def to_test_case_item(tc: TestCase) -> TestCaseItem:
         expected_result=tc.expected_result,
         priority=tc.priority,
         covers=tc.covers,
+        assumptions=tc.assumptions or [],
         start_state=tc.start_state,
         account_id=tc.account_id,
         starts_as=getattr(start_account(tc, tc.requirement.suite.project), "name", None),
@@ -89,6 +92,7 @@ def to_requirement_detail(requirement: Requirement) -> RequirementDetailResponse
         requirements=analysis.requirements if analysis else [],
         risks=analysis.risks if analysis else [],
         missing_info=analysis.missing_info if analysis else [],
+        open_questions=analysis.open_questions or [] if analysis else [],
         testing_considerations=analysis.testing_considerations if analysis else [],
         suggestions=suggested_cases(analysis.suggestions if analysis else None),
         test_cases=[to_test_case_item(tc) for tc in requirement.test_cases],

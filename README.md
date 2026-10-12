@@ -209,6 +209,7 @@ PYTHONPATH=. python scripts/migrate_report_statuses.py # case statuses each repo
 PYTHONPATH=. python scripts/migrate_case_coverage.py   # criterion each case covers, suggested cases
 PYTHONPATH=. python scripts/migrate_knowledge_kind.py   # tag older knowledge chunks as documents
 PYTHONPATH=. python scripts/migrate_case_start.py       # whether each case starts logged in, and as which account
+PYTHONPATH=. python scripts/migrate_app_knowledge.py    # assumptions and open questions from drafting with the app map
 ```
 
 </details>

@@ -65,6 +65,10 @@ class AnalysisQAState(TypedDict):
     context: list[dict[str, Any]]
     # Names of the project's test accounts, default first; empty when it has none.
     account_names: list[str]
+    # Pages, layout and proven workflows relevant to the requirement (drafting_service).
+    app_knowledge: list[dict[str, Any]]
+    # Where the requirement and the app knowledge disagree.
+    open_questions: list[str]
     analysis: dict[str, Any]
     test_cases: list[dict[str, Any]]
     suggestions: list[dict[str, Any]]
@@ -81,10 +85,12 @@ def _qa_node(state: AnalysisQAState) -> dict:
         analysis=state["analysis"],
         context=state.get("context") or [],
         account_names=state.get("account_names") or [],
+        app_knowledge=state.get("app_knowledge") or [],
     )
     return {
         "test_cases": generated.get("test_cases", []),
         "suggestions": (generated.get("suggestions") or [])[:MAX_SUGGESTIONS],
+        "open_questions": [str(q) for q in generated.get("open_questions") or [] if str(q).strip()],
     }
 
 

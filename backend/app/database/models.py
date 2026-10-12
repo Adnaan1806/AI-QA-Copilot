@@ -131,6 +131,8 @@ class AnalysisResult(Base):
     testing_considerations: Mapped[list] = mapped_column(JSON, default=list)
     # Extra cases the QA agent drafted but didn't add; a reviewer adds them with one click.
     suggestions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    # Where the requirement and what the project knows about its app disagree.
+    open_questions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -151,6 +153,8 @@ class TestCase(Base):
     expected_result: Mapped[str] = mapped_column(Text, nullable=False)
     # The acceptance criterion this case proves, as the QA agent quoted it.
     covers: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Pages, buttons or fields the steps rely on that the app knowledge didn't show.
+    assumptions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     # How the case starts when its project has accounts: "logged_in",
     # "logged_out", or None to decide from the case (see session_service).
     start_state: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

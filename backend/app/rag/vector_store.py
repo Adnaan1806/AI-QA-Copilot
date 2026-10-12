@@ -1,4 +1,5 @@
 import os
+import threading
 
 from langchain_chroma import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
@@ -14,14 +15,18 @@ _embeddings = GoogleGenerativeAIEmbeddings(
 )
 
 _vector_store = None
+# Requests run on several threads; two creating the client at once crash Chroma's setup.
+_create_lock = threading.Lock()
 
 
 def get_vector_store() -> Chroma:
     global _vector_store
     if _vector_store is None:
-        _vector_store = Chroma(
-            collection_name="qa_copilot_knowledge",
-            embedding_function=_embeddings,
-            persist_directory=PERSIST_DIRECTORY,
-        )
+        with _create_lock:
+            if _vector_store is None:
+                _vector_store = Chroma(
+                    collection_name="qa_copilot_knowledge",
+                    embedding_function=_embeddings,
+                    persist_directory=PERSIST_DIRECTORY,
+                )
     return _vector_store

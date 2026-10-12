@@ -2,6 +2,7 @@ import json
 import re
 import subprocess
 import threading
+from typing import Optional
 
 from app import config
 from app.llm.client import LLMClient
@@ -35,7 +36,8 @@ class ClaudeCliClient(LLMClient):
     it will not work on a machine without that local OAuth session.
     """
 
-    def generate_json(self, system_prompt: str, user_prompt: str) -> dict:
+    def generate_json(self, system_prompt: str, user_prompt: str, timeout_s: Optional[int] = None) -> dict:
+        timeout_s = timeout_s or REQUEST_TIMEOUT_S
         try:
             result = subprocess.run(
                 [
@@ -52,11 +54,11 @@ class ClaudeCliClient(LLMClient):
                 # The CLI writes UTF-8; without this Windows decodes it as cp1252,
                 # garbling dashes and quotes and crashing on some accented letters.
                 encoding="utf-8",
-                timeout=REQUEST_TIMEOUT_S,
+                timeout=timeout_s,
             )
         except subprocess.TimeoutExpired:
             # The exception's own message embeds the whole prompt.
-            raise TimeoutError(f"the claude CLI didn't answer within {REQUEST_TIMEOUT_S}s") from None
+            raise TimeoutError(f"the claude CLI didn't answer within {timeout_s}s") from None
         if result.returncode != 0:
             raise RuntimeError(f"claude CLI exited {result.returncode}: {result.stderr.strip()}")
 

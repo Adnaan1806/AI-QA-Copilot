@@ -69,6 +69,8 @@ def case_result(requirement, test_case, outcome, trace, seconds, calls=()):
         "requirement": requirement,
         "title": test_case.get("title", ""),
         "steps": len(test_case.get("steps", [])),
+        # Labels the steps rely on that the app map didn't show (fresh mode).
+        "assumptions": len(test_case.get("assumptions") or []),
         "status": outcome["status"],
         "tries": len(tries),
         "healed": sum(1 for t in tries if t["kind"] == "healed"),
@@ -112,6 +114,8 @@ def summarize(cases, requirements=()):
         "errors": sum(1 for c in cases if c["status"] == "error"),
         "healing_gave_up": sum(1 for c in cases if c["gave_up"]),
         "steps": steps,
+        "assumptions": sum(c.get("assumptions", 0) for c in cases),
+        "open_questions": sum(len(r.get("open_questions") or []) for r in requirements),
         "dead_end_steps": sum(c["dead_ends"] for c in cases),
         "dead_end_rate": round(sum(c["dead_ends"] for c in cases) / steps, 3) if steps else 0,
         "mean_tries": round(sum(c["tries"] for c in cases) / total, 2),
@@ -132,7 +136,10 @@ LOWER_IS_BETTER = {
     "llm_calls", "mean_llm_calls", "mean_input_tokens", "mean_output_tokens", "cost_usd",
 }
 # Counts that follow the number of cases; their rates below are what to compare.
-NEUTRAL = {"cases", "steps", "cases_per_criterion", "passed", "passed_first_try", "passed_after_healing", "llm_calls"}
+NEUTRAL = {
+    "cases", "steps", "cases_per_criterion", "passed", "passed_first_try", "passed_after_healing", "llm_calls",
+    "assumptions", "open_questions",
+}
 
 
 def with_rates(summary):
@@ -195,13 +202,21 @@ def load_requirements(project_name, only):
 
 
 def generate_cases(requirement, project_id):
-    """The drafted cases, and how many extra ideas came back as suggestions."""
+    """The drafted cases, how many extra ideas came back as suggestions, and the
+    open questions -- drafted with exactly the inputs the app uses."""
+    from app.database.connection import SessionLocal
+    from app.database.models import Project
     from app.orchestration.graph import analysis_qa_graph
-    from app.rag.retriever import retrieve
+    from app.services.drafting_service import drafting_inputs
 
-    result = analysis_qa_graph.invoke(
-        {"requirement_text": requirement["content"], "context": retrieve(requirement["content"], project_id)}
-    )
+    db = SessionLocal()
+    try:
+        project = db.get(Project, project_id)
+        result = analysis_qa_graph.invoke(
+            {"requirement_text": requirement["content"], **drafting_inputs(db, project, requirement["content"])}
+        )
+    finally:
+        db.close()
     cases = [
         {
             "id": "",
@@ -211,10 +226,11 @@ def generate_cases(requirement, project_id):
             "steps": item.get("steps", []),
             "expected_result": item.get("expected_result", ""),
             "priority": item.get("priority", "medium"),
+            "assumptions": item.get("assumptions") or [],
         }
         for item in result["test_cases"]
     ]
-    return cases, len(result.get("suggestions") or [])
+    return cases, len(result.get("suggestions") or []), result.get("open_questions") or []
 
 
 def run(project_name, mode, only, save=lambda result: None):
@@ -258,7 +274,7 @@ def run(project_name, mode, only, save=lambda result: None):
         if mode == "fresh":
             take_usage()
             try:
-                test_cases, entry["suggestions"] = generate_cases(requirement, project_id)
+                test_cases, entry["suggestions"], entry["open_questions"] = generate_cases(requirement, project_id)
             except Exception as exc:
                 entry["error"] = f"generating cases failed: {type(exc).__name__}: {str(exc)[:300]}"
                 print(f"{requirement['name']}: {entry['error']}", flush=True)

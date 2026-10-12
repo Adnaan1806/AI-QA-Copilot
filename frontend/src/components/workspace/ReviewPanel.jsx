@@ -36,16 +36,20 @@ function isTyping(target) {
 }
 
 // Open questions go to the product owner, so they can be copied as a ready-to-send message.
+// They're what the requirement leaves out, and where it differs from what the app map shows.
 function AnalysisNotes({ requirement }) {
   const [showMore, setShowMore] = useState(false);
-  const questions = requirement.missing_info;
+  const questions = [
+    ...requirement.missing_info.map((text) => ({ text, app: false })),
+    ...(requirement.open_questions ?? []).map((text) => ({ text, app: true })),
+  ];
   const risks = requirement.risks;
   const hasMore = requirement.requirements.length > 0 || requirement.testing_considerations.length > 0;
 
   async function copyQuestions() {
     const text = [
       `Open questions on "${requirement.name}":`,
-      ...questions.map((q, i) => `${i + 1}. ${q}`),
+      ...questions.map((q, i) => `${i + 1}. ${q.app ? "(Differs from the app) " : ""}${q.text}`),
     ].join("\n");
     try {
       await navigator.clipboard.writeText(text);
@@ -77,7 +81,14 @@ function AnalysisNotes({ requirement }) {
           {questions.length ? (
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground marker:text-border">
               {questions.map((q, i) => (
-                <li key={i}>{q}</li>
+                <li key={i}>
+                  {q.app && (
+                    <span className="mr-1.5 rounded border border-review/40 px-1 text-xs text-review">
+                      Differs from the app
+                    </span>
+                  )}
+                  {q.text}
+                </li>
               ))}
             </ul>
           ) : (
@@ -308,6 +319,16 @@ function CaseDetail({
           <p className="text-sm text-muted-foreground">
             Covers <span className="text-foreground">{testCase.covers}</span>
           </p>
+        )}
+        {testCase.assumptions?.length > 0 && (
+          <div className="text-sm text-muted-foreground">
+            <p>Not seen in the app map, written from the requirement:</p>
+            <ul className="list-disc pl-5 marker:text-border">
+              {testCase.assumptions.map((a, i) => (
+                <li key={i} className="text-foreground">{a}</li>
+              ))}
+            </ul>
+          </div>
         )}
         <CaseStart testCase={testCase} accounts={accounts} onChange={onChangeStart} />
       </div>
@@ -709,7 +730,7 @@ export default function ReviewPanel({
         requirement={requirement}
         onAdd={async (suggestion) => {
           // eslint-disable-next-line no-unused-vars
-          const { why, starts_logged_out, ...payload } = suggestion;
+          const { why, starts_logged_out, ...payload } = suggestion; // assumptions carry over
           const created = await onCreateCase({ ...payload, start_state: starts_logged_out ? "logged_out" : null });
           setSelectedId(created.id);
           setMode("view");

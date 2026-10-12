@@ -51,7 +51,9 @@ of 0), wait for the page to settle first: page.wait_for_load_state("networkidle"
 page.wait_for_timeout(1000) (in a slow app, only the wait_for_timeout). Pages often show an empty state for a moment while data loads, so \
 asserting straight away can pass for the wrong reason.
 - If the trace has dead_ends (steps that couldn't be grounded), still write the best possible script from \
-the actions that ARE present, and add a short comment noting which step(s) had no grounded action.
+the actions that ARE present, and add a short comment noting which step(s) had no grounded action. Still \
+assert the expected_result as written: never assert its opposite, and never turn the missing element into \
+the thing being checked (e.g. asserting an option is absent because it couldn't be selected).
 - Do not include markdown code fences, commentary, or text outside the JSON object.
 """
 

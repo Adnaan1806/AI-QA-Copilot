@@ -83,6 +83,13 @@ def automate_test_case(
                 break
             code = healed["code"]
             result = run(code, "healed", healed["reason"])
+        if result["passed"] and trace.get("dead_ends"):
+            # A pass that skipped steps can't show the case holds -- it has
+            # passed by checking the opposite of the expected result before.
+            steps = "; ".join(d.get("step_text", "") for d in trace["dead_ends"])
+            reason = f"The script passed, but these steps couldn't be done in the app: {steps}"
+            tries[-1]["review_reason"] = reason
+            result = {**result, "passed": False, "output": f"Not counted as a pass. {reason}\n\n{result['output']}"}
     except Exception as exc:
         # An LLM call that times out or a browser that crashes stops this case
         # only; the other cases in the run still finish and get saved.
