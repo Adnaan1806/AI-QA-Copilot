@@ -15,6 +15,7 @@ import { Textarea } from "../ui/textarea";
 import ConfirmDialog from "../ConfirmDialog";
 import AppMapPanel from "./AppMapPanel";
 import WorkflowsPanel from "./WorkflowsPanel";
+import TeamKnowledgePanel from "./TeamKnowledgePanel";
 import { EmptyState, ErrorMessage, LoadingMessage } from "../StatusMessages";
 
 function UploadForm({ projectId, onCancel, onUploaded }) {
@@ -231,6 +232,7 @@ export default function KnowledgePanel({ projectId, hasBaseUrl }) {
     <div className="space-y-10">
       <AppMapPanel projectId={projectId} hasBaseUrl={hasBaseUrl} />
       <WorkflowsPanel projectId={projectId} />
+      <TeamKnowledgePanel projectId={projectId} />
 
       <div className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-3">

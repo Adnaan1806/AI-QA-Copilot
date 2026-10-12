@@ -149,3 +149,18 @@ def test_app_knowledge_is_layout_start_page_then_distinct_pages_then_workflows(m
         "Workflow: Search docs",
     ]
     assert calls == [("page", drafting_service.PAGE_CANDIDATES), ("workflow", drafting_service.APP_WORKFLOWS)]
+
+
+def test_drafting_context_holds_documents_rules_and_terms(monkeypatch):
+    from app.services import drafting_service
+
+    def retrieve(query, project_id, k=5, kind="document", fact_kind=None):
+        return [{"source": f"{fact_kind or kind}", "content": "c", "status": None}]
+
+    monkeypatch.setattr(drafting_service, "retrieve", retrieve)
+    monkeypatch.setattr(drafting_service, "app_knowledge", lambda db, project, text: [])
+    monkeypatch.setattr(drafting_service, "account_names", lambda project: [])
+    inputs = drafting_service.drafting_inputs(None, SimpleNamespace(id="p"), "req")
+
+    # Stated knowledge goes where expected results may come from; the app map doesn't.
+    assert [c["source"] for c in inputs["context"]] == ["document", "rule", "term"]

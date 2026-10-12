@@ -13,11 +13,18 @@ from app.schemas.app_map import (
     AppPageItem,
     CrawlSettings,
     CrawlSettingsUpdate,
+    FactCreate,
     FactDetail,
+    FactUpdate,
     SiteLayout,
     SkippedLink,
 )
 from app.services.app_map_service import is_running, start_crawl
+from app.services.fact_service import forget_facts
+from app.services.team_knowledge_service import TEAM_KINDS, add_rule, add_term, confirm_fact, edit_team_fact
+
+# Learned facts a person can confirm; rules and terms are the team's own.
+CONFIRMABLE_KINDS = ("page", "layout", "workflow")
 
 router = APIRouter(prefix="/projects/{project_id}", tags=["app map"])
 
@@ -175,3 +182,74 @@ def list_facts(
         reverse=True,
     )
     return [_fact_detail(f) for f in facts]
+
+
+def _owned_fact(project: Project, fact_id: uuid.UUID, db: Session) -> KnowledgeFact:
+    fact = db.get(KnowledgeFact, fact_id)
+    if fact is None or fact.project_id != project.id:
+        raise HTTPException(404, "Fact not found")
+    return fact
+
+
+def _team_wording(kind: str, text: str, term: str, meaning: str) -> tuple[str, str, str]:
+    text, term, meaning = text.strip(), term.strip(), meaning.strip()
+    if kind == "rule" and not text:
+        raise HTTPException(400, "Write the rule")
+    if kind == "term" and not (term and meaning):
+        raise HTTPException(400, "A term needs both the word and what it means")
+    return text, term, meaning
+
+
+@router.post("/facts", response_model=FactDetail)
+def create_fact(
+    project_id: uuid.UUID,
+    payload: FactCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Add a business rule or a glossary term."""
+    project = get_owned_project(project_id, current_user, db)
+    if payload.kind not in TEAM_KINDS:
+        raise HTTPException(400, f"kind must be one of {list(TEAM_KINDS)}")
+    text, term, meaning = _team_wording(payload.kind, payload.text, payload.term, payload.meaning)
+    fact = add_rule(db, project, text) if payload.kind == "rule" else add_term(db, project, term, meaning)
+    db.commit()
+    return _fact_detail(fact)
+
+
+@router.patch("/facts/{fact_id}", response_model=FactDetail)
+def update_fact(
+    project_id: uuid.UUID,
+    fact_id: uuid.UUID,
+    payload: FactUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Confirm a learned page or workflow, or reword a rule or term."""
+    project = get_owned_project(project_id, current_user, db)
+    fact = _owned_fact(project, fact_id, db)
+    if payload.status is not None:
+        if payload.status != "confirmed" or fact.kind not in CONFIRMABLE_KINDS:
+            raise HTTPException(400, "Only a page or workflow can be confirmed")
+        confirm_fact(fact)
+    if any(v is not None for v in (payload.text, payload.term, payload.meaning)):
+        if fact.kind not in TEAM_KINDS:
+            raise HTTPException(400, "Only rules and terms can be reworded; the app's pages come from the app")
+        text, term, meaning = _team_wording(fact.kind, payload.text or "", payload.term or "", payload.meaning or "")
+        fact = edit_team_fact(db, project, fact, text=text, term=term, meaning=meaning)
+    db.commit()
+    db.refresh(fact)
+    return _fact_detail(fact)
+
+
+@router.delete("/facts/{fact_id}", status_code=204)
+def delete_fact(
+    project_id: uuid.UUID,
+    fact_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Remove a fact. A removed page comes back if a later crawl finds it again."""
+    project = get_owned_project(project_id, current_user, db)
+    forget_facts(db, [_owned_fact(project, fact_id, db)])
+    db.commit()

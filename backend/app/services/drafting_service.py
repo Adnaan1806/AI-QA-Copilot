@@ -13,6 +13,9 @@ from app.services.app_map_service import layout_text, page_text
 from app.services.session_service import account_names
 
 DOCUMENT_CHUNKS = 5
+# The team's own rules and glossary terms most relevant to the requirement.
+TEAM_RULES = 5
+TEAM_TERMS = 5
 # Enough pages to cover a feature's screens; enough workflows to reuse setup steps.
 APP_PAGES = 4
 APP_WORKFLOWS = 3
@@ -68,7 +71,10 @@ def app_knowledge(db: Session, project: Project, requirement_text: str) -> list[
 def drafting_inputs(db: Session, project: Project, requirement_text: str) -> dict[str, Any]:
     """The analysis + QA graph's inputs besides the requirement itself."""
     return {
-        "context": retrieve(requirement_text, project.id, k=DOCUMENT_CHUNKS),
+        # Documents, and what the team stated: both may decide expected results.
+        "context": retrieve(requirement_text, project.id, k=DOCUMENT_CHUNKS)
+        + retrieve(requirement_text, project.id, k=TEAM_RULES, kind="fact", fact_kind="rule")
+        + retrieve(requirement_text, project.id, k=TEAM_TERMS, kind="fact", fact_kind="term"),
         "app_knowledge": app_knowledge(db, project, requirement_text),
         "account_names": account_names(project),
     }

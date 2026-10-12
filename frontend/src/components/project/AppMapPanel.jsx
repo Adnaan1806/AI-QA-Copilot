@@ -13,6 +13,7 @@ import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { ErrorMessage, LoadingMessage } from "../StatusMessages";
+import FactActions from "./FactActions";
 
 const POLL_MS = 3000;
 
@@ -23,7 +24,7 @@ const STATUS_LABEL = {
   confirmed: "Confirmed",
 };
 
-function PageDetail({ projectId, pageId }) {
+function PageDetail({ projectId, pageId, onRemoved }) {
   const [fact, setFact] = useState(null);
   const [error, setError] = useState(null);
 
@@ -86,6 +87,7 @@ function PageDetail({ projectId, pageId }) {
         {formatDate(fact.first_seen_at)} · last seen{" "}
         {formatDate(fact.last_seen_at)}
       </p>
+      <FactActions projectId={projectId} fact={fact} what="page" onChanged={setFact} onRemoved={onRemoved} />
     </div>
   );
 }
@@ -427,7 +429,14 @@ export default function AppMapPanel({ projectId, hasBaseUrl }) {
                 </button>
                 {open && (
                   <div className="border-t border-border bg-muted/30 px-4 py-3 pl-11">
-                    <PageDetail projectId={projectId} pageId={page.id} />
+                    <PageDetail
+                      projectId={projectId}
+                      pageId={page.id}
+                      onRemoved={() => {
+                        setOpenId(null);
+                        getAppMap(projectId).then(setMap).catch(() => {});
+                      }}
+                    />
                   </div>
                 )}
               </li>
