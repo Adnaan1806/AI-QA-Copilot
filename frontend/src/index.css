@@ -181,3 +181,38 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Review tab motion: short, and only where something changed. */
+@keyframes strip-pop {
+  0% { transform: scale(0.35); }
+  55% { transform: scale(1.35); background-color: var(--pass); }
+  100% { transform: scale(1); }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(-12px); background-color: var(--pencil-wash); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes count-bump {
+  40% { transform: scale(1.12); color: var(--pass); }
+}
+@keyframes draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes burst {
+  0% { opacity: 0; transform: scale(0.2) translateY(30px); }
+  25% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0; transform: scale(0.7) translateY(18px) rotate(160deg); }
+}
+
+@layer utilities {
+  .animate-strip-pop { animation: strip-pop 0.5s cubic-bezier(0.3, 1.7, 0.5, 1) both; }
+  .animate-rise { animation: rise 0.3s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .animate-slide-in { animation: slide-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
+  .animate-count-bump { display: inline-block; animation: count-bump 0.4s ease-out; }
+  .animate-draw { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: draw 0.6s ease-out forwards; }
+  .animate-burst { opacity: 0; animation: burst 1.1s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+}

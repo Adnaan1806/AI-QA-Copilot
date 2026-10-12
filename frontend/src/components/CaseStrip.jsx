@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { cn } from "../lib/utils";
 import { CASE_STATES, CASE_STATE_LABEL, countStates } from "../lib/qa";
 
@@ -26,12 +27,39 @@ function describe(counts) {
     .join(", ");
 }
 
+const SIGNED_OFF = new Set(["approved", "passed", "needs_review"]);
+
+// Segments whose case was just signed off, each with a delay so a batch
+// approval pops one after another.
+function useJustSignedOff(states) {
+  const previous = useRef(states);
+  const [popping, setPopping] = useState(new Map());
+
+  useEffect(() => {
+    const before = previous.current;
+    previous.current = states;
+    if (!states || !before || states.length !== before.length) return;
+    const fresh = new Map();
+    states.forEach((s, i) => {
+      if (SIGNED_OFF.has(s) && !SIGNED_OFF.has(before[i])) fresh.set(i, fresh.size * 110);
+    });
+    if (!fresh.size) return;
+    setPopping(fresh);
+    const timer = setTimeout(() => setPopping(new Map()), 600 + fresh.size * 110);
+    return () => clearTimeout(timer);
+  }, [states]);
+
+  return popping;
+}
+
 // One segment per test case, coloured by its state. Pass `states` (one per case,
 // in case order) when you have the full requirement, or `counts` from a list API.
-export default function CaseStrip({ states, counts, titles, size = "md", className }) {
+// With `onSelect`, each segment is a button that opens its case.
+export default function CaseStrip({ states, counts, titles, size = "md", selectedIndex, onSelect, className }) {
   const ordered =
     states ?? CASE_STATES.flatMap((s) => Array.from({ length: counts?.[s] ?? 0 }, () => s));
   const tally = counts ?? countStates(ordered);
+  const popping = useJustSignedOff(states);
 
   if (ordered.length === 0) {
     return <span className={cn("text-xs text-muted-foreground", className)}>No cases</span>;
@@ -56,6 +84,31 @@ export default function CaseStrip({ states, counts, titles, size = "md", classNa
     );
   }
 
+  if (onSelect) {
+    return (
+      <span aria-label={describe(tally)} className={cn("inline-flex shrink-0 items-center gap-[3px] align-middle", className)}>
+        {ordered.map((s, i) => (
+          <button
+            key={i}
+            type="button"
+            title={titles?.[i]}
+            aria-label={titles?.[i]}
+            aria-current={i === selectedIndex ? "true" : undefined}
+            onClick={() => onSelect(i)}
+            style={popping.has(i) ? { animationDelay: `${popping.get(i)}ms` } : undefined}
+            className={cn(
+              "block cursor-pointer transition-colors duration-300",
+              SIZE[size],
+              SEGMENT[s],
+              i === selectedIndex && "shadow-[0_0_0_2px_var(--background),0_0_0_3px_var(--pencil)]",
+              popping.has(i) && "animate-strip-pop",
+            )}
+          />
+        ))}
+      </span>
+    );
+  }
+
   return (
     <span
       role="img"
@@ -67,7 +120,8 @@ export default function CaseStrip({ states, counts, titles, size = "md", classNa
         <span
           key={i}
           title={titles?.[i]}
-          className={cn("block transition-colors duration-300", SIZE[size], SEGMENT[s])}
+          style={popping.has(i) ? { animationDelay: `${popping.get(i)}ms` } : undefined}
+          className={cn("block transition-colors duration-300", SIZE[size], SEGMENT[s], popping.has(i) && "animate-strip-pop")}
         />
       ))}
     </span>
