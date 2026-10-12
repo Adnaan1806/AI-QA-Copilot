@@ -38,7 +38,8 @@ def run(status="passed", trace=TRACE, tries=({"kind": "generated"},)):
 def test_a_passing_run_becomes_a_proven_workflow(monkeypatch):
     store, db = setup(monkeypatch)
     fact = workflow_service.record_workflow(db, PROJECT, CASE, run())
-    assert fact.kind == "workflow" and fact.key == str(CASE.id)
+    assert fact.kind == "workflow" and fact.key.startswith("flow:")
+    assert fact.content["cases"] == [{"id": str(CASE.id), "title": CASE.title}]
     assert fact.source == "explorer" and fact.status == "proven"
     assert [s["locator_value"] for s in fact.content["steps"]] == ["button|Search (Control+k)", "Search docs", "Search docs"]
     assert fact.content["healed"] is False
@@ -100,3 +101,53 @@ def test_learning_failure_never_fails_the_run(monkeypatch):
     monkeypatch.setattr(workflow_service, "record_workflow", boom)
     case = SimpleNamespace(id=uuid.uuid4(), requirement=SimpleNamespace(suite=SimpleNamespace(project=PROJECT)))
     workflow_service.learn_from_run(Session(), case, run())  # logs, doesn't raise
+
+
+def sort_trace(option):
+    return {
+        "base_url": "https://www.saucedemo.com/", "start_url": "https://www.saucedemo.com/inventory.html", "dead_ends": [],
+        "actions": [{"step_text": f"Choose {option}", "action": "select_option", "locator_strategy": "role",
+                     "locator_value": "combobox|Sort products", "value": option,
+                     "resulting_url": "https://www.saucedemo.com/inventory.html"}],
+    }
+
+
+def case(title):
+    return SimpleNamespace(id=uuid.uuid4(), title=title)
+
+
+def test_cases_taking_the_same_path_share_one_flow(monkeypatch):
+    store, db = setup(monkeypatch)
+    by_name, by_price = case("Sort products by Name (Z to A)"), case("Sort products by Price (low to high)")
+    workflow_service.record_workflow(db, PROJECT, by_name, run(trace=sort_trace("Name (Z to A)")))
+    flow = workflow_service.record_workflow(db, PROJECT, by_price, run(trace=sort_trace("Price (low to high)")))
+
+    assert len(db.facts) == 1
+    assert flow.title == "Sort products"
+    assert [c["title"] for c in flow.content["cases"]] == [by_name.title, by_price.title]
+    assert flow.content["options"] == {"0": ["Name (Z to A)", "Price (low to high)"]}
+    text = store.docs[f"fact-{flow.id}"].page_content
+    assert '(also proven with: Price (low to high))' in text
+    assert "Proven by: Sort products by Name (Z to A); Sort products by Price (low to high)" in text
+
+
+def test_a_refilled_field_doesnt_make_a_new_flow(monkeypatch):
+    _, db = setup(monkeypatch)
+    twice = {**TRACE, "actions": TRACE["actions"][:2] + [TRACE["actions"][1]] + TRACE["actions"][2:]}
+    first = workflow_service.record_workflow(db, PROJECT, CASE, run())
+    other = workflow_service.record_workflow(db, PROJECT, case("Search then close"), run(trace=twice))
+    assert other is first and len(first.content["steps"]) == 3
+
+
+def test_a_case_whose_path_changed_moves_to_its_new_flow(monkeypatch):
+    store, db = setup(monkeypatch)
+    old = workflow_service.record_workflow(db, PROJECT, CASE, run())
+    new = workflow_service.record_workflow(db, PROJECT, CASE, run(trace=sort_trace("Name (A to Z)")))
+    assert db.facts == [new] and f"fact-{old.id}" not in store.docs
+
+
+def test_flow_titles():
+    assert workflow_service.flow_title(["Checkout with one item"]) == "Checkout with one item"
+    # One shared word is too little to name a flow by.
+    assert workflow_service.flow_title(["Search for locators", "Search for assertions"]) == "Search for locators"
+    assert workflow_service.flow_title(["Add to cart then checkout", "Add to cart then remove"]) == "Add to cart"

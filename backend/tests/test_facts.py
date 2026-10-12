@@ -38,6 +38,9 @@ class FakeSession:
                     (f for f in session.facts if all(getattr(f, k) == v for k, v in self.kw.items())), None
                 )
 
+            def all(self):
+                return [f for f in session.facts if all(getattr(f, k) == v for k, v in self.kw.items())]
+
         return Query()
 
     def add(self, fact):
