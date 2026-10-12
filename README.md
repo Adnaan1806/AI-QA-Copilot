@@ -211,6 +211,7 @@ PYTHONPATH=. python scripts/migrate_knowledge_kind.py   # tag older knowledge ch
 PYTHONPATH=. python scripts/migrate_case_start.py       # whether each case starts logged in, and as which account
 PYTHONPATH=. python scripts/migrate_app_knowledge.py    # assumptions and open questions from drafting with the app map
 PYTHONPATH=. python scripts/migrate_flows.py            # merge workflows learned per test case into shared flows
+PYTHONPATH=. python scripts/migrate_question_answers.py # which open questions were answered or dismissed
 ```
 
 </details>

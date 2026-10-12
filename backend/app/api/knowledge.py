@@ -89,6 +89,8 @@ def search_knowledge(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Documents and facts (pages, flows, rules, terms) together, best matches first."""
     project = get_owned_project(project_id, current_user, db)
-    results = retrieve(payload.query, project.id, payload.k)
-    return SearchResponse(results=[SearchResult(**r) for r in results])
+    found = retrieve(payload.query, project.id, payload.k) + retrieve(payload.query, project.id, payload.k, kind="fact")
+    found.sort(key=lambda r: r["score"], reverse=True)
+    return SearchResponse(results=[SearchResult(**r) for r in found[: payload.k]])
