@@ -14,7 +14,7 @@ You may also be given what this project knows about the app itself ("What the ap
 - Write steps with the app's own labels for pages, buttons, links and fields, exactly as they appear there. Reuse a proven workflow's steps to get to the starting point of a case.
 - If a step needs a page, button or field the app knowledge doesn't show, write it from the requirement's wording and list it in that case's "assumptions".
 - The app knowledge shows what the app does today, not what it should do. Expected results come only from the requirement and the documents.
-- If the requirement describes something the app knowledge contradicts -- a field missing from a page that was seen, a different label, a page that doesn't exist -- still write the case (the app may be missing the feature, which the test should catch), and add an "open_questions" entry saying what the requirement says and what the app shows.
+- If the requirement describes something the app knowledge contradicts -- a field missing from a page whose controls were seen, a different label for the same control -- still write the case (the app may be missing the feature, which the test should catch), and add an "open_questions" entry saying what the requirement says and what the app shows. Only a contradiction is an open question: when the app knowledge simply doesn't cover a page or dialog, that's an assumption on the case, not a question.
 
 Write the smallest set of cases that proves every acceptance criterion:
 - Start from the acceptance criteria. If the requirement has none, use the clear, testable statements in it, as listed under the analysis "requirements".

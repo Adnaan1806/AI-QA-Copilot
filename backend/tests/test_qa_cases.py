@@ -108,24 +108,44 @@ def test_assumptions_are_cleaned():
     assert suggested_cases([{"title": "t", "assumptions": ["Apply button"]}])[0].assumptions == ["Apply button"]
 
 
-def test_app_knowledge_is_the_layout_then_pages_then_workflows(monkeypatch):
+def test_app_knowledge_is_layout_start_page_then_distinct_pages_then_workflows(monkeypatch):
     from app.services import drafting_service
 
     calls = []
+    pages = [
+        {"source": "Page: Installation | Playwright", "content": "App page: x\nHeadings: Installation | Intro"},
+        {"source": "Page: Installation | Playwright Java", "content": "App page: y\nHeadings: Installation | Intro"},
+        {"source": "Page: Search | Playwright", "content": "App page: z\nHeadings: Search"},
+    ]
 
     def retrieve(query, project_id, k=5, kind="document", fact_kind=None):
-        calls.append((kind, fact_kind, k))
-        return [{"source": f"{fact_kind}: x", "status": "proven" if fact_kind == "workflow" else "observed", "content": "c"}]
+        calls.append((fact_kind, k))
+        return pages if fact_kind == "page" else [{"source": "Workflow: Search docs", "content": "c", "status": "proven"}]
+
+    facts = [
+        SimpleNamespace(kind="layout", content={"buttons": [], "links": []}, status="observed"),
+        SimpleNamespace(kind="page", key="https://app.test/", title="Home", status="observed",
+                        content={"depth": 0, "headings": [{"text": "Welcome"}], "buttons": [], "fields": [], "links": []}),
+    ]
 
     class Query:
-        def filter(self, *a):
+        kind = None
+
+        def filter(self, *conditions):
             return self
 
-        def first(self):
-            return SimpleNamespace(content={"buttons": [{"role": "link", "name": "Docs"}], "links": []}, status="observed")
+        def __iter__(self):
+            return iter(facts)
 
     monkeypatch.setattr(drafting_service, "retrieve", retrieve)
-    found = drafting_service.app_knowledge(SimpleNamespace(query=lambda model: Query()), SimpleNamespace(id="p"), "req")
+    monkeypatch.setattr(drafting_service, "_fact", lambda db, project, kind, **content: next(
+        f for f in facts if f.kind == kind and all(f.content.get(k) == v for k, v in content.items())
+    ))
+    found = drafting_service.app_knowledge(None, SimpleNamespace(id="p"), "req")
 
-    assert [f["source"] for f in found] == ["Layout: On every page", "page: x", "workflow: x"]
-    assert calls == [("fact", "page", drafting_service.APP_PAGES), ("fact", "workflow", drafting_service.APP_WORKFLOWS)]
+    # The start page always; the Java copy of the Installation page left out.
+    assert [f["source"] for f in found] == [
+        "Layout: On every page", "Page: Home", "Page: Installation | Playwright", "Page: Search | Playwright",
+        "Workflow: Search docs",
+    ]
+    assert calls == [("page", drafting_service.PAGE_CANDIDATES), ("workflow", drafting_service.APP_WORKFLOWS)]
