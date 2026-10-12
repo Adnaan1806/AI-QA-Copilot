@@ -4,6 +4,7 @@ import { listFacts } from "../../services/api";
 import { formatDate, plural } from "../../lib/qa";
 import { cn } from "../../lib/utils";
 import { ErrorMessage, LoadingMessage } from "../StatusMessages";
+import FactActions from "./FactActions";
 
 // The element as a tester would name it (mirrors workflow_service._target).
 function target(strategy, value) {
@@ -116,11 +117,20 @@ export default function WorkflowsPanel({ projectId }) {
                       ))}
                     </ol>
                     <p className="text-xs text-muted-foreground">
-                      Proven by a passing test · first{" "}
+                      {wf.status === "confirmed" ? "Confirmed by a person" : "Proven by a passing test"} · first{" "}
                       {formatDate(wf.first_seen_at)}
                       {wf.content.healed &&
                         " · the passing script was healed, so it may differ slightly from these steps"}
                     </p>
+                    <FactActions
+                      projectId={projectId}
+                      fact={wf}
+                      what="workflow"
+                      onChanged={(updated) =>
+                        setWorkflows((list) => list.map((w) => (w.id === updated.id ? updated : w)))
+                      }
+                      onRemoved={(removed) => setWorkflows((list) => list.filter((w) => w.id !== removed.id))}
+                    />
                   </div>
                 )}
               </li>

@@ -228,6 +228,19 @@ export function listFacts(projectId, kind) {
   return request(`/projects/${projectId}/facts?kind=${encodeURIComponent(kind)}`);
 }
 
+// A business rule ({kind: "rule", text}) or glossary term ({kind: "term", term, meaning}).
+export function createFact(projectId, fact) {
+  return request(`/projects/${projectId}/facts`, { method: "POST", json: fact });
+}
+
+export function updateFact(projectId, factId, patch) {
+  return request(`/projects/${projectId}/facts/${factId}`, { method: "PATCH", json: patch });
+}
+
+export function deleteFact(projectId, factId) {
+  return request(`/projects/${projectId}/facts/${factId}`, { method: "DELETE" });
+}
+
 // Accounts (logins to the project's app)
 
 export function listAccounts(projectId) {

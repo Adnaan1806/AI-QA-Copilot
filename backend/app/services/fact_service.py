@@ -87,3 +87,12 @@ def forget_facts(db: Session, facts: list[KnowledgeFact]) -> None:
     get_vector_store().delete(ids=[_vector_id(fact) for fact in facts])
     for fact in facts:
         db.delete(fact)
+
+
+def set_fact_status(fact: KnowledgeFact, status: str) -> None:
+    """Change a fact's status here and in the vector store, whose copy drafting reads."""
+    fact.status = status
+    collection = get_vector_store()._collection
+    found = collection.get(ids=[_vector_id(fact)], include=["metadatas"])
+    if found["ids"]:
+        collection.update(ids=found["ids"], metadatas=[{**found["metadatas"][0], "fact_status": status}])

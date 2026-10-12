@@ -129,3 +129,57 @@ def test_layout_controls_are_split_from_pages():
 def test_small_crawls_have_no_layout():
     page = {"buttons": [{"role": "button", "name": "Log in"}], "links": []}
     assert app_map_service.shared_controls([page, page]) == (set(), set())
+
+
+class FakeCollection:
+    """The vector store's metadata, for set_fact_status."""
+
+    def __init__(self, store):
+        self.store = store
+
+    def get(self, ids, include):
+        found = [i for i in ids if i in self.store.docs]
+        return {"ids": found, "metadatas": [self.store.docs[i].metadata for i in found]}
+
+    def update(self, ids, metadatas):
+        for i, metadata in zip(ids, metadatas):
+            self.store.docs[i].metadata = metadata
+
+
+def test_the_team_states_rules_and_terms(monkeypatch):
+    from app.services import team_knowledge_service as team
+
+    store, db, project = setup(monkeypatch)
+    rule = team.add_rule(db, project, "Orders over $100 ship free")
+    term = team.add_term(db, project, "MFE", "Member Firm Engagement report")
+
+    assert (rule.kind, rule.status, rule.source) == ("rule", "stated", "reviewer")
+    assert store.docs[f"fact-{rule.id}"].page_content == "Business rule: Orders over $100 ship free"
+    assert store.docs[f"fact-{term.id}"].page_content == "Term: MFE -- Member Firm Engagement report"
+    # Adding a term again updates it rather than duplicating it.
+    again = team.add_term(db, project, "mfe", "Member Firm Engagement")
+    assert again.id == term.id and again.content["meaning"] == "Member Firm Engagement"
+
+
+def test_renaming_a_term_replaces_it(monkeypatch):
+    from app.services import team_knowledge_service as team
+
+    store, db, project = setup(monkeypatch)
+    old = team.add_term(db, project, "NV", "Non-voting")
+    new = team.edit_team_fact(db, project, old, term="NVMF", meaning="Non-voting member firm")
+
+    assert [f.key for f in db.facts] == ["nvmf"]
+    assert f"fact-{old.id}" not in store.docs and new.title == "NVMF"
+
+
+def test_confirming_a_page_reaches_the_vector_store(monkeypatch):
+    from app.services import team_knowledge_service as team
+
+    store, db, project = setup(monkeypatch)
+    store._collection = FakeCollection(store)
+    page = record(db, project, {"headings": ["Checkout"]})
+
+    team.confirm_fact(page)
+
+    assert page.status == "confirmed"
+    assert store.docs[f"fact-{page.id}"].metadata["fact_status"] == "confirmed"

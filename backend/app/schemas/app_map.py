@@ -57,6 +57,24 @@ class AppMapResponse(BaseModel):
     skipped: list[SkippedLink]
 
 
+class FactCreate(BaseModel):
+    """A business rule (text) or a glossary term (term + meaning) from the team."""
+
+    kind: str
+    text: str = ""
+    term: str = ""
+    meaning: str = ""
+
+
+class FactUpdate(BaseModel):
+    # "confirmed" for a page or workflow a person checked.
+    status: Optional[str] = None
+    # A rule's or term's new wording.
+    text: Optional[str] = None
+    term: Optional[str] = None
+    meaning: Optional[str] = None
+
+
 class FactDetail(BaseModel):
     id: uuid.UUID
     kind: str
