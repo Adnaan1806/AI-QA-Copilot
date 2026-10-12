@@ -42,6 +42,19 @@ def test_an_answer_becomes_a_rule_and_the_question_closes(monkeypatch):
     assert store.docs[f"fact-{rule.id}"].page_content == "Business rule: Products with the same price are listed by name."
     assert req.analysis_result.question_answers[TIES]["status"] == "answered"
     assert [q["question"] for q in question_service.unresolved(req)] == [NEWEST]
+    assert question_service.answered(req) == [
+        {"question": TIES, "differs_from_app": False, "answer": "Products with the same price are listed by name."}
+    ]
+
+
+def test_answered_questions_leave_out_dismissed_ones_and_tolerate_older_answers():
+    req = requirement(
+        open_questions=[NEWEST],
+        missing_info=[TIES],
+        answers={NEWEST: {"status": "dismissed"}, TIES: {"status": "answered", "rule_id": "r1"}},
+    )
+    assert question_service.answered(req) == [{"question": TIES, "differs_from_app": False, "answer": None}]
+    assert question_service.answered(SimpleNamespace(analysis_result=None)) == []
 
 
 def test_dismissing_hides_a_question():
