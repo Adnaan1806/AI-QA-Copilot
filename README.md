@@ -210,6 +210,7 @@ PYTHONPATH=. python scripts/migrate_case_coverage.py   # criterion each case cov
 PYTHONPATH=. python scripts/migrate_knowledge_kind.py   # tag older knowledge chunks as documents
 PYTHONPATH=. python scripts/migrate_case_start.py       # whether each case starts logged in, and as which account
 PYTHONPATH=. python scripts/migrate_app_knowledge.py    # assumptions and open questions from drafting with the app map
+PYTHONPATH=. python scripts/migrate_flows.py            # merge workflows learned per test case into shared flows
 ```
 
 </details>

@@ -152,6 +152,10 @@ class ExplorerAgent:
                     # Before acting: a click may navigate away from the element.
                     located = unique_locator(page, element["locator"], element["frame"])
                     self._act(element["locator"], action, value)
+                    if action == "select_option":
+                        # The LLM may pick by the option's hidden value ("lohi");
+                        # record the label a tester sees ("Price (low to high)").
+                        value = self._selected_label(element["locator"]) or value
                 except Exception as exc:
                     history.append(f"Action {action} on [{index}] failed: {exc}")
                     continue
@@ -193,6 +197,14 @@ class ExplorerAgent:
             "dead_ends": dead_ends,
             "final_url": page.url,
         }
+
+    @staticmethod
+    def _selected_label(locator) -> Optional[str]:
+        try:
+            label = locator.evaluate("el => el.selectedOptions?.[0]?.text ?? null")
+        except Exception:
+            return None  # the select went away (the choice navigated)
+        return label.strip() if label else None
 
     @staticmethod
     def _screen(page) -> Optional[dict]:

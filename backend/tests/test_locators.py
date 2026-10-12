@@ -78,3 +78,16 @@ def test_nothing_unique_falls_back_to_a_position_and_says_so(page):
     result = locate(page, "button:has(svg)", nth=1)
     assert result["fragile"] is True
     assert result["locator"].endswith(".nth(6)")  # among every <button>, hidden ones included
+
+
+def test_a_choice_is_recorded_by_the_label_a_tester_sees(page):
+    from app.automation.explorer_agent import ExplorerAgent
+
+    context = page.context.browser.new_context()
+    other = context.new_page()
+    other.set_content('<select aria-label="Sort products"><option value="az">Name (A to Z)</option>'
+                      '<option value="lohi">Price (low to high)</option></select>')
+    select = other.locator("select")
+    select.select_option("lohi")  # the LLM may choose by the hidden value
+    assert ExplorerAgent._selected_label(select) == "Price (low to high)"
+    context.close()
