@@ -205,7 +205,10 @@ def log_in(page, login_url: str, username: str, password: str) -> LoginResult:
                 and _host(page.url) != app_host:
             done.add(f"prompt:{_label(answer)}:{page.url}")  # before the click navigates away
             answer.click()
-        elif "sign-in" not in done and "password" not in done and (start := _button(page.locator("body"), SIGN_IN_TEXT)):
+        # Only before anything else: once the login has begun, a "Sign in" button is
+        # the provider's submit -- pressing it while the password step is still
+        # appearing would send an empty password.
+        elif not done and (start := _button(page.locator("body"), SIGN_IN_TEXT)):
             start.click()
             done.add("sign-in")
         elif ("password" in done and _host(page.url) == app_host) or idle_ms >= STEP_TIMEOUT_MS:
