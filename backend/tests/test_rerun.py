@@ -329,3 +329,22 @@ def test_cli_timeout_message_leaves_out_the_prompt(monkeypatch):
         claude_cli_client.ClaudeCliClient().generate_json("system", "a very long prompt")
     assert "prompt" not in str(error.value)
     assert str(error.value) == f"the claude CLI didn't answer within {claude_cli_client.REQUEST_TIMEOUT_S}s"
+
+
+def test_a_pass_that_skipped_steps_needs_review(monkeypatch):
+    """A script that passes although the Explorer couldn't do a step has checked
+    something else -- once, the opposite of the expected result."""
+    fake_executor(monkeypatch, {"generated"})
+
+    class SkippingExplorer(FakeExplorer):
+        def explore(self, test_case, base_url, start=None):
+            return {"actions": [], "dead_ends": [{"step_text": 'Select "Newest first"', "reason": "no such option"}]}
+
+    result = runner.automate_test_case(CASE, "https://example.test", SkippingExplorer(), FakeCodegen())
+
+    assert result["status"] == "needs_review"
+    assert result["tries"][-1]["passed"] is True  # the script itself did pass
+    assert result["tries"][-1]["review_reason"] == (
+        "The script passed, but these steps couldn't be done in the app: Select \"Newest first\""
+    )
+    assert result["last_output"].startswith("Not counted as a pass.")

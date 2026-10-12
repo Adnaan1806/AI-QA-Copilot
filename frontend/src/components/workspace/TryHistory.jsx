@@ -111,6 +111,12 @@ function TryDetail({ tries, index, currentCode }) {
           </pre>
         </div>
       )}
+      {current.review_reason && (
+        <p className="rounded-md border border-review/40 bg-review-wash p-2.5 text-xs">
+          <span className="font-medium">Not counted as a pass. </span>
+          {current.review_reason}
+        </p>
+      )}
       {current.stop_reason && (
         <p className="rounded-md border border-border bg-background p-2.5 text-xs">
           <span className="font-medium">Healing stopped. </span>

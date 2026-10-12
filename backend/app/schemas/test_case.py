@@ -103,6 +103,7 @@ class TryItem(BaseModel):
     output: str = ""  # tail of the pytest output, failing tries only
     reason: str = ""  # healed tries: what the healer fixed
     stop_reason: str = ""  # set when the healer declined to change this try
+    review_reason: str = ""  # set when a passing try isn't counted as a pass
 
 
 class RunTriesItem(BaseModel):

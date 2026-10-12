@@ -26,7 +26,8 @@ def test_case_result_counts_tries_healing_and_dead_ends(monkeypatch):
     outcome = runner.automate_test_case(CASE, "https://example.test", explorer, Codegen())
     result = case_result("Req", CASE, outcome, explorer.trace, 12.34)
 
-    assert result["status"] == "passed"
+    # The script passed after one heal, but a step couldn't be done: not counted as a pass.
+    assert result["status"] == "needs_review"
     assert result["tries"] == 2 and result["healed"] == 1
     assert result["dead_ends"] == 1 and result["dead_end_steps"] == ["Type x"]
     assert result["gave_up"] is False
