@@ -19,7 +19,8 @@ class GeminiClient(LLMClient):
             http_options=types.HttpOptions(timeout=REQUEST_TIMEOUT_MS),
         )
 
-    def generate_json(self, system_prompt: str, user_prompt: str) -> dict:
+    def generate_json(self, system_prompt: str, user_prompt: str, timeout_s=None) -> dict:
+        # The timeout is set once on the client (REQUEST_TIMEOUT_MS); timeout_s is not honoured here.
         response = self._client.models.generate_content(
             model=GEMINI_MODEL,
             contents=user_prompt,

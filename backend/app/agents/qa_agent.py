@@ -5,6 +5,9 @@ from app.llm.client import LLMClient
 
 # How many extra ideas the agent may hand back as suggestions instead of cases.
 MAX_SUGGESTIONS = 5
+# One answer holds every case with its steps and assumptions: with the app's
+# knowledge in the prompt it took over the default 2 minutes.
+DRAFT_TIMEOUT_S = 300
 
 SYSTEM_PROMPT = """You are a Senior QA Engineer designing the test cases a reviewer will approve before automation begins.
 
@@ -79,6 +82,7 @@ class QAAgent:
         return self._llm_client.generate_json(
             system_prompt=SYSTEM_PROMPT,
             user_prompt=user_prompt,
+            timeout_s=DRAFT_TIMEOUT_S,
         )
 
     @staticmethod
