@@ -16,7 +16,7 @@ from app.database import models  # noqa: F401 -- registers models on Base
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="AI QA Copilot")
+app = FastAPI(title="Testwright AI")
 
 app.add_middleware(
     CORSMiddleware,

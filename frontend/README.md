@@ -1,4 +1,4 @@
-# AI QA Copilot — Frontend
+# Testwright AI — Frontend
 
 React 19 + Vite, styled with Tailwind CSS v4 and shadcn/ui, set in IBM Plex Sans and Mono.
 
@@ -31,7 +31,8 @@ Colours are defined once in `src/index.css` as CSS variables, with light values 
 | `paper`, `sheet`, `sheet-2` | Page background, panels, subtle fills |
 | `graphite`, `graphite-2` | Text and muted text; also the "approved" case mark |
 | `rule` | Borders and dividers |
-| `pencil` | The only accent: actions, focus, selection |
-| `pass`, `review`, `fail` (+ `-wash`) | Test state only. Never used for decoration. |
+| `pencil` | The only accent (jade): actions, focus, selection |
+| `pass`, `review`, `fail` (+ `-wash`) | Test state only. Never used for decoration. Passed is a leaf green, kept apart from the jade accent. |
+| `spark` | The gold spark in the Testwright mark; nothing else |
 
 Keep state colours for state. Anything a person can click uses `pencil` (`primary`).

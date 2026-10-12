@@ -74,9 +74,9 @@ export default function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <Link to="/" className="flex items-center gap-2.5 px-1.5 py-1.5">
-          <BrandMark />
+          <BrandMark on="sidebar" />
           <span className="truncate font-semibold group-data-[collapsible=icon]:hidden">
-            AI QA Copilot
+            Testwright <span className="font-medium text-primary">AI</span>
           </span>
         </Link>
       </SidebarHeader>
