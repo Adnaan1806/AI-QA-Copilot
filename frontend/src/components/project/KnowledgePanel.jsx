@@ -1,133 +1,32 @@
-import { useEffect, useState } from "react";
-import { FileText, Plus, Search, Trash2, X } from "lucide-react";
-import {
-  deleteKnowledge,
-  listKnowledge,
-  searchKnowledge,
-  uploadKnowledge,
-} from "../../services/api";
+import { useState } from "react";
+import { Search, X } from "lucide-react";
+import { searchKnowledge } from "../../services/api";
 import { formatDate, plural } from "../../lib/qa";
+import { cn } from "../../lib/utils";
 import Spinner from "../../motion/Spinner";
-import { Button } from "../ui/button";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { Textarea } from "../ui/textarea";
-import ConfirmDialog from "../ConfirmDialog";
+import { ErrorMessage } from "../StatusMessages";
 import AppMapPanel from "./AppMapPanel";
-import WorkflowsPanel from "./WorkflowsPanel";
+import OpenQuestionsSection from "./OpenQuestionsSection";
 import TeamKnowledgePanel from "./TeamKnowledgePanel";
-import { EmptyState, ErrorMessage, LoadingMessage } from "../StatusMessages";
 
-function UploadForm({ projectId, onCancel, onUploaded }) {
-  const [name, setName] = useState("");
-  const [text, setText] = useState("");
-  const [file, setFile] = useState(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+const STATUS = {
+  observed: "Seen in the app",
+  proven: "Proven by a passing test",
+  stated: "From your team",
+  confirmed: "Confirmed",
+};
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    try {
-      onUploaded(
-        await uploadKnowledge(projectId, { name: name.trim(), text, file }),
-      );
-    } catch (err) {
-      setError(err.message);
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-4 rounded-lg border border-border bg-card p-5"
-    >
-      <div className="space-y-1.5">
-        <Label htmlFor="knowledge-name">Name</Label>
-        <Input
-          id="knowledge-name"
-          placeholder={file ? file.name : "e.g. Checkout business rules"}
-          value={name}
-          disabled={submitting}
-          onChange={(e) => setName(e.target.value)}
-        />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="knowledge-text">Content</Label>
-        <Textarea
-          id="knowledge-text"
-          className="min-h-32 resize-y"
-          placeholder="Paste business rules, a user guide, past stories or test cases"
-          value={text}
-          disabled={!!file || submitting}
-          onChange={(e) => setText(e.target.value)}
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 text-sm">
-        {file ? (
-          <span className="inline-flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5">
-            <FileText className="size-4 text-muted-foreground" />
-            {file.name}
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-fail"
-              onClick={() => setFile(null)}
-              aria-label="Remove PDF"
-            >
-              <X className="size-3.5" />
-            </button>
-          </span>
-        ) : (
-          <label className="inline-flex cursor-pointer items-center gap-2 text-primary hover:underline">
-            <FileText className="size-4" />
-            Upload a PDF instead
-            <input
-              type="file"
-              accept="application/pdf"
-              className="sr-only"
-              onChange={(e) => {
-                const selected = e.target.files?.[0] ?? null;
-                setFile(selected);
-                if (selected) setText("");
-              }}
-            />
-          </label>
-        )}
-      </div>
-
-      <ErrorMessage message={error} />
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          type="submit"
-          disabled={submitting || (file ? false : !text.trim() || !name.trim())}
-        >
-          {submitting && <Spinner className="size-3.5" />}
-          Add to knowledge
-        </Button>
-        {!submitting && (
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancel
-          </Button>
-        )}
-      </div>
-    </form>
-  );
-}
-
-// Shows what the agents would be given for a requirement, so a reviewer can
-// check the knowledge actually answers the questions it should.
-function TrySearch({ projectId }) {
+// One search over everything the project knows: what the agents would read
+// for a requirement, so a reviewer can check the knowledge answers it.
+function KnowledgeSearch({ projectId }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState(null);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState(null);
 
-  async function handleSearch(e) {
+  async function search(e) {
     e.preventDefault();
+    if (!query.trim()) return;
     setSearching(true);
     setError(null);
     try {
@@ -140,178 +39,115 @@ function TrySearch({ projectId }) {
   }
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h3 className="text-sm font-semibold">Try a search</h3>
-        <p className="text-sm text-muted-foreground">
-          Paste a requirement to see the passages the agents would read when
-          drafting its test cases.
-        </p>
-      </div>
-      <form onSubmit={handleSearch} className="flex flex-wrap gap-2">
-        <Input
-          className="min-w-0 flex-1 basis-64"
-          placeholder="e.g. Guest users can check out without an account"
+    <div className="space-y-3">
+      <form onSubmit={search} role="search" className="flex h-9 w-full items-center gap-2 rounded-md border border-input bg-card px-2.5 text-sm sm:w-80">
+        {searching ? <Spinner className="size-3.5" /> : <Search className="size-3.5 text-muted-foreground" aria-hidden />}
+        <input
+          type="search"
+          aria-label="Search knowledge"
+          placeholder="Search pages, flows, rules…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground"
         />
-        <Button
-          type="submit"
-          variant="outline"
-          disabled={searching || !query.trim()}
-        >
-          {searching ? <Spinner className="size-3.5" /> : <Search />}
-          Search
-        </Button>
       </form>
       <ErrorMessage message={error} />
-      {results &&
-        (results.length ? (
+      {results && (
+        <div className="space-y-2 rounded-lg border border-border bg-card p-3">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>
+              {results.length ? `What the agents would read for “${query.trim()}”` : "Nothing in this project's knowledge matches."}
+            </span>
+            <button type="button" onClick={() => setResults(null)} aria-label="Close search results" className="hover:text-foreground">
+              <X className="size-3.5" />
+            </button>
+          </div>
           <ol className="space-y-2">
             {results.map((result, i) => (
-              <li
-                key={i}
-                className="space-y-1 rounded-md border border-border p-3 text-sm"
-              >
-                <div className="tabular flex justify-between gap-3 text-xs text-muted-foreground">
-                  <span>{result.source}</span>
-                  <span title="Relevance, 0 to 1">
-                    {result.score.toFixed(2)}
+              <li key={i} className="space-y-1 rounded-md border border-border p-2.5 text-sm">
+                <div className="flex justify-between gap-3 text-xs text-muted-foreground">
+                  <span>
+                    {result.source}
+                    {result.status && ` · ${STATUS[result.status] ?? result.status}`}
                   </span>
                 </div>
-                <p className="line-clamp-4 whitespace-pre-wrap">
-                  {result.content}
-                </p>
+                <p className="line-clamp-3 whitespace-pre-wrap">{result.content}</p>
               </li>
             ))}
           </ol>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Nothing found in this project's knowledge.
-          </p>
-        ))}
-    </section>
+        </div>
+      )}
+    </div>
   );
 }
 
-export default function KnowledgePanel({ projectId, hasBaseUrl }) {
-  const [documents, setDocuments] = useState(null);
-  const [error, setError] = useState(null);
-  const [showForm, setShowForm] = useState(false);
-  const [deleting, setDeleting] = useState(null); // document awaiting confirmation
-  const [confirming, setConfirming] = useState(false);
-
-  useEffect(() => {
-    setDocuments(null);
-    listKnowledge(projectId)
-      .then(setDocuments)
-      .catch((err) => setError(err.message));
-  }, [projectId]);
-
-  async function handleDelete() {
-    setConfirming(true);
-    try {
-      await deleteKnowledge(projectId, deleting.id);
-      setDocuments((docs) => docs.filter((d) => d.id !== deleting.id));
-      setDeleting(null);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setConfirming(false);
-    }
-  }
-
-  const addButton = !showForm && (
-    <Button onClick={() => setShowForm(true)}>
-      <Plus />
-      Add document
-    </Button>
+function SummaryCard({ href, label, value, detail, tone }) {
+  return (
+    <a
+      href={href}
+      className={cn(
+        "flex flex-col gap-1.5 rounded-lg border p-4 transition-colors hover:border-primary/50",
+        tone === "review" ? "border-review/40 bg-review-wash" : "border-border bg-card",
+      )}
+    >
+      <span className={cn("text-xs", tone === "review" ? "text-review" : "text-muted-foreground")}>{label}</span>
+      <span className="tabular text-lg font-semibold">{value}</span>
+      <span className="text-xs text-muted-foreground">{detail}</span>
+    </a>
   );
+}
+
+// Everything the project knows, by where it came from: what the app showed
+// (guides steps), what the team said (can decide expectations), and the
+// questions still waiting for an answer.
+export default function KnowledgePanel({ projectId, hasBaseUrl }) {
+  const [counts, setCounts] = useState({});
+  const [teamVersion, setTeamVersion] = useState(0);
+  const report = (partial) => setCounts((c) => ({ ...c, ...partial }));
+  const known = (key) => counts[key] ?? "–";
 
   return (
-    <div className="space-y-10">
-      <AppMapPanel projectId={projectId} hasBaseUrl={hasBaseUrl} />
-      <WorkflowsPanel projectId={projectId} />
-      <TeamKnowledgePanel projectId={projectId} />
-
-      <div className="space-y-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="max-w-prose space-y-1">
-            <h3 className="text-sm font-semibold">Documents</h3>
-            <p className="text-sm text-muted-foreground">
-              Business rules, user guides and past stories for this project.
-              Drafted test cases take their expected results from the
-              requirement and from these documents. Other projects never see
-              them.
-            </p>
-          </div>
-          {documents?.length > 0 && addButton}
+    <div className="space-y-8">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="max-w-xl space-y-1">
+          <h2 className="text-base font-semibold">What this project knows</h2>
+          <p className="text-sm text-muted-foreground">
+            The agents read this before they write or run tests. What the app shows guides the steps; what your
+            team says can decide what a test expects.
+          </p>
         </div>
+        <KnowledgeSearch projectId={projectId} />
+      </div>
 
-        {showForm && (
-          <UploadForm
-            projectId={projectId}
-            onCancel={() => setShowForm(false)}
-            onUploaded={(doc) => {
-              setShowForm(false);
-              setDocuments((docs) => [doc, ...docs]);
-            }}
-          />
-        )}
-
-        <ErrorMessage message={error} />
-
-        {documents === null ? (
-          !error && <LoadingMessage />
-        ) : documents.length === 0 ? (
-          !showForm && (
-            <EmptyState action={addButton}>No documents yet.</EmptyState>
-          )
-        ) : (
-          <>
-            <ul className="divide-y divide-border rounded-lg border border-border">
-              {documents.map((doc) => (
-                <li
-                  key={doc.id}
-                  className="flex items-center gap-3 px-4 py-2.5 text-sm"
-                >
-                  <FileText className="size-4 shrink-0 text-muted-foreground" />
-                  <span className="min-w-0 flex-1 truncate font-medium">
-                    {doc.name}
-                  </span>
-                  <span className="tabular hidden text-muted-foreground sm:inline">
-                    {plural(doc.chunk_count, "passage")} · added{" "}
-                    {formatDate(doc.created_at)}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Delete ${doc.name}`}
-                    onClick={() => setDeleting(doc)}
-                  >
-                    <Trash2 />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-            <TrySearch projectId={projectId} />
-          </>
-        )}
-
-        <ConfirmDialog
-          open={!!deleting}
-          title="Delete this document?"
-          message={
-            deleting &&
-            `"${deleting.name}" will no longer be used when drafting test cases.`
-          }
-          confirmLabel="Delete"
-          danger
-          confirming={confirming}
-          onConfirm={handleDelete}
-          onCancel={() => setDeleting(null)}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <SummaryCard
+          href="#knowledge-app"
+          label="Learned from the app"
+          value={`${plural(known("pages"), "page")} · ${plural(known("flows"), "flow")}`}
+          detail={counts.mappedAt ? `Mapped ${formatDate(counts.mappedAt)}` : "Not mapped yet"}
+        />
+        <SummaryCard
+          href="#knowledge-team"
+          label="From your team"
+          value={`${known("rules")} rules · ${known("terms")} terms · ${known("documents")} docs`}
+          detail="Can decide what tests expect"
+        />
+        <SummaryCard
+          href="#knowledge-questions"
+          label="Open questions"
+          value={counts.questions ? `${counts.questions} waiting` : "None waiting"}
+          detail={counts.questions ? "Answer one and it becomes a rule" : "Questions from requirements land here"}
+          tone={counts.questions ? "review" : undefined}
         />
       </div>
+
+      <OpenQuestionsSection
+        projectId={projectId}
+        onCount={(questions) => report({ questions })}
+        onAnswered={() => setTeamVersion((v) => v + 1)}
+      />
+      <AppMapPanel projectId={projectId} hasBaseUrl={hasBaseUrl} onCounts={report} />
+      <TeamKnowledgePanel projectId={projectId} version={teamVersion} onCounts={report} />
     </div>
   );
 }
