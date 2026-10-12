@@ -69,6 +69,7 @@ def update_test_case(
         test_case.test_type = payload.type
     if payload.steps is not None:
         test_case.steps = payload.steps
+        test_case.assumptions = None  # they were about the drafted steps
     if payload.expected_result is not None:
         test_case.expected_result = payload.expected_result
     if payload.priority is not None:
