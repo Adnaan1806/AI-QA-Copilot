@@ -247,7 +247,7 @@ def run(project_name, mode, only, save=lambda result: None):
         explorer = RecordingExplorer(graph._explorer_agent)
         started = time.monotonic()
         try:
-            outcome = automate_test_case(test_case, base_url, explorer, graph._codegen_agent)
+            outcome = automate_test_case(test_case, base_url, explorer, graph._codegen_agent, mender=graph.mender())
             result = case_result(
                 requirement, test_case, outcome, explorer.trace, time.monotonic() - started, take_usage()
             )

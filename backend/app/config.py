@@ -34,6 +34,10 @@ PLAYWRIGHT_HEADLESS = _flag("PLAYWRIGHT_HEADLESS", default=True)
 # memory/CPU-heavy, so this is capped rather than left unbounded.
 AUTOMATION_CONCURRENCY = int(os.environ.get("AUTOMATION_CONCURRENCY", "3"))
 
+# Repair failing scripts with Mender's tool loop (looks at the page, edits lines)
+# instead of the codegen healer's blind whole-file rewrite.
+MENDER_AGENT = _flag("MENDER_AGENT", default=False)
+
 CORS_ORIGINS = [
     origin.strip()
     for origin in os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",")
