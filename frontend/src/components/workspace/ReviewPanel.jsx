@@ -10,6 +10,8 @@ import {
   caseLabel,
   formatDate,
   plural,
+  resultState,
+  signedOff,
 } from "../../lib/qa";
 import { answerQuestion } from "../../services/api";
 import { Button } from "../ui/button";
@@ -23,7 +25,7 @@ import CaseEditor from "./CaseEditor";
 
 const PRIORITY_SHORT = { high: "High", medium: "Med", low: "Low" };
 const CARD = "rounded-lg border border-border bg-card";
-const SIGNED_OFF = new Set(["approved", "passed", "needs_review"]);
+const SIGNED_OFF = new Set(["approved", "passed", "failed", "needs_review"]);
 
 const BLANK_CASE = {
   title: "",
@@ -324,6 +326,7 @@ const MARK = {
   draft: "border-[1.5px] border-muted-foreground",
   approved: "border-graphite bg-graphite text-sheet",
   passed: "border-graphite bg-graphite text-sheet",
+  failed: "border-graphite bg-graphite text-sheet",
   needs_review: "border-graphite bg-graphite text-sheet",
   rejected: "border-[1.5px] border-border text-muted-foreground",
 };
@@ -575,7 +578,7 @@ function CaseDetail({
           onClick={onOpenAutomation}
           className="flex items-center gap-2 text-sm text-primary hover:underline"
         >
-          Last automation run: {CASE_STATE_LABEL[script.status === "passed" ? "passed" : "needs_review"].toLowerCase()}
+          Last automation run: {CASE_STATE_LABEL[resultState(script.status)].toLowerCase()}
         </button>
       )}
 
@@ -772,7 +775,7 @@ function DonePanel({ counts, openQuestions, baseUrlMissing, projectId, hasReport
       </svg>
       <h3 className="text-xl font-semibold">Every case is reviewed</h3>
       <p className="max-w-[46ch] text-sm text-muted-foreground">
-        {counts.approved + counts.passed + counts.needs_review} approved, {counts.rejected} rejected.{" "}
+        {signedOff(counts)} approved, {counts.rejected} rejected.{" "}
         {openQuestions
           ? `${plural(openQuestions, "open question is", "open questions are")} still unanswered.`
           : "No open questions left."}

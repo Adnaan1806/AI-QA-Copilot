@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { CircleAlert, House, Inbox, ListChecks, LogOut, Plus, Search } from "lucide-react";
+import { failingCount } from "../lib/qa";
 import {
   Sidebar,
   SidebarContent,
@@ -56,7 +57,7 @@ function useWorkspaceSummary() {
   const queue = {
     cases: waiting.reduce((sum, r) => sum + r.case_counts.draft, 0),
     requirements: waiting.length,
-    failing: requirements.reduce((sum, r) => sum + r.case_counts.needs_review, 0),
+    failing: requirements.reduce((sum, r) => sum + failingCount(r.case_counts), 0),
   };
   return { projects, requirements, queue };
 }

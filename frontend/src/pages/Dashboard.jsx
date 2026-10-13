@@ -18,7 +18,7 @@ import {
   Page,
   PageHeader,
 } from "../components/StatusMessages";
-import { plural, readVerdict } from "../lib/qa";
+import { failingCount, plural, readVerdict } from "../lib/qa";
 import { appHost, projectSummary, relativeDay } from "../lib/project";
 import { cn } from "../lib/utils";
 
@@ -27,7 +27,7 @@ import { cn } from "../lib/utils";
 function needsAttention(requirements) {
   const score = (r) => {
     if (r.case_counts.draft > 0) return 0;
-    if (r.case_counts.needs_review > 0) return 1;
+    if (failingCount(r.case_counts) > 0) return 1;
     if (readVerdict(r.release_recommendation, r.release_verdict)?.tone === "fail") return 2;
     return null;
   };
@@ -113,13 +113,13 @@ const isNotReady = (r) => readVerdict(r.release_recommendation, r.release_verdic
 // What a requirement needs from you and where to do it: its most urgent reason,
 // or the given one when the list is filtered to it.
 function taskFor(r, kind) {
-  const why = kind ?? (r.case_counts.draft > 0 ? "draft" : r.case_counts.needs_review > 0 ? "failing" : "not-ready");
+  const why = kind ?? (r.case_counts.draft > 0 ? "draft" : failingCount(r.case_counts) > 0 ? "failing" : "not-ready");
   if (why === "draft") {
     const n = r.case_counts.draft;
     return { kind: why, reason: `${plural(n, "draft case")} to review`, chip: `${n} to review`, action: "Review", to: `/requirements/${r.id}` };
   }
   if (why === "failing") {
-    const n = r.case_counts.needs_review;
+    const n = failingCount(r.case_counts);
     return { kind: why, reason: `${plural(n, "script")} to check after the last run`, chip: `${n} failing`, action: "Open run", to: `/requirements/${r.id}/automation` };
   }
   return { kind: why, reason: "the report says it isn't ready", chip: "Not ready", action: "See report", to: `/requirements/${r.id}/report` };
@@ -187,8 +187,8 @@ function ProjectCard({ project, summary }) {
   const badge =
     counts.draft > 0
       ? { text: `${counts.draft} to review`, cls: "bg-pencil-wash text-primary" }
-      : counts.needs_review > 0
-        ? { text: `${counts.needs_review} failing`, cls: VERDICT_CHIP.review }
+      : failingCount(counts) > 0
+        ? { text: `${failingCount(counts)} failing`, cls: counts.failed ? VERDICT_CHIP.fail : VERDICT_CHIP.review }
         : !host
           ? { text: "No app URL", cls: VERDICT_CHIP.review }
           : summary.requirements === 0
@@ -228,9 +228,10 @@ function ProjectCard({ project, summary }) {
       </span>
       <span
         className="flex h-1.5 overflow-hidden rounded-full bg-muted"
-        title={cases ? `${counts.passed} passed, ${counts.needs_review} failing, ${counts.approved} approved, ${counts.draft} draft` : "No cases yet"}
+        title={cases ? `${counts.passed} passed, ${counts.failed} failed, ${counts.needs_review} need review, ${counts.approved} approved, ${counts.draft} draft` : "No cases yet"}
       >
         <span className="bg-pass" style={width(counts.passed)} />
+        <span className="bg-fail" style={width(counts.failed)} />
         <span className="bg-review" style={width(counts.needs_review)} />
         <span className="bg-muted-foreground/60" style={width(counts.approved)} />
       </span>
@@ -279,10 +280,10 @@ export default function Dashboard() {
   }
 
   const drafts = requirements.filter((r) => r.case_counts.draft > 0);
-  const failing = requirements.filter((r) => r.case_counts.needs_review > 0);
+  const failing = requirements.filter((r) => failingCount(r.case_counts) > 0);
   const notReady = requirements.filter(isNotReady);
   const draftCases = drafts.reduce((sum, r) => sum + r.case_counts.draft, 0);
-  const failingScripts = failing.reduce((sum, r) => sum + r.case_counts.needs_review, 0);
+  const failingScripts = failing.reduce((sum, r) => sum + failingCount(r.case_counts), 0);
 
   const FOCUS_LIST = { draft: drafts, failing, "not-ready": notReady };
   const tasks = (focus ? FOCUS_LIST[focus] : needsAttention(requirements))

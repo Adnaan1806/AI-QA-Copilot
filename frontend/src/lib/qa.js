@@ -2,13 +2,14 @@
 // Every screen derives its labels and colours from here so the same thing is
 // always called the same name.
 
-export const CASE_STATES = ["passed", "needs_review", "approved", "draft", "rejected"];
+export const CASE_STATES = ["passed", "failed", "needs_review", "approved", "draft", "rejected"];
 
 export const CASE_STATE_LABEL = {
   draft: "Draft",
   approved: "Approved",
   rejected: "Rejected",
   passed: "Passed",
+  failed: "Failed",
   needs_review: "Needs review",
 };
 
@@ -29,13 +30,19 @@ export function plural(n, word, pluralWord = `${word}s`) {
   return `${n} ${n === 1 ? word : pluralWord}`;
 }
 
+// An automation result: passed; failed (Mender saw the app not do what the
+// case expects); anything else is for a person to review.
+export function resultState(status) {
+  return status === "passed" || status === "failed" ? status : "needs_review";
+}
+
 // State of one case on the requirement detail payload: review status first,
 // then the automation result once an approved case has a script.
 export function caseState(testCase, scriptsById) {
   if (testCase.status !== "approved") return testCase.status;
   const script = scriptsById.get(testCase.id);
   if (!script) return "approved";
-  return script.status === "passed" ? "passed" : "needs_review";
+  return resultState(script.status);
 }
 
 // One line per case for hover text: number, title, state, and who signed it off.
@@ -59,18 +66,24 @@ export function scriptsByCaseId(requirement) {
 }
 
 export function countStates(states) {
-  const counts = { draft: 0, approved: 0, rejected: 0, passed: 0, needs_review: 0 };
+  const counts = { draft: 0, approved: 0, rejected: 0, passed: 0, failed: 0, needs_review: 0 };
   for (const s of states) counts[s] += 1;
   return counts;
 }
 
+// Automated cases that didn't pass: failed, or waiting for review. Counts from
+// an older backend have no "failed".
+export function failingCount(counts) {
+  return (counts.failed ?? 0) + counts.needs_review;
+}
+
 export function activeTotal(counts) {
-  return counts.draft + counts.approved + counts.passed + counts.needs_review;
+  return counts.draft + counts.approved + counts.passed + failingCount(counts);
 }
 
 // Cases that have been signed off, whether or not they're automated yet.
 export function signedOff(counts) {
-  return counts.approved + counts.passed + counts.needs_review;
+  return counts.approved + counts.passed + failingCount(counts);
 }
 
 export function readyToAutomate(counts) {
@@ -89,7 +102,7 @@ export function requirementStage(counts, hasReport) {
 export function stageSteps(counts, hasAnalysis, hasReport) {
   const total = activeTotal(counts);
   const reviewed = total > 0 && counts.draft === 0;
-  const automated = reviewed && counts.approved === 0 && counts.passed + counts.needs_review > 0;
+  const automated = reviewed && counts.approved === 0 && counts.passed + failingCount(counts) > 0;
   const steps = [
     { key: "analyzed", label: "Analyzed", done: hasAnalysis },
     { key: "reviewed", label: reviewed ? "Reviewed" : "Reviewing", done: reviewed },
