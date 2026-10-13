@@ -25,11 +25,6 @@ _mender_agent = MenderAgent(get_llm_client(), _explorer_agent)
 _report_agent = ReportAgent(get_llm_client())
 
 
-def mender() -> Optional[MenderAgent]:
-    """Mender when MENDER_AGENT is on; otherwise None, and the codegen healer repairs."""
-    return _mender_agent if config.MENDER_AGENT else None
-
-
 def automate_single_test_case(
     test_case: dict,
     base_url: str,
@@ -51,7 +46,7 @@ def automate_single_test_case(
         test_case_total=1,
         saved_code=saved_code,
         start=start,
-        mender=mender(),
+        mender=_mender_agent,
         requirement=requirement_text,
     )
 
@@ -160,7 +155,7 @@ def _automation_node(state: AutomationReportState) -> dict:
             test_case_total=total,
             saved_code=saved.get(tc["id"]),
             start=starts.get(tc["id"]),
-            mender=mender(),
+            mender=_mender_agent,
             requirement=state.get("requirement_text"),
         )
 

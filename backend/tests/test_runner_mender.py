@@ -1,9 +1,8 @@
-"""The runner with Mender: its tries, verdicts and budget, and the fallback to
-the codegen healer when Mender itself fails. Agents and executor are fakes."""
+"""The runner with Mender: its tries, verdicts and budget, and what happens
+when Mender itself fails. Agents and executor are fakes."""
 
 import pytest
 
-from app import config
 from app.automation import runner
 from app.orchestration import graph
 
@@ -20,15 +19,8 @@ class Explorer:
 
 
 class Codegen:
-    def __init__(self):
-        self.healed = 0
-
     def generate(self, trace, test_case):
         return "generated"
-
-    def heal(self, code, result, trace, test_case, attempt):
-        self.healed += 1
-        return {"fixable": True, "reason": "healer fix", "code": f"healed-{attempt}"}
 
 
 @pytest.fixture
@@ -108,19 +100,18 @@ def test_mender_out_of_budget_is_noted_on_the_last_try(ran):
     assert "stop_reason" not in last
 
 
-def test_falls_back_to_the_healer_when_mender_fails(ran):
+def test_when_mender_fails_the_case_stops_for_review_with_its_last_script(ran):
     def play(code, result, run_script):
         run_script("still-broken", "r", [])
         raise RuntimeError("LLM down")
 
-    codegen = Codegen()
-    outcome = automate(Mender(play), codegen=codegen)
-    # Generated + Mender's run use 2 of 3 runs; the healer gets the last one.
-    assert ran == ["generated", "still-broken", "healed-2"]
-    assert codegen.healed == 1 and outcome["status"] == "passed"
+    outcome = automate(Mender(play))
+    assert ran == ["generated", "still-broken"]
+    assert outcome["status"] == "needs_review" and outcome["code"] == "still-broken"
+    assert outcome["last_output"].startswith("Automation stopped: RuntimeError: LLM down")
 
 
-def test_a_crashing_script_run_is_not_retried_by_the_healer(monkeypatch):
+def test_a_crashing_script_run_stops_the_case(monkeypatch):
     def execute(code, test_case_id=None, storage_state=None):
         if code != "generated":
             raise OSError("browser crashed")
@@ -131,9 +122,7 @@ def test_a_crashing_script_run_is_not_retried_by_the_healer(monkeypatch):
     def play(code, result, run_script):
         return run_script("fixed", "r", [])
 
-    codegen = Codegen()
-    outcome = automate(Mender(play), codegen=codegen)
-    assert codegen.healed == 0
+    outcome = automate(Mender(play))
     assert outcome["status"] == "needs_review" and "browser crashed" in outcome["last_output"]
 
 
@@ -155,11 +144,17 @@ def test_mender_not_called_when_the_script_passes(ran, monkeypatch):
     assert automate(Mender(play))["status"] == "passed"
 
 
-def test_flag_picks_mender_or_the_healer(monkeypatch):
-    monkeypatch.setattr(config, "MENDER_AGENT", False)
-    assert graph.mender() is None
-    monkeypatch.setattr(config, "MENDER_AGENT", True)
-    assert graph.mender() is graph._mender_agent
+def test_every_automation_run_gets_mender(monkeypatch):
+    menders = []
+
+    def automate(tc, base_url, explorer, codegen, **kwargs):
+        menders.append(kwargs["mender"])
+        return {"test_case_id": tc["id"], "status": "passed"}
+
+    monkeypatch.setattr(graph, "automate_test_case", automate)
+    graph.automate_single_test_case({"id": "a"}, "https://x.test", "")
+    graph._automation_node({"approved_test_cases": [{"id": "b"}], "base_url": "https://x.test"})
+    assert menders == [graph._mender_agent, graph._mender_agent]
 
 
 def test_tries_with_and_without_turns_fit_the_api_schema(ran):
@@ -183,14 +178,7 @@ def test_other_verdicts_leave_the_case_for_review(ran, verdict):
     assert automate(Mender(play))["status"] == "needs_review"
 
 
-def test_without_mender_a_stop_is_still_for_review(monkeypatch):
-    monkeypatch.setattr(
-        runner, "execute_script", lambda code, test_case_id=None, storage_state=None: {"passed": False, "output": "boom"}
-    )
-
-    class Unfixable(Codegen):
-        def heal(self, code, result, trace, test_case, attempt):
-            return {"fixable": False, "reason": "page shows no message", "code": ""}
-
-    outcome = runner.automate_test_case(CASE, "https://shop.test", Explorer(), Unfixable())
-    assert outcome["status"] == "needs_review"
+def test_without_a_mender_a_failing_script_is_left_for_review(ran):
+    outcome = runner.automate_test_case(CASE, "https://shop.test", Explorer(), Codegen())
+    assert ran == ["generated"]
+    assert outcome["status"] == "needs_review" and outcome["last_output"] == "boom"
