@@ -120,3 +120,21 @@ def test_compare_judges_rates_when_case_counts_differ():
     assert not lines["passed"].endswith("worse")
     assert lines["passed_rate"].endswith("better")
     assert lines["passed_despite_dead_ends_rate"].endswith("better")
+
+
+def test_case_result_and_summary_count_mender():
+    tries = [
+        {"kind": "generated", "passed": False, "turns": [{}, {}]},
+        {"kind": "healed", "passed": False, "turns": [{}], "verdict": "app_defect", "stop_reason": "r"},
+    ]
+    stopped = case_result("Req", CASE, {"status": "needs_review", "tries": tries}, None, 1)
+    assert stopped["mender_turns"] == 3 and stopped["verdict"] == "app_defect" and stopped["mender_budget"] is None
+    out_of_budget = case_result("Req", CASE, {"status": "needs_review", "tries": [{"kind": "healed", "passed": False,
+                                "budget": "used all 10 turns"}]}, None, 1)
+    old = case_result("Req", CASE, {"status": "passed", "tries": [{"kind": "generated", "passed": True}]}, None, 1)
+    assert old["mender_turns"] == 0 and old["verdict"] is None
+
+    summary = summarize([stopped, out_of_budget, old])
+    assert summary["mean_mender_turns"] == 1.0
+    assert summary["mender_out_of_budget"] == 1
+    assert summary["verdicts"] == {"app_defect": 1}
