@@ -24,8 +24,11 @@ logger = logging.getLogger(__name__)
 MAX_TURNS = 6
 TIME_BUDGET_SECONDS = 120
 LLM_ATTEMPTS = 2
-RESULT_CHARS = 1500
-LATEST_RESULT_CHARS = 5000
+# Every search result stays in view until the Analyst finishes: cutting older
+# ones short once lost the evidence it had found (fields listed late in a flow).
+RESULT_CHARS = 5000
+# What is saved per step, for "How the Analyst checked".
+SAVED_RESULT_CHARS = 3000
 
 ANALYSIS_SHAPE = """{
   "name": "a short, descriptive title for this requirement (3-8 words, e.g. 'Password Reset via Email OTP')",
@@ -170,14 +173,7 @@ class RequirementAgent:
         return f"Unknown tool {tool!r}. Use one of: {', '.join(TOOLS)}."
 
     def _decide(self, requirement_text, tools: AnalystTools, turns, seconds_left, must_finish) -> dict:
-        history = [
-            {
-                "tool": t["tool"],
-                "args": t["args"],
-                "result": _trim(t["result"], LATEST_RESULT_CHARS if i == len(turns) - 1 else RESULT_CHARS),
-            }
-            for i, t in enumerate(turns)
-        ]
+        history = [{"tool": t["tool"], "args": t["args"], "result": _trim(t["result"], RESULT_CHARS)} for t in turns]
         prompt = {
             "requirement": requirement_text,
             "budget": {"turns_left": max(MAX_TURNS - len(turns), 0), "seconds_left": max(seconds_left, 0)},
@@ -234,4 +230,4 @@ def _step_text(tool, args: dict) -> str:
 
 def turn_for_saving(turn: dict) -> dict:
     """A turn as stored with the analysis: its result trimmed."""
-    return {**turn, "result": _trim(str(turn.get("result", "")), RESULT_CHARS)}
+    return {**turn, "result": _trim(str(turn.get("result", "")), SAVED_RESULT_CHARS)}

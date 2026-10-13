@@ -197,3 +197,20 @@ def test_missing_info_the_drafter_hands_back_is_not_a_difference(monkeypatch):
     )
     result = graph.analysis_qa_graph.invoke({"requirement_text": REQUIREMENT, "context": []})
     assert result["open_questions"] == [ANALYSIS["app_differences"][0], "A real contradiction"]
+
+
+def test_earlier_results_stay_in_full_until_it_finishes():
+    long_flow = "Workflow: purchase\n" + "step\n" * 300 + 'fill "Zip/Postal Code"'
+
+    class Tools(FakeTools):
+        def search_app_map(self, query):
+            return long_flow
+
+    llm = ScriptedLLM(
+        call("search_app_map", query="checkout fields"),
+        call("search_documents", query="discount"),
+        call("finish", analysis=ANALYSIS),
+    )
+    RequirementAgent(llm).analyze(REQUIREMENT, tools=Tools())
+    # Two turns later, the first result still shows the field at its end.
+    assert 'fill "Zip/Postal Code"' in json.loads(llm.prompts[2])["turns_so_far"][0]["result"]
