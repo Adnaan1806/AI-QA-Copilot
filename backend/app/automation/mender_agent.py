@@ -74,6 +74,10 @@ something that doesn't exist, or the expected outcome is ambiguous), so no corre
 
 Working rules:
 - Diagnose from the run output first; then look at the page at the failing line before editing.
+- Runs are scarce. A run only reports the first failure, so before running, check the locators on the \
+failing line and the lines after it that act on the same page against what you saw, and fix every \
+mismatch in one edit_script call.
+- Don't run an unchanged script again to see if a failure repeats; look at the page instead.
 - An assertion on an empty or negative outcome (no results, hidden, a count of 0) must come after the \
 page settles: page.wait_for_load_state("networkidle") then page.wait_for_timeout(1000) (in a slow app, \
 only the wait_for_timeout, and give expect() timeout=60000).
