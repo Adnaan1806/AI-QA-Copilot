@@ -72,10 +72,24 @@ class AnalysisQAState(TypedDict):
     analysis: dict[str, Any]
     test_cases: list[dict[str, Any]]
     suggestions: list[dict[str, Any]]
+    # Where the page polls for progress (key and user), when it asked for it.
+    progress_key: Optional[str]
+    user_id: str
+
+
+def _report(state: AnalysisQAState, stage: str, **fields) -> None:
+    progress.set_analysis_progress(state.get("progress_key"), state.get("user_id", ""), stage, **fields)
 
 
 def _requirement_node(state: AnalysisQAState) -> dict:
+    _report(state, "analyst")
     analysis = _requirement_agent.analyze(state["requirement_text"])
+    _report(
+        state,
+        "drafter",
+        points=len(analysis.get("requirements") or []),
+        questions=len(analysis.get("missing_info") or []),
+    )
     return {"analysis": analysis}
 
 

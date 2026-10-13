@@ -51,6 +51,7 @@ def create_requirement(
     suite_id: uuid.UUID,
     text: Optional[str] = Form(None),
     file: Optional[UploadFile] = File(None),
+    progress_key: Optional[str] = Form(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -69,10 +70,18 @@ def create_requirement(
     if not requirement_text:
         raise HTTPException(400, "Requirement content is empty")
 
-    with llm_errors_as_http():
-        result = analysis_qa_graph.invoke(
-            {"requirement_text": requirement_text, **drafting_inputs(db, suite.project, requirement_text)}
-        )
+    try:
+        with llm_errors_as_http():
+            result = analysis_qa_graph.invoke(
+                {
+                    "requirement_text": requirement_text,
+                    **drafting_inputs(db, suite.project, requirement_text),
+                    "progress_key": progress_key,
+                    "user_id": str(current_user.id),
+                }
+            )
+    finally:
+        progress.clear_analysis_progress(progress_key)
 
     analysis = result["analysis"]
     name = (analysis.get("name") or "").strip() or requirement_text[:60]
@@ -282,6 +291,13 @@ def generate_automation_and_report(
     db.refresh(requirement)
 
     return to_requirement_detail(requirement)
+
+
+@router.get("/analysis-progress/{progress_key}")
+def get_analysis_progress(progress_key: str, current_user: User = Depends(get_current_user)):
+    """Which agent is working on a requirement being analyzed: "analyst", then
+    "drafter" with what the Analyst found. Empty before it starts or once done."""
+    return progress.get_analysis_progress(progress_key, str(current_user.id)) or {}
 
 
 @router.get("/requirements/{requirement_id}/automation/progress")
