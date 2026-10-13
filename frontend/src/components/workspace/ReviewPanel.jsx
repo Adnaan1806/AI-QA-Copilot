@@ -44,7 +44,27 @@ function isTyping(target) {
 // Open questions go to the product owner, so they can be copied as a ready-to-send
 // message, or answered here when the answer is known: the answer becomes a project
 // rule and the question stays listed with it.
-function QuestionsCard({ requirement, projectId, onAnswered }) {
+// Buttons to the cases a question affects (the QA agent links them when drafting).
+function AffectedCases({ cases, onSelect }) {
+  if (!cases?.length) return null;
+  return (
+    <span className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+      Affects
+      {cases.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          onClick={() => onSelect(c.id)}
+          className="tabular rounded px-1 font-medium text-primary hover:bg-pencil-wash"
+        >
+          {c.label}
+        </button>
+      ))}
+    </span>
+  );
+}
+
+function QuestionsCard({ requirement, projectId, affected, onSelect, onAnswered }) {
   const [answering, setAnswering] = useState(null);
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
@@ -139,16 +159,19 @@ function QuestionsCard({ requirement, projectId, onAnswered }) {
                   </div>
                 </div>
               ) : (
-                <Button
-                  size="xs"
-                  variant="outline"
-                  onClick={() => {
-                    setAnswering(q.text);
-                    setText("");
-                  }}
-                >
-                  Answer
-                </Button>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={() => {
+                      setAnswering(q.text);
+                      setText("");
+                    }}
+                  >
+                    Answer
+                  </Button>
+                  <AffectedCases cases={affected.get(q.text)} onSelect={onSelect} />
+                </div>
               )}
             </li>
           ))}
@@ -161,6 +184,7 @@ function QuestionsCard({ requirement, projectId, onAnswered }) {
                 <p className="text-muted-foreground">{q.question}</p>
                 {q.answer && <p className="border-l-2 border-pass py-0.5 pl-2.5">{q.answer}</p>}
                 <p className="text-xs font-medium text-pass">Answered, saved as a rule</p>
+                <AffectedCases cases={affected.get(q.question)} onSelect={onSelect} />
               </div>
             </li>
           ))}
@@ -316,8 +340,9 @@ function CaseMark({ state }) {
   );
 }
 
-function CaseRow({ testCase, index, state, selected, fresh, onClick }) {
+function CaseRow({ testCase, index, state, openQuestions, selected, fresh, onClick }) {
   const assumptions = state === "draft" ? testCase.assumptions?.length ?? 0 : 0;
+  const waiting = state === "draft" ? (testCase.questions ?? []).filter((q) => openQuestions.has(q)).length : 0;
   return (
     <li data-case={testCase.id}>
       <button
@@ -343,9 +368,18 @@ function CaseRow({ testCase, index, state, selected, fresh, onClick }) {
               {testCase.reviewed_by_name && ` · ${testCase.reviewed_by_name}`}
             </span>
           )}
-          {assumptions > 0 && (
-            <span className="mt-1 inline-flex rounded-sm bg-review-wash px-1.5 text-xs font-medium text-review">
-              {plural(assumptions, "assumption")}
+          {(assumptions > 0 || waiting > 0) && (
+            <span className="mt-1 flex flex-wrap gap-1">
+              {waiting > 0 && (
+                <span className="inline-flex rounded-sm bg-review-wash px-1.5 text-xs font-medium text-review">
+                  {plural(waiting, "open question")}
+                </span>
+              )}
+              {assumptions > 0 && (
+                <span className="inline-flex rounded-sm bg-review-wash px-1.5 text-xs font-medium text-review">
+                  {plural(assumptions, "assumption")}
+                </span>
+              )}
             </span>
           )}
         </span>
@@ -413,11 +447,51 @@ function SuggestionRows({ requirement, onAdd }) {
   );
 }
 
+// The open questions a case depends on: still waiting, or answered since it was
+// drafted (its steps and expected result may need a look).
+function CaseQuestions({ questions }) {
+  const waiting = questions.filter((q) => q.answer === undefined);
+  const answered = questions.filter((q) => q.answer !== undefined);
+  return (
+    <>
+      {waiting.length > 0 && (
+        <div className="space-y-1.5 rounded-md border border-review/35 bg-review-wash/50 px-3 py-2.5">
+          <p className="text-sm font-medium text-review">
+            Waiting on {plural(waiting.length, "open question")}: the answer could change this case
+          </p>
+          <ul className="list-disc space-y-0.5 pl-5 text-sm marker:text-review/60">
+            {waiting.map((q) => (
+              <li key={q.text}>{q.text}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {answered.length > 0 && (
+        <div className="animate-rise space-y-2 rounded-md border border-pass/35 bg-pass-wash/50 px-3 py-2.5">
+          <p className="text-sm font-medium text-pass">
+            {answered.length === 1 ? "A question" : `${answered.length} questions`} this case depends on{" "}
+            {answered.length === 1 ? "was" : "were"} answered. Check the steps and expected result still fit.
+          </p>
+          <ul className="space-y-1.5 text-sm">
+            {answered.map((q) => (
+              <li key={q.text}>
+                <span className="text-muted-foreground">{q.text}</span>
+                {q.answer && <span className="mt-0.5 block border-l-2 border-pass py-0.5 pl-2.5">{q.answer}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </>
+  );
+}
+
 function CaseDetail({
   testCase,
   index,
   state,
   position,
+  questions,
   script,
   accounts,
   busy,
@@ -456,6 +530,8 @@ function CaseDetail({
         )}
         <CaseStart testCase={testCase} accounts={accounts} onChange={onChangeStart} />
       </div>
+
+      <CaseQuestions questions={questions} />
 
       {assumptions.length > 0 && (
         <div className="space-y-1.5 rounded-md border border-review/35 bg-review-wash/50 px-3 py-2.5">
@@ -848,15 +924,33 @@ export default function ReviewPanel({
     }
   }
 
+  // Questions and the cases that depend on them, both ways. An answer of null
+  // means it was answered before answers were kept.
+  const openQuestions = new Set([...(requirement.open_questions ?? []), ...requirement.missing_info]);
+  const answers = new Map((requirement.answered_questions ?? []).map((q) => [q.question, q.answer ?? null]));
+  const affected = new Map();
+  cases.forEach((tc, i) => {
+    if (states[i] === "rejected") return;
+    for (const q of tc.questions ?? []) {
+      if (!affected.has(q)) affected.set(q, []);
+      affected.get(q).push({ id: tc.id, label: caseLabel(i) });
+    }
+  });
+  const questionsOf = (tc) =>
+    (tc.questions ?? [])
+      .filter((q) => openQuestions.has(q) || answers.has(q))
+      .map((q) => (answers.has(q) ? { text: q, answer: answers.get(q) } : { text: q }));
+
   const draftAt = groups.drafts.findIndex(([c]) => c.id === selectedId);
   const position = draftAt >= 0 ? `${draftAt + 1} of ${groups.drafts.length} to review` : null;
-  const openQuestions = requirement.missing_info.length + (requirement.open_questions?.length ?? 0);
+  const openQuestionCount = openQuestions.size;
   const row = ([tc, i]) => (
     <CaseRow
       key={tc.id}
       testCase={tc}
       index={i}
       state={states[i]}
+      openQuestions={openQuestions}
       selected={tc.id === selectedId && mode !== "new" && !celebrating}
       fresh={tc.id === freshId}
       onClick={() => {
@@ -954,7 +1048,7 @@ export default function ReviewPanel({
         ) : celebrating ? (
           <DonePanel
             counts={counts}
-            openQuestions={openQuestions}
+            openQuestions={openQuestionCount}
             baseUrlMissing={baseUrlMissing}
             projectId={projectId}
             hasReport={!!requirement.report}
@@ -991,6 +1085,7 @@ export default function ReviewPanel({
               index={index}
               state={states[index]}
               position={position}
+              questions={questionsOf(selected)}
               script={scriptsById.get(selected.id)}
               accounts={accounts}
               busy={busyId === selected.id}
@@ -1010,7 +1105,13 @@ export default function ReviewPanel({
       </section>
 
       <aside aria-label="From the analysis" className="grid items-start gap-3 lg:col-span-2 lg:grid-cols-2 xl:col-span-1 xl:grid-cols-1">
-        <QuestionsCard requirement={requirement} projectId={projectId} onAnswered={onAnswered} />
+        <QuestionsCard
+          requirement={requirement}
+          projectId={projectId}
+          affected={affected}
+          onSelect={pick}
+          onAnswered={onAnswered}
+        />
         <div className="grid gap-3">
           <RisksCard risks={requirement.risks} />
           <BreakdownCard requirement={requirement} />

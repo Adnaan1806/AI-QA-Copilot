@@ -49,6 +49,7 @@ class SuggestedCase(BaseModel):
     priority: str = "medium"
     starts_logged_out: bool = False
     assumptions: list[str] = []
+    questions: list[str] = []
     why: str = ""
 
 

@@ -48,7 +48,7 @@ def test_case_item_includes_covers():
     tc = SimpleNamespace(
         id="00000000-0000-0000-0000-000000000001", title="t", test_type="functional", steps=["Open"],
         expected_result="e", priority="high", covers='"Pressing Escape closes the dialog"', status="draft",
-        reviewed_by=None, reviewed_at=None, reject_reason=None, start_state=None, account_id=None, assumptions=None,
+        reviewed_by=None, reviewed_at=None, reject_reason=None, start_state=None, account_id=None, assumptions=None, questions=None,
         requirement=SimpleNamespace(suite=SimpleNamespace(project=SimpleNamespace(accounts=[]))),
     )
     assert to_test_case_item(tc).covers == '"Pressing Escape closes the dialog"'
@@ -59,7 +59,7 @@ def test_case_item_says_which_account_it_starts_as():
     tc = SimpleNamespace(
         id="00000000-0000-0000-0000-000000000001", title="Add to cart", test_type="functional",
         steps=["Open the inventory"], expected_result="e", priority="high", covers=None, status="draft",
-        reviewed_by=None, reviewed_at=None, reject_reason=None, start_state=None, account_id=None, assumptions=None,
+        reviewed_by=None, reviewed_at=None, reject_reason=None, start_state=None, account_id=None, assumptions=None, questions=None,
         requirement=SimpleNamespace(suite=SimpleNamespace(project=SimpleNamespace(accounts=[account]))),
     )
     assert to_test_case_item(tc).starts_as == "Standard user"
@@ -164,3 +164,12 @@ def test_drafting_context_holds_documents_rules_and_terms(monkeypatch):
 
     # Stated knowledge goes where expected results may come from; the app map doesn't.
     assert [c["source"] for c in inputs["context"]] == ["document", "rule", "term"]
+
+
+def test_open_questions_are_listed_for_the_drafter_to_link():
+    prompt = qa_agent.QAAgent._build_user_prompt(
+        "Guest checkout", {"missing_info": ["Maximum number of promo code attempts allowed", " "]}, []
+    )
+    assert "Open questions (link each to the cases its answer would change, word for word):" in prompt
+    assert "- Maximum number of promo code attempts allowed" in prompt
+    assert "Open questions" not in qa_agent.QAAgent._build_user_prompt("Guest checkout", {"missing_info": []}, [])

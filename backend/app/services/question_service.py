@@ -4,6 +4,7 @@ one makes the answer a stated rule, so the next drafting uses it; dismissing
 hides it. Both are kept per requirement, keyed by the question's text."""
 
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -20,6 +21,26 @@ def _requirements(db: Session, project: Project) -> list[Requirement]:
         .order_by(Requirement.created_at.desc())
         .all()
     )
+
+
+def _norm(text: str) -> str:
+    return " ".join(str(text).lower().split()).rstrip(" ?.!")
+
+
+def link_questions(named, asked: list[str]) -> list[str]:
+    """The questions a drafted case says it depends on, as the requirement asked
+    them. The QA agent is told to copy them word for word; a close paraphrase
+    still links to the nearest question, anything else is dropped."""
+    linked = []
+    for raw in named or []:
+        text = _norm(raw)
+        if not text:
+            continue
+        best = max(asked, key=lambda q: SequenceMatcher(None, text, _norm(q)).ratio(), default=None)
+        if best and (text == _norm(best) or SequenceMatcher(None, text, _norm(best)).ratio() >= 0.8):
+            if best not in linked:
+                linked.append(best)
+    return linked
 
 
 def unresolved(requirement: Requirement) -> list[dict]:
