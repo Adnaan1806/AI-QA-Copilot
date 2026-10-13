@@ -136,6 +136,8 @@ class AnalysisResult(Base):
     # Question text -> {"status": "answered" | "dismissed", "rule_id", "at"}, for
     # both missing_info and open_questions; answered ones became rules.
     question_answers: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    # How the Analyst checked the requirement: each tool call and what it returned.
+    analyst_turns: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

@@ -43,10 +43,13 @@ _READ_FRAME = """([selector, mark, start, budget]) => {
         if (t) { context = t.slice(0, 80); break; }
       }
     }
+    // A dropdown's choices: they decide what a step can select, but its
+    // innerText runs them together.
+    const options = el.tagName === 'SELECT' ? [...el.options].slice(0, 15).map(o => text(o.text)).filter(Boolean) : [];
     el.setAttribute(mark, String(start + found.length));
     found.push({
       tag: el.tagName.toLowerCase(), type, role: el.getAttribute('role') || '', name, ariaLabel, innerText,
-      placeholder, control: control ? control.getAttribute('data-control-name') : '', context,
+      placeholder, control: control ? control.getAttribute('data-control-name') : '', context, options,
     });
   }
   return found;
@@ -80,6 +83,8 @@ def _describe(index: int, info: dict) -> str:
         parts.append(f"(role={info['role']})")
     if info["control"]:
         parts.append(f"(control {info['control']})")
+    if info.get("options"):
+        parts.append("options: " + " | ".join(info["options"]))
     return " ".join(parts)
 
 

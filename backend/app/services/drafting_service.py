@@ -7,6 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.agents.analyst_tools import AnalystTools, default_account_session
 from app.database.models import KnowledgeFact, Project
 from app.rag.retriever import retrieve
 from app.services.app_map_service import layout_text, page_text
@@ -77,4 +78,5 @@ def drafting_inputs(db: Session, project: Project, requirement_text: str) -> dic
         + retrieve(requirement_text, project.id, k=TEAM_TERMS, kind="fact", fact_kind="term"),
         "app_knowledge": app_knowledge(db, project, requirement_text),
         "account_names": account_names(project),
+        "analyst_tools": AnalystTools(project.id, project.base_url or "", *default_account_session(db, project)),
     }

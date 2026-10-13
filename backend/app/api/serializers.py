@@ -101,6 +101,7 @@ def to_requirement_detail(requirement: Requirement) -> RequirementDetailResponse
         answered_questions=answered(requirement),
         testing_considerations=analysis.testing_considerations if analysis else [],
         suggestions=suggested_cases(analysis.suggestions if analysis else None),
+        analyst_turns=(analysis.analyst_turns or []) if analysis else [],
         test_cases=[to_test_case_item(tc) for tc in requirement.test_cases],
         automation_scripts=[
             AutomationScriptItem(

@@ -72,6 +72,8 @@ class AnalysisQAState(TypedDict):
     account_names: list[str]
     # Pages, layout and proven workflows relevant to the requirement (drafting_service).
     app_knowledge: list[dict[str, Any]]
+    # What the Analyst may look at (AnalystTools); None analyses the text alone.
+    analyst_tools: Optional[Any]
     # Where the requirement and the app knowledge disagree.
     open_questions: list[str]
     analysis: dict[str, Any]
@@ -88,20 +90,27 @@ def _report(state: AnalysisQAState, stage: str, **fields) -> None:
 
 def _requirement_node(state: AnalysisQAState) -> dict:
     _report(state, "analyst")
-    analysis = _requirement_agent.analyze(state["requirement_text"])
+    analysis = _requirement_agent.analyze(
+        state["requirement_text"],
+        tools=state.get("analyst_tools"),
+        on_step=lambda step: _report(state, "analyst", step=step),
+    )
     _report(
         state,
         "drafter",
         points=len(analysis.get("requirements") or []),
-        questions=len(analysis.get("missing_info") or []),
+        questions=len(analysis.get("missing_info") or []) + len(analysis.get("app_differences") or []),
+        differences=len(analysis.get("app_differences") or []),
     )
     return {"analysis": analysis}
 
 
 def _qa_node(state: AnalysisQAState) -> dict:
+    # The Drafter hears the Analyst's conclusions, not its transcript.
+    analysis = {k: v for k, v in state["analysis"].items() if k != "analyst_turns"}
     generated = _qa_agent.generate(
         requirement_text=state["requirement_text"],
-        analysis=state["analysis"],
+        analysis=analysis,
         context=state.get("context") or [],
         account_names=state.get("account_names") or [],
         app_knowledge=state.get("app_knowledge") or [],
@@ -109,7 +118,13 @@ def _qa_node(state: AnalysisQAState) -> dict:
     return {
         "test_cases": generated.get("test_cases", []),
         "suggestions": (generated.get("suggestions") or [])[:MAX_SUGGESTIONS],
-        "open_questions": [str(q) for q in generated.get("open_questions") or [] if str(q).strip()],
+        # The Analyst's differences first; the Drafter's own, unless it repeated one.
+        "open_questions": list(
+            dict.fromkeys(
+                [str(q) for q in analysis.get("app_differences") or [] if str(q).strip()]
+                + [str(q) for q in generated.get("open_questions") or [] if str(q).strip()]
+            )
+        ),
     }
 
 

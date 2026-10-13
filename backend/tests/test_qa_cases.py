@@ -11,7 +11,7 @@ from app.services.session_service import generated_start_state
 
 def test_suggestions_are_capped_and_cases_kept(monkeypatch):
     suggestions = [{"title": f"Idea {i}"} for i in range(qa_agent.MAX_SUGGESTIONS + 3)]
-    monkeypatch.setattr(graph._requirement_agent, "analyze", lambda text: {"requirements": []})
+    monkeypatch.setattr(graph._requirement_agent, "analyze", lambda text, **kw: {"requirements": []})
     monkeypatch.setattr(
         graph._qa_agent,
         "generate",
@@ -23,7 +23,7 @@ def test_suggestions_are_capped_and_cases_kept(monkeypatch):
 
 
 def test_missing_suggestions_mean_none(monkeypatch):
-    monkeypatch.setattr(graph._requirement_agent, "analyze", lambda text: {})
+    monkeypatch.setattr(graph._requirement_agent, "analyze", lambda text, **kw: {})
     monkeypatch.setattr(graph._qa_agent, "generate", lambda **kw: {"test_cases": []})
     assert graph.analysis_qa_graph.invoke({"requirement_text": "r", "context": []})["suggestions"] == []
 
@@ -88,7 +88,7 @@ def test_the_qa_agent_sees_the_app_for_steps_only():
 
 
 def test_open_questions_come_back_from_drafting(monkeypatch):
-    monkeypatch.setattr(graph._requirement_agent, "analyze", lambda text: {})
+    monkeypatch.setattr(graph._requirement_agent, "analyze", lambda text, **kw: {})
     seen = {}
 
     def generate(**kw):
@@ -160,10 +160,12 @@ def test_drafting_context_holds_documents_rules_and_terms(monkeypatch):
     monkeypatch.setattr(drafting_service, "retrieve", retrieve)
     monkeypatch.setattr(drafting_service, "app_knowledge", lambda db, project, text: [])
     monkeypatch.setattr(drafting_service, "account_names", lambda project: [])
-    inputs = drafting_service.drafting_inputs(None, SimpleNamespace(id="p"), "req")
+    inputs = drafting_service.drafting_inputs(None, SimpleNamespace(id="p", base_url="", accounts=[]), "req")
 
     # Stated knowledge goes where expected results may come from; the app map doesn't.
     assert [c["source"] for c in inputs["context"]] == ["document", "rule", "term"]
+    # The Analyst can search the project's knowledge, but has no app to open.
+    assert not inputs["analyst_tools"].can_browse
 
 
 def test_open_questions_are_listed_for_the_drafter_to_link():
@@ -173,3 +175,10 @@ def test_open_questions_are_listed_for_the_drafter_to_link():
     assert "Open questions (link each to the cases its answer would change, word for word):" in prompt
     assert "- Maximum number of promo code attempts allowed" in prompt
     assert "Open questions" not in qa_agent.QAAgent._build_user_prompt("Guest checkout", {"missing_info": []}, [])
+
+
+def test_analyst_differences_are_listed_for_the_drafter_to_link():
+    analysis = {"missing_info": ["Default sort?"], "app_differences": ["AC 3 says Newest first; the app has no such option."]}
+    prompt = qa_agent.QAAgent._build_user_prompt("Sorting", analysis, [])
+    assert "- AC 3 says Newest first; the app has no such option." in prompt
+    assert "- Default sort?" in prompt
