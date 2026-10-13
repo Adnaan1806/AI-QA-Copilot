@@ -35,7 +35,7 @@ export default function AnalysisProgress({ progressKey }) {
           title: "Analyst read the requirement",
           detail:
             `${plural(progress.points ?? 0, "point")}, ${plural(progress.questions ?? 0, "open question")} for the product owner` +
-            (progress.differences ? `, ${progress.differences} where the app differs` : ""),
+            (progress.differences ? `, ${progress.differences} of them where the app differs` : ""),
         }
       : progress.step
         ? { agent: "analyst", state: "live", title: "Analyst is checking the requirement", detail: `It ${progress.step}` }

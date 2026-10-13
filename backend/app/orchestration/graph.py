@@ -118,14 +118,19 @@ def _qa_node(state: AnalysisQAState) -> dict:
     return {
         "test_cases": generated.get("test_cases", []),
         "suggestions": (generated.get("suggestions") or [])[:MAX_SUGGESTIONS],
-        # The Analyst's differences first; the Drafter's own, unless it repeated one.
-        "open_questions": list(
-            dict.fromkeys(
-                [str(q) for q in analysis.get("app_differences") or [] if str(q).strip()]
-                + [str(q) for q in generated.get("open_questions") or [] if str(q).strip()]
-            )
-        ),
+        "open_questions": _open_questions(analysis, generated.get("open_questions") or []),
     }
+
+
+def _open_questions(analysis: dict[str, Any], drafted: list) -> list[str]:
+    """Where the requirement and the app disagree: the Analyst's differences,
+    then the Drafter's own. The Drafter is shown the missing-info questions to
+    link cases to, and sometimes hands them back; those stay missing info, or
+    they'd show twice, once labelled as differing from the app."""
+    missing = {str(q).strip() for q in analysis.get("missing_info") or []}
+    questions = [str(q).strip() for q in analysis.get("app_differences") or []]
+    questions += [str(q).strip() for q in drafted if str(q).strip() not in missing]
+    return list(dict.fromkeys(q for q in questions if q))
 
 
 _analysis_qa_builder = StateGraph(AnalysisQAState)

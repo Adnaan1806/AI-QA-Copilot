@@ -187,3 +187,13 @@ def test_differences_lead_the_open_questions_and_are_not_repeated(monkeypatch):
     assert result["open_questions"] == [ANALYSIS["app_differences"][0], "Drafter's own question"]
     assert "analyst_turns" not in seen["analysis"]
     assert result["analysis"]["analyst_turns"] == [{"x": 1}]
+
+
+def test_missing_info_the_drafter_hands_back_is_not_a_difference(monkeypatch):
+    monkeypatch.setattr(graph._requirement_agent, "analyze", lambda text, **kw: dict(ANALYSIS))
+    monkeypatch.setattr(
+        graph._qa_agent, "generate",
+        lambda **kw: {"test_cases": [], "open_questions": ["Default sort?", "A real contradiction"]},
+    )
+    result = graph.analysis_qa_graph.invoke({"requirement_text": REQUIREMENT, "context": []})
+    assert result["open_questions"] == [ANALYSIS["app_differences"][0], "A real contradiction"]
