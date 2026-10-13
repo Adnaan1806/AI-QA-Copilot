@@ -138,6 +138,7 @@ def automate_one_test_case(
                 requirement_id,
                 saved_code=saved_passing_scripts([test_case]).get(str(test_case.id)),
                 start=start,
+                requirement_text=requirement.content,
             )
     finally:
         progress.clear_progress(requirement_id)
@@ -160,7 +161,11 @@ def automate_one_test_case(
                 analysis=analysis_payload(requirement.analysis_result),
                 test_cases=[test_case_payload(tc) for tc in approved],
                 automation_scripts=[
-                    {"test_case_id": str(tc.id), "status": tc.automation_script.status}
+                    {
+                        "test_case_id": str(tc.id),
+                        "status": tc.automation_script.status,
+                        "last_output": tc.automation_script.last_output,
+                    }
                     for tc in scripted
                 ],
             )

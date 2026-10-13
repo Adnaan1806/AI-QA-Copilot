@@ -17,8 +17,8 @@ Respond with a JSON object matching exactly this shape:
 }
 
 Choosing verdict:
-- "not_ready" if any approved test case is not automated, any automation script is "needs_review",
-  or a quality risk would block release.
+- "not_ready" if any approved test case is not automated, any automation script is "failed" or
+  "needs_review", or a quality risk would block release.
 - "ready_with_risks" if everything approved passes but quality_risks names gaps worth tracking.
 - "ready" only if every approved test case passes and no material risk remains.
 
@@ -27,13 +27,22 @@ Rules:
 - Ground every statement in the provided data -- do not invent test cases or risks not implied by it.
 - If very few test cases are approved/automated relative to the requirement's scope, say so plainly in quality_risks.
 - The input includes exact "approved_test_case_count", "automated_test_case_count", "passed_test_case_count",
-  and "needs_review_test_case_count" numbers. Use those exact figures whenever you state a count -- do not
+  "failed_test_case_count" and "needs_review_test_case_count" numbers. Use those exact figures whenever you state a count -- do not
   count list items yourself, and never state a different number.
+- Automation scripts marked "failed" reached the right place in the app, and the app was seen not to do what
+  the test case expects: a defect to fix before release. Their "failure" says what was seen; name the defect in
+  quality_risks and release_recommendation.
 - Automation scripts marked "needs_review" failed execution after automated self-healing attempts and were
   NOT verified to pass -- treat these as unverified, not as working coverage, and factor this into
   quality_risks and release_recommendation.
 - Do not include markdown, commentary, or text outside the JSON object.
 """
+
+
+def _failure(script: dict) -> str:
+    """What was seen to fail: the first paragraph of the run's output, which
+    for a failed case is Mender's reason."""
+    return (script.get("last_output") or "").split("\n\n", 1)[0].strip()[:500]
 
 
 class ReportAgent:
@@ -48,6 +57,7 @@ class ReportAgent:
         automation_scripts: list[dict[str, Any]],
     ) -> dict:
         passed = [s for s in automation_scripts if s.get("status", "passed") == "passed"]
+        failed = [s for s in automation_scripts if s.get("status") == "failed"]
         needs_review = [s for s in automation_scripts if s.get("status") == "needs_review"]
         # Database ids leak into the prose if the model sees them; it gets the
         # TC-n labels the UI shows instead.
@@ -64,11 +74,13 @@ class ReportAgent:
                     {
                         "test_case": labels.get(s["test_case_id"], s["test_case_id"]),
                         "status": s.get("status", "passed"),
+                        **({"failure": _failure(s)} if s.get("status") == "failed" else {}),
                     }
                     for s in automation_scripts
                 ],
                 "automated_test_case_count": len(automation_scripts),
                 "passed_test_case_count": len(passed),
+                "failed_test_case_count": len(failed),
                 "needs_review_test_case_count": len(needs_review),
             },
             indent=2,
