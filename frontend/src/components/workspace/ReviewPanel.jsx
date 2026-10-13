@@ -22,6 +22,7 @@ import { StateChip } from "../QaChips";
 import ConfirmDialog from "../ConfirmDialog";
 import Spinner from "../../motion/Spinner";
 import CaseEditor from "./CaseEditor";
+import AgentAvatar from "../AgentAvatar";
 
 const PRIORITY_SHORT = { high: "High", medium: "Med", low: "Low" };
 const CARD = "rounded-lg border border-border bg-card";
@@ -260,6 +261,64 @@ function BreakdownCard({ requirement }) {
             </div>
           )}
         </div>
+      )}
+    </section>
+  );
+}
+
+const ANALYST_TOOL = {
+  search_app_map: "Looked up the app map",
+  search_documents: "Searched your documents",
+  search_team_knowledge: "Checked your team's rules and terms",
+  finish: "Tried to finish",
+};
+
+function analystTarget({ args = {} }) {
+  return args.query ? `"${args.query}"` : "";
+}
+
+// What the Analyst looked at before writing the analysis, in order.
+function AnalystStepsCard({ turns }) {
+  const [open, setOpen] = useState(false);
+  if (!turns?.length) return null;
+  return (
+    <section className={cn(CARD, "overflow-hidden")}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-2 px-4 py-2.5 text-left text-sm text-muted-foreground hover:text-foreground"
+      >
+        <span className="flex items-center gap-2">
+          <AgentAvatar agent="analyst" size="xs" />
+          How the Analyst checked
+          <span className="tabular text-xs">· {plural(turns.length, "step")}</span>
+        </span>
+        <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <ol className="animate-rise space-y-3 border-t border-border px-4 py-3 text-xs">
+          {turns.map((turn, i) => (
+            <li key={i} className="flex gap-2.5">
+              <span className="tabular w-4 shrink-0 pt-px text-right text-muted-foreground">{i + 1}</span>
+              <div className="min-w-0 flex-1 space-y-1">
+                <p>
+                  <span className="font-medium">{ANALYST_TOOL[turn.tool] ?? turn.tool}</span>
+                  {analystTarget(turn) && <span className="text-muted-foreground"> · {analystTarget(turn)}</span>}
+                </p>
+                {turn.thought && <p className="text-muted-foreground">{turn.thought}</p>}
+                {turn.result && (
+                  <details>
+                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">What it saw</summary>
+                    <pre className="mt-1 max-h-56 overflow-auto rounded border border-border/70 bg-muted/30 p-2 font-mono leading-relaxed whitespace-pre-wrap">
+                      {turn.result}
+                    </pre>
+                  </details>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
       )}
     </section>
   );
@@ -1118,6 +1177,7 @@ export default function ReviewPanel({
         <div className="grid gap-3">
           <RisksCard risks={requirement.risks} />
           <BreakdownCard requirement={requirement} />
+          <AnalystStepsCard turns={requirement.analyst_turns} />
         </div>
       </aside>
 

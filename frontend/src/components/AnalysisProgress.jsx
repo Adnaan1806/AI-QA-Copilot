@@ -33,9 +33,13 @@ export default function AnalysisProgress({ progressKey }) {
           agent: "analyst",
           state: "done",
           title: "Analyst read the requirement",
-          detail: `${plural(progress.points ?? 0, "point")}, ${plural(progress.questions ?? 0, "open question")} for the product owner`,
+          detail:
+            `${plural(progress.points ?? 0, "point")}, ${plural(progress.questions ?? 0, "open question")} for the product owner` +
+            (progress.differences ? `, ${progress.differences} of them where the app differs` : ""),
         }
-      : { agent: "analyst", state: "live", title: "Analyst is reading the requirement", detail: "Splitting it into points and spotting what it leaves out" },
+      : progress.step
+        ? { agent: "analyst", state: "live", title: "Analyst is checking the requirement", detail: `It ${progress.step}` }
+        : { agent: "analyst", state: "live", title: "Analyst is reading the requirement", detail: "Then checks it against your app map and your project's knowledge" },
     drafting
       ? { agent: "drafter", state: "live", title: "Drafter is writing test cases", detail: "From the requirement, the app map and your project's rules" }
       : { agent: "drafter", state: "idle", title: "Drafter writes the test cases", detail: "Starts when the Analyst is done" },

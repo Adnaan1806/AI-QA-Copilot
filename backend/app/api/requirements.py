@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
+from app.agents.requirement_agent import turn_for_saving
 from app.api.deps import check_project_account, get_owned_requirement, get_owned_suite
 from app.api.errors import llm_errors_as_http
 from app.api.serializers import (
@@ -104,6 +105,7 @@ def create_requirement(
             testing_considerations=analysis.get("testing_considerations", []),
             suggestions=result.get("suggestions", []),
             open_questions=result.get("open_questions") or [],
+            analyst_turns=[turn_for_saving(t) for t in analysis.get("analyst_turns") or []],
         )
     )
 

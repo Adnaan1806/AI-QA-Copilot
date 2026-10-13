@@ -214,6 +214,7 @@ PYTHONPATH=. python scripts/migrate_case_start.py       # whether each case star
 PYTHONPATH=. python scripts/migrate_app_knowledge.py    # assumptions and open questions from drafting with the app map
 PYTHONPATH=. python scripts/migrate_flows.py            # merge workflows learned per test case into shared flows
 PYTHONPATH=. python scripts/migrate_case_questions.py   # which open questions each case depends on
+PYTHONPATH=. python scripts/migrate_analyst_turns.py    # how the Analyst checked each requirement
 PYTHONPATH=. python scripts/migrate_question_answers.py # which open questions were answered or dismissed
 ```
 

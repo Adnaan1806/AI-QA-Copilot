@@ -76,6 +76,8 @@ class RequirementDetailResponse(BaseModel):
     answered_questions: list[AnsweredQuestion] = []
     testing_considerations: list[str]
     suggestions: list[SuggestedCase]
+    # How the Analyst checked the requirement: {thought, tool, args, result, seconds}.
+    analyst_turns: list[dict] = []
     test_cases: list[TestCaseItem]
     automation_scripts: list[AutomationScriptItem]
     report: Optional[ReportResponse]
