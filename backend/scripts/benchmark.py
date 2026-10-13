@@ -127,6 +127,9 @@ def summarize(cases, requirements=()):
         "steps": steps,
         "assumptions": sum(c.get("assumptions", 0) for c in cases),
         "open_questions": sum(len(r.get("open_questions") or []) for r in requirements),
+        # Fresh mode: where the Analyst found the app or team knowledge disagreeing, and its tool calls.
+        "app_differences": sum(len(r.get("app_differences") or []) for r in requirements),
+        "analyst_steps": sum(r.get("analyst_steps", 0) for r in requirements),
         "dead_end_steps": sum(c["dead_ends"] for c in cases),
         "dead_end_rate": round(sum(c["dead_ends"] for c in cases) / steps, 3) if steps else 0,
         "mean_tries": round(sum(c["tries"] for c in cases) / total, 2),
@@ -150,7 +153,7 @@ LOWER_IS_BETTER = {
 # Counts that follow the number of cases; their rates below are what to compare.
 NEUTRAL = {
     "cases", "failed", "steps", "cases_per_criterion", "passed", "passed_first_try", "passed_after_healing", "llm_calls",
-    "assumptions", "open_questions",
+    "assumptions", "open_questions", "app_differences", "analyst_steps",
 }
 
 
@@ -242,7 +245,11 @@ def generate_cases(requirement, project_id):
         }
         for item in result["test_cases"]
     ]
-    return cases, len(result.get("suggestions") or []), result.get("open_questions") or []
+    analyst = {
+        "app_differences": result["analysis"].get("app_differences") or [],
+        "analyst_steps": len(result["analysis"].get("analyst_turns") or []),
+    }
+    return cases, len(result.get("suggestions") or []), result.get("open_questions") or [], analyst
 
 
 def run(project_name, mode, only, save=lambda result: None):
@@ -288,7 +295,10 @@ def run(project_name, mode, only, save=lambda result: None):
         if mode == "fresh":
             take_usage()
             try:
-                test_cases, entry["suggestions"], entry["open_questions"] = generate_cases(requirement, project_id)
+                test_cases, entry["suggestions"], entry["open_questions"], analyst = generate_cases(
+                    requirement, project_id
+                )
+                entry.update(analyst)
             except Exception as exc:
                 entry["error"] = f"generating cases failed: {type(exc).__name__}: {str(exc)[:300]}"
                 print(f"{requirement['name']}: {entry['error']}", flush=True)
