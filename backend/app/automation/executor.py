@@ -30,6 +30,14 @@ def _find_trace(output_dir: str) -> Optional[str]:
     return matches[0] if matches else None
 
 
+def _read(path: str) -> Optional[str]:
+    try:
+        with open(path, encoding="utf-8") as f:
+            return f.read()
+    except OSError:
+        return None
+
+
 def _kill_tree(proc: subprocess.Popen) -> None:
     """Kill pytest and the browser it launched. os.killpg doesn't exist on Windows."""
     if sys.platform == "win32":
@@ -54,7 +62,16 @@ def browser_context_args(browser_context_args):
 """
 
 
-def execute_script(code: str, test_case_id: Optional[str] = None, storage_state: Optional[dict] = None) -> dict:
+def execute_script(
+    code: str,
+    test_case_id: Optional[str] = None,
+    storage_state: Optional[dict] = None,
+    extra_files: Optional[dict] = None,
+    read_back: Optional[str] = None,
+) -> dict:
+    """Runs `code` under pytest. `extra_files` ({name: text}) are written next
+    to the script; the text of the file named `read_back`, if the run wrote
+    it, comes back as result["read_back"] (None if it didn't)."""
     timeout = script_timeout_seconds(code)
     # On Windows the browser can still hold a file here for a moment after the run;
     # a folder left behind must not fail the test.
@@ -67,6 +84,9 @@ def execute_script(code: str, test_case_id: Optional[str] = None, storage_state:
                 json.dump(storage_state, f)
             with open(os.path.join(tmp_dir, "conftest.py"), "w", encoding="utf-8") as f:
                 f.write(_LOGGED_IN_CONFTEST)
+        for name, text in (extra_files or {}).items():
+            with open(os.path.join(tmp_dir, name), "w", encoding="utf-8") as f:
+                f.write(text)
 
         args = [sys.executable, "-m", "pytest", script_path, "-v", "--tb=short", "-q"]
         if not config.PLAYWRIGHT_HEADLESS:
@@ -96,7 +116,10 @@ def execute_script(code: str, test_case_id: Optional[str] = None, storage_state:
         try:
             output, _ = proc.communicate(timeout=timeout)
             trace_path = _find_trace(trace_output_dir) if trace_output_dir else None
-            return {"passed": proc.returncode == 0, "output": output, "trace_path": trace_path}
+            result = {"passed": proc.returncode == 0, "output": output, "trace_path": trace_path}
+            if read_back:
+                result["read_back"] = _read(os.path.join(tmp_dir, read_back))
+            return result
         except subprocess.TimeoutExpired:
             _kill_tree(proc)
             proc.communicate()
