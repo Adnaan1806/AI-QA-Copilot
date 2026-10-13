@@ -228,3 +228,22 @@ def test_differences_lead_the_open_questions_and_are_not_repeated(monkeypatch):
     assert result["open_questions"] == [ANALYSIS["app_differences"][0], "Drafter's own question"]
     assert "analyst_turns" not in seen["analysis"]
     assert result["analysis"]["analyst_turns"] == [{"x": 1}]
+
+
+def test_pages_open_with_a_fresh_login_of_the_default_account(monkeypatch):
+    from types import SimpleNamespace
+
+    from app.agents import analyst_tools
+    from app.services import account_service
+
+    default = SimpleNamespace(name="Standard user", is_default=True, session_encrypted="stale")
+    project = SimpleNamespace(accounts=[SimpleNamespace(name="Other", is_default=False), default])
+    logins = []
+    monkeypatch.setattr(
+        account_service, "log_in_account",
+        lambda db, account: logins.append(account.name) or SimpleNamespace(storage_state={"cookies": ["fresh"]}),
+    )
+    session, name = analyst_tools.default_account_session("db", project)
+    assert name == "Standard user" and logins == []  # nobody logs in until a page is opened
+    assert session() == {"cookies": ["fresh"]} and logins == ["Standard user"]
+    assert analyst_tools.default_account_session("db", SimpleNamespace(accounts=[])) == (None, None)

@@ -3,11 +3,10 @@ already knows (its app map, documents, team rules and terms) and the live app.
 
 Everything here is read-only. open_page loads a page and reads it -- it never
 clicks or types -- and only opens pages of the project's own app. When the
-project has a default account, pages open logged in with its saved session
-(or a fresh login); the account's credentials never reach the LLM.
+project has a default account, pages open logged in as it (one fresh login,
+on the first page opened); the account's credentials never reach the LLM.
 """
 
-import json
 import logging
 from typing import Callable, Optional
 from urllib.parse import urljoin, urlparse
@@ -153,9 +152,9 @@ def _format(found: list[dict], empty: str, with_status: bool = False) -> str:
 
 def default_account_session(db, project) -> tuple[Optional[Callable[[], Optional[dict]]], Optional[str]]:
     """(session getter, account name) for the project's default account, or
-    (None, None) when it has none. The getter reuses the saved session and
-    logs in only if there isn't one."""
-    from app.access import secrets
+    (None, None) when it has none. The getter logs in afresh, as automation
+    runs do: a saved session may have expired, and pages would then open on
+    the login form while claiming to be logged in."""
     from app.services.account_service import default_account, log_in_account
 
     account = default_account(project)
@@ -163,8 +162,6 @@ def default_account_session(db, project) -> tuple[Optional[Callable[[], Optional
         return None, None
 
     def session() -> Optional[dict]:
-        if account.session_encrypted:
-            return json.loads(secrets.decrypt(account.session_encrypted))
         return log_in_account(db, account).storage_state
 
     return session, account.name
