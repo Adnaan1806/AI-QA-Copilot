@@ -1,5 +1,6 @@
 import { cn } from "../../lib/utils";
 import { TONE_TEXT, readVerdict } from "../../lib/qa";
+import AgentAvatar from "../AgentAvatar";
 
 const TONE_BORDER = {
   fail: "border-fail/40",
@@ -17,6 +18,10 @@ export default function VerdictBanner({ recommendation, verdict: structured, act
       aria-label="Release verdict"
       className={cn("space-y-3 rounded-lg border bg-card px-5 py-5 md:px-6", TONE_BORDER[verdict.tone], className)}
     >
+      <p className="flex items-center gap-2 text-xs text-muted-foreground">
+        <AgentAvatar agent="judge" size="xs" />
+        Judge's verdict
+      </p>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <h2 className={cn("text-[28px] leading-tight font-semibold tracking-[-0.01em]", TONE_TEXT[verdict.tone])}>
           {verdict.headline}

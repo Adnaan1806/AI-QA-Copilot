@@ -114,14 +114,20 @@ export function getTestSuite(suiteId) {
 
 // Requirements
 
-export function createRequirement(suiteId, { text, file }) {
+export function createRequirement(suiteId, { text, file, progressKey }) {
   const formData = new FormData();
   if (file) {
     formData.append("file", file);
   } else {
     formData.append("text", text);
   }
+  if (progressKey) formData.append("progress_key", progressKey);
   return request(`/test-suites/${suiteId}/requirements`, { method: "POST", body: formData });
+}
+
+// Which agent is working on a requirement being analyzed (see createRequirement).
+export function getAnalysisProgress(progressKey) {
+  return request(`/analysis-progress/${progressKey}`);
 }
 
 export function listRequirements() {

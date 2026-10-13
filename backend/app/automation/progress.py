@@ -39,3 +39,29 @@ def get_progress(requirement_id: str) -> Optional[dict]:
 def clear_progress(requirement_id: str) -> None:
     with _lock:
         _progress.pop(requirement_id, None)
+
+
+# Analysis runs before the requirement exists, so the page picks a random key,
+# sends it with the request, and polls with it. Each entry remembers its user so
+# nobody else can read it.
+_analysis: dict = {}
+
+
+def set_analysis_progress(key: Optional[str], user_id: str, stage: str, **fields) -> None:
+    if not key:
+        return
+    with _lock:
+        _analysis[key] = {"user_id": user_id, "stage": stage, **fields, "updated_at": time.monotonic()}
+
+
+def get_analysis_progress(key: str, user_id: str) -> Optional[dict]:
+    with _lock:
+        entry = _analysis.get(key)
+        if not entry or entry["user_id"] != user_id:
+            return None
+        return {k: v for k, v in entry.items() if k not in ("user_id", "updated_at")}
+
+
+def clear_analysis_progress(key: Optional[str]) -> None:
+    with _lock:
+        _analysis.pop(key, None)
