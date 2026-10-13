@@ -55,6 +55,7 @@ def suggested_cases(raw: Optional[list]) -> list[SuggestedCase]:
                 priority=item.get("priority") or "medium",
                 starts_logged_out=item.get("starts_logged_out") is True,
                 assumptions=clean_list(item.get("assumptions")),
+                questions=clean_list(item.get("questions")),
                 why=str(item.get("why") or ""),
             )
         )
@@ -71,6 +72,7 @@ def to_test_case_item(tc: TestCase) -> TestCaseItem:
         priority=tc.priority,
         covers=tc.covers,
         assumptions=tc.assumptions or [],
+        questions=tc.questions or [],
         start_state=tc.start_state,
         account_id=tc.account_id,
         starts_as=getattr(start_account(tc, tc.requirement.suite.project), "name", None),

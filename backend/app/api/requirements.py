@@ -34,6 +34,7 @@ from app.services.automation_service import (
 )
 from app.services.document_service import extract_text_from_pdf
 from app.services.drafting_service import drafting_inputs
+from app.services.question_service import link_questions
 from app.services.review_service import set_review_status
 from app.services.session_service import (
     StartFailed,
@@ -85,6 +86,10 @@ def create_requirement(
 
     analysis = result["analysis"]
     name = (analysis.get("name") or "").strip() or requirement_text[:60]
+    asked = [str(q) for q in result.get("open_questions") or []] + [str(q) for q in analysis.get("missing_info") or []]
+    for item in result.get("suggestions") or []:
+        if isinstance(item, dict):
+            item["questions"] = link_questions(item.get("questions"), asked)
 
     requirement = Requirement(suite_id=suite.id, name=name, content=requirement_text)
     db.add(requirement)
@@ -113,6 +118,7 @@ def create_requirement(
                 priority=item.get("priority", "medium"),
                 covers=item.get("covers") or None,
                 assumptions=clean_list(item.get("assumptions")),
+                questions=link_questions(item.get("questions"), asked),
                 start_state=generated_start_state(item),
             )
         )
@@ -219,6 +225,7 @@ def create_test_case(
         priority=payload.priority,
         covers=payload.covers,
         assumptions=payload.assumptions,
+        questions=payload.questions,
         start_state=payload.start_state,
         account_id=payload.account_id,
     )

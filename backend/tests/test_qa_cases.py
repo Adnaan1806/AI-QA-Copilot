@@ -48,7 +48,7 @@ def test_case_item_includes_covers():
     tc = SimpleNamespace(
         id="00000000-0000-0000-0000-000000000001", title="t", test_type="functional", steps=["Open"],
         expected_result="e", priority="high", covers='"Pressing Escape closes the dialog"', status="draft",
-        reviewed_by=None, reviewed_at=None, reject_reason=None, start_state=None, account_id=None, assumptions=None,
+        reviewed_by=None, reviewed_at=None, reject_reason=None, start_state=None, account_id=None, assumptions=None, questions=None,
         requirement=SimpleNamespace(suite=SimpleNamespace(project=SimpleNamespace(accounts=[]))),
     )
     assert to_test_case_item(tc).covers == '"Pressing Escape closes the dialog"'
@@ -59,7 +59,7 @@ def test_case_item_says_which_account_it_starts_as():
     tc = SimpleNamespace(
         id="00000000-0000-0000-0000-000000000001", title="Add to cart", test_type="functional",
         steps=["Open the inventory"], expected_result="e", priority="high", covers=None, status="draft",
-        reviewed_by=None, reviewed_at=None, reject_reason=None, start_state=None, account_id=None, assumptions=None,
+        reviewed_by=None, reviewed_at=None, reject_reason=None, start_state=None, account_id=None, assumptions=None, questions=None,
         requirement=SimpleNamespace(suite=SimpleNamespace(project=SimpleNamespace(accounts=[account]))),
     )
     assert to_test_case_item(tc).starts_as == "Standard user"

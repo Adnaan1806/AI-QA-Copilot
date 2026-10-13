@@ -39,6 +39,8 @@ class TestCaseItem(BaseModel):
     covers: Optional[str] = None
     # Pages, buttons or fields the steps rely on that the app map didn't show.
     assumptions: list[str] = []
+    # The requirement's open questions this case depends on, as asked.
+    questions: list[str] = []
     start_state: Optional[str] = None
     account_id: Optional[uuid.UUID] = None
     # The account the case will start logged in as, or None for logged out.
@@ -57,6 +59,7 @@ class TestCaseCreateRequest(BaseModel):
     priority: str = "medium"
     covers: Optional[str] = None
     assumptions: list[str] = []
+    questions: list[str] = []
     start_state: Optional[str] = None
     account_id: Optional[uuid.UUID] = None
 

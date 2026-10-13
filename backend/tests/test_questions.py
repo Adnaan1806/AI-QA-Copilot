@@ -70,3 +70,20 @@ def test_only_the_requirements_own_questions_can_be_resolved(monkeypatch):
     assert question_service.dismiss(req, "Something nobody asked") is False
     assert question_service.answer(FakeSession(), PROJECT, req, "Something nobody asked", "x") is None
     assert req.analysis_result.question_answers is None
+
+
+ASKED = [NEWEST, TIES]
+
+
+def test_a_case_links_to_the_questions_it_names():
+    assert question_service.link_questions([TIES], ASKED) == [TIES]
+    # Small rewording, case and trailing punctuation still link.
+    assert question_service.link_questions(["how are ties handled"], ASKED) == [TIES]
+    assert question_service.link_questions(["How are the ties handled?"], ASKED) == [TIES]
+
+
+def test_unrelated_or_repeated_questions_are_dropped():
+    assert question_service.link_questions(["What colour is the button?", "", None], ASKED) == []
+    assert question_service.link_questions([TIES, TIES.upper()], ASKED) == [TIES]
+    assert question_service.link_questions([TIES], []) == []
+    assert question_service.link_questions(None, ASKED) == []

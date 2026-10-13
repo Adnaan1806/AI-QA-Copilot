@@ -158,6 +158,9 @@ class TestCase(Base):
     covers: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     # Pages, buttons or fields the steps rely on that the app knowledge didn't show.
     assumptions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
+    # The requirement's open questions this case's steps or expected result
+    # depend on, word for word as asked (see question_service.link_questions).
+    questions: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     # How the case starts when its project has accounts: "logged_in",
     # "logged_out", or None to decide from the case (see session_service).
     start_state: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
