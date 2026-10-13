@@ -19,11 +19,13 @@ def test_case_result_counts_tries_healing_and_dead_ends(monkeypatch):
         def generate(self, trace, test_case):
             return "generated"
 
-        def heal(self, code, result, trace, test_case, attempt):
-            return {"fixable": True, "reason": "", "code": f"healed-{attempt}"}
+    class Mender:
+        def mend(self, code, result, trace, test_case, run_script, runs_left, base_url="", start=None, requirement=None):
+            fixed = run_script("healed-1", "", [])
+            return {"outcome": "passed", "code": "healed-1", "result": fixed, "turns": []}
 
     explorer = RecordingExplorer(Explorer())
-    outcome = runner.automate_test_case(CASE, "https://example.test", explorer, Codegen())
+    outcome = runner.automate_test_case(CASE, "https://example.test", explorer, Codegen(), mender=Mender())
     result = case_result("Req", CASE, outcome, explorer.trace, 12.34)
 
     # The script passed after one heal, but a step couldn't be done: not counted as a pass.

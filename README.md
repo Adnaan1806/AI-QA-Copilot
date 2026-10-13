@@ -37,7 +37,8 @@ Every requirement carries a **case strip**: one square per test case, coloured b
 | ⬜ | **Draft.** Written by the AI, nobody has reviewed it yet |
 | ⬛ | **Approved.** Signed off by a person, waiting for automation |
 | 🟩 | **Passed.** Its Playwright script ran green |
-| 🟧 | **Needs review.** The script still fails after three self-healing attempts |
+| 🟥 | **Failed.** Mender saw the app not do what the case expects (an app defect), naming the acceptance criterion it breaks |
+| 🟧 | **Needs review.** The script still fails and Mender couldn't tell why, or the requirement is unclear |
 | ✖️ | **Rejected.** Kept on record with a reason, never run |
 
 The strip never hides the gaps. A requirement with three passing cases and two unreviewed ones reads as `🟩🟩🟩⬜⬜`, not "100% passed".
@@ -67,7 +68,7 @@ Once every case is approved or rejected, generate automation. For each approved 
 
 1. drives a **real browser** through the steps to find locators that actually work,
 2. writes a `pytest-playwright` script from what it saw,
-3. runs it, and if it fails, **heals it** using the real failure output, up to three times.
+3. runs it, and if it fails, hands it to **Mender**, an agent that looks at the real page, finds working locators, edits a few lines and re-runs (up to three runs in all), or stops with a verdict: app defect, unclear requirement or environment. It may change how a script reaches and finds things, never what it checks.
 
 Cases run concurrently, and you can watch each one's progress live. Every run is kept, so a case that passes one day and fails the next gets flagged **Flaky**.
 
@@ -135,7 +136,7 @@ The sidebar keeps a **Review queue** with a live count, plus **Failing scripts**
 | 🗺️ **App map** | When a project gets its app URL, a crawler (plain code, no LLM) follows the app's links with a hidden browser and records each page's headings, buttons, fields and messages. Same site only, robots.txt respected, never clicks buttons or submits forms. Shown on the project's **Knowledge** tab, with page and depth limits and start paths you can set. |
 | ✅ **Human sign-off** | Approve, reject with a reason, edit, add or delete. Each decision records who made it and when. Excel export of the approved set. |
 | 🌐 **Real browser automation** | Each case drives a real browser to ground its locators before a `pytest-playwright` script is written. Concurrent, with live progress. |
-| 🔁 **Self-healing scripts** | Failing scripts repair themselves from real pytest output, up to three attempts. Re-run a single case without regenerating the rest. Download its Playwright trace. |
+| 🔁 **Self-healing scripts** | Mender repairs failing scripts by looking at the live page, never by loosening a check, and shows every step it took. Re-run a single case without regenerating the rest. Download its Playwright trace. |
 | 📈 **Run history** | Every run is kept. Cases whose recent runs both passed and failed are flagged **Flaky**. |
 | 📊 **Release verdict** | Ready, ready with risks, or not ready, with summary, coverage and quality risks. Rolled up per suite. |
 | 🌗 **Light and dark** | Full dark mode, and the layout works down to phone width. |
@@ -152,7 +153,8 @@ flowchart LR
     D -->|approve| E["Browser exploration<br/>real locators"]
     E --> F["pytest-playwright script"]
     F --> G{"Run"}
-    G -->|fail, up to 3x| H["Self-heal from<br/>pytest output"] --> G
+    G -->|fail| H["Mender: look at the page,<br/>edit lines, re-run"] --> G
+    H -->|app defect| K["Failed"]
     G -->|every run| I["Run history"]
     I --> J["Release report<br/>structured verdict"]
 ```

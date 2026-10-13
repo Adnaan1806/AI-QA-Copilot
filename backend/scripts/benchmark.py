@@ -260,7 +260,7 @@ def run(project_name, mode, only, save=lambda result: None):
         started = time.monotonic()
         try:
             outcome = automate_test_case(
-                test_case, base_url, explorer, graph._codegen_agent, mender=graph.mender(), requirement=requirement_text
+                test_case, base_url, explorer, graph._codegen_agent, mender=graph._mender_agent, requirement=requirement_text
             )
             result = case_result(
                 requirement, test_case, outcome, explorer.trace, time.monotonic() - started, take_usage()
@@ -277,8 +277,6 @@ def run(project_name, mode, only, save=lambda result: None):
     result = {
         "project": project_name,
         "mode": mode,
-        # Which repaired failing scripts: Mender (MENDER_AGENT) or the codegen healer.
-        "healer": "mender" if config.MENDER_AGENT else "codegen",
         "run_at": datetime.now().isoformat(timespec="seconds"),
         "requirements": [],
         "summary": {},

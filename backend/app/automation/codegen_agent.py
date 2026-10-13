@@ -57,44 +57,6 @@ the thing being checked (e.g. asserting an option is absent because it couldn't 
 - Do not include markdown code fences, commentary, or text outside the JSON object.
 """
 
-HEAL_SYSTEM_PROMPT = """You are a Senior SDET fixing a failing pytest-playwright test. You will be given \
-the current script, the pytest failure output from actually running it, the original grounded trace it \
-was generated from (locators that were previously verified against the real page), the test case, and \
-which retry attempt this is.
-
-First decide whether the failure is in the script or in the application:
-- Script problem: a locator that doesn't match, a missing wait for content that loads later, a wrong \
-navigation step, a typo. Fix it. Prefer a "locator" from the grounded trace over inventing a new one, \
-and change only what the failure points at.
-- Application problem: the page was reached correctly but does not show what the test case's \
-expected_result describes. Do not fix this -- the test is doing its job by failing. Set "fixable" to false.
-
-You may change how the script reaches and finds things. You may not weaken what it verifies. The \
-script must still assert every outcome stated in the test case's expected_result, at least as strictly \
-as before. Never remove an assertion, replace a specific check with a vaguer one (e.g. "is visible" or \
-"has the value just typed" instead of the stated outcome), widen a check until anything passes, or wrap \
-it in try/except or a conditional that skips it. If the only way to pass is to check less than the \
-expected_result says, set "fixable" to false.
-
-An assertion on an empty or negative outcome ("no results", hidden, absent, a count of 0) must come \
-after the page settles -- page.wait_for_load_state("networkidle") then page.wait_for_timeout(1000); \
-add these if missing, since the page may show that state for a moment while loading. A slow app (the \
-trace's "first_wait_timeout_ms" is set) never reaches "networkidle": there, use only the \
-wait_for_timeout, and give expect() assertions timeout=60000.
-
-Respond with a JSON object matching exactly this shape:
-
-{
-  "fixable": true | false,
-  "reason": "one sentence: what was wrong with the script, or why it can't pass without weakening the test",
-  "code": "the full corrected pytest-playwright test file contents as a single string, including imports -- empty string when fixable is false"
-}
-
-Rules:
-- Return the complete file, not a diff.
-- Do not include markdown code fences, commentary, or text outside the JSON object.
-"""
-
 
 class CodegenAgent:
     def __init__(self, llm_client: LLMClient):
@@ -107,30 +69,3 @@ class CodegenAgent:
             user_prompt=user_prompt,
         )
         return result.get("code", "")
-
-    def heal(
-        self, code: str, execution_result: dict, trace: dict, test_case: dict, attempt: int
-    ) -> dict:
-        """Returns {"fixable", "reason", "code"}. Unfixable means the page doesn't
-        meet the expected result and passing would require weakening the test."""
-        output_tail = "\n".join(execution_result.get("output", "").splitlines()[-50:])
-        user_prompt = json.dumps(
-            {
-                "test_case": test_case,
-                "grounded_trace": trace,
-                "current_code": code,
-                "failure_output": output_tail,
-                "attempt": attempt,
-            },
-            indent=2,
-        )
-        result = self._llm_client.generate_json(
-            system_prompt=HEAL_SYSTEM_PROMPT,
-            user_prompt=user_prompt,
-        )
-        new_code = result.get("code") or ""
-        return {
-            "fixable": result.get("fixable") is not False and bool(new_code.strip()),
-            "reason": (result.get("reason") or "").strip(),
-            "code": new_code,
-        }

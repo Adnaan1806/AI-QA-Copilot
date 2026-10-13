@@ -5,7 +5,7 @@ from app.automation import progress
 from app.automation.codegen_agent import CodegenAgent
 from app.automation.executor import execute_script
 from app.automation.explorer_agent import ExplorerAgent
-from app.automation.mender_agent import turn_for_saving
+from app.automation.mender_agent import MenderAgent, turn_for_saving
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def automate_test_case(
     test_case_total: int = 0,
     saved_code: Optional[str] = None,
     start: Optional[dict] = None,
-    mender=None,
+    mender: Optional[MenderAgent] = None,
     requirement: Optional[str] = None,
 ) -> dict:
     """Automate one approved test case.
@@ -34,8 +34,9 @@ def automate_test_case(
     With `start` ({"account", "storage_state"}) every browser -- the Explorer's
     and each script run's -- starts logged in as that account.
 
-    With `mender` (a MenderAgent) a failing script is repaired by Mender's tool
-    loop; without it, or if Mender itself fails, by the codegen healer.
+    A failing script is repaired by `mender`'s tool loop, within MAX_ATTEMPTS
+    runs counting the generated one; without a mender it is left for review.
+    If Mender itself fails, the case stops like any other agent failure.
     `requirement` (its text, acceptance criteria included) lets Mender tell an
     app defect from a case that asks for something the requirement doesn't.
 
@@ -80,54 +81,18 @@ def automate_test_case(
         code = codegen.generate(trace, test_case)
 
         result = run(code, "generated")
-        generated_at = len(tries) - 1
 
-        def runs_used() -> int:
-            return len(tries) - generated_at
-
-        def heal_with_codegen(code: str, result: dict) -> tuple[str, dict]:
-            for attempt in range(runs_used(), MAX_ATTEMPTS):
-                if result["passed"]:
-                    break
-                report("healing", attempt=len(tries))
-                healed = codegen.heal(code, result, trace, test_case, attempt)
-                if not healed["fixable"]:
-                    # The page doesn't meet the expected result; healing further would
-                    # only weaken the test. Leave the failure for a person to review.
-                    reason = healed["reason"] or "the page does not meet the expected result"
-                    tries[-1]["stop_reason"] = reason
-                    result = {**result, "output": f"Healing stopped: {reason}\n\n{result['output']}"}
-                    break
-                code = healed["code"]
-                result = run(code, "healed", healed["reason"])
-            return code, result
-
-        def heal_with_mender(code: str, result: dict) -> tuple[str, dict]:
-            last = {"code": code, "result": result}
-            crashed = []
-
+        def mend(code: str, result: dict) -> tuple[str, dict]:
             def run_for_mender(new_code: str, reason: str, turns: list) -> dict:
-                try:
-                    new_result = run(new_code, "healed", reason)
-                except Exception:
-                    crashed.append(True)
-                    raise
+                new_result = run(new_code, "healed", reason)
                 tries[-1]["turns"] = [turn_for_saving(t) for t in turns]
-                last.update(code=new_code, result=new_result)
                 return new_result
 
             report("healing", attempt=len(tries))
-            try:
-                mended = mender.mend(
-                    code, result, trace, test_case, run_for_mender, MAX_ATTEMPTS - runs_used(), base_url, start,
-                    requirement=requirement,
-                )
-            except Exception:
-                if crashed:
-                    raise  # the script run broke, not Mender: same as without Mender
-                logger.exception("Mender failed on %r; falling back to the healer", test_case.get("title"))
-                return heal_with_codegen(last["code"], last["result"])
-
+            mended = mender.mend(
+                code, result, trace, test_case, run_for_mender, MAX_ATTEMPTS - 1, base_url, start,
+                requirement=requirement,
+            )
             code, result = mended["code"], mended["result"]
             tries[-1].setdefault("turns", []).extend(turn_for_saving(t) for t in mended["turns"])
             if mended["outcome"] == "stopped":
@@ -139,8 +104,8 @@ def automate_test_case(
                 tries[-1]["budget"] = mended["budget"]
             return code, result
 
-        if not result["passed"]:
-            code, result = (heal_with_mender if mender is not None else heal_with_codegen)(code, result)
+        if not result["passed"] and mender is not None:
+            code, result = mend(code, result)
         if result["passed"] and trace.get("dead_ends"):
             # A pass that skipped steps can't show the case holds -- it has
             # passed by checking the opposite of the expected result before.

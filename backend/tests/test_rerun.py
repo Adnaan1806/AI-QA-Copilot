@@ -28,20 +28,33 @@ class FakeExplorer:
 
 
 class FakeCodegen:
-    def __init__(self, fixable=True):
+    def __init__(self):
         self.generated = 0
-        self.healed = 0
-        self.fixable = fixable
 
     def generate(self, trace, test_case):
         self.generated += 1
         return "generated"
 
-    def heal(self, code, result, trace, test_case, attempt):
-        self.healed += 1
-        if not self.fixable:
-            return {"fixable": False, "reason": "page shows no message", "code": ""}
-        return {"fixable": True, "reason": "", "code": f"healed-{attempt}"}
+
+class FakeMender:
+    """Repairs the simplest way: runs healed-1, healed-2, ... until one passes or
+    the runs run out -- or, with a verdict, stops without running anything."""
+
+    def __init__(self, verdict=None):
+        self.calls = 0
+        self.verdict = verdict
+
+    def mend(self, code, result, trace, test_case, run_script, runs_left, base_url="", start=None, requirement=None):
+        self.calls += 1
+        if self.verdict:
+            return {"outcome": "stopped", "code": code, "result": result, "verdict": self.verdict,
+                    "reason": "page shows no message", "turns": []}
+        for n in range(1, runs_left + 1):
+            code = f"healed-{n}"
+            result = run_script(code, "", [])
+            if result["passed"]:
+                return {"outcome": "passed", "code": code, "result": result, "turns": []}
+        return {"outcome": "gave_up", "code": code, "result": result, "budget": "used all its script runs", "turns": []}
 
 
 def fake_executor(monkeypatch, passing_code):
@@ -57,19 +70,19 @@ def fake_executor(monkeypatch, passing_code):
 
 
 def automate(saved_code=None):
-    explorer, codegen = FakeExplorer(), FakeCodegen()
+    explorer, codegen, mender = FakeExplorer(), FakeCodegen(), FakeMender()
     result = runner.automate_test_case(
-        CASE, "https://example.test", explorer, codegen, saved_code=saved_code
+        CASE, "https://example.test", explorer, codegen, saved_code=saved_code, mender=mender
     )
-    return result, explorer, codegen
+    return result, explorer, codegen, mender
 
 
 def test_passing_saved_script_is_replayed_without_llm_calls(monkeypatch):
     ran = fake_executor(monkeypatch, {"saved"})
-    result, explorer, codegen = automate(saved_code="saved")
+    result, explorer, codegen, mender = automate(saved_code="saved")
 
     assert ran == ["saved"]
-    assert explorer.calls == 0 and codegen.generated == 0 and codegen.healed == 0
+    assert explorer.calls == 0 and codegen.generated == 0 and mender.calls == 0
     assert result["status"] == "passed"
     assert result["code"] == "saved"
     assert result["attempts"] == 1
@@ -77,7 +90,7 @@ def test_passing_saved_script_is_replayed_without_llm_calls(monkeypatch):
 
 def test_failing_saved_script_falls_back_to_full_pipeline(monkeypatch):
     ran = fake_executor(monkeypatch, {"generated"})
-    result, explorer, codegen = automate(saved_code="saved")
+    result, explorer, codegen, _ = automate(saved_code="saved")
 
     assert ran == ["saved", "generated"]
     assert explorer.calls == 1 and codegen.generated == 1
@@ -88,10 +101,10 @@ def test_failing_saved_script_falls_back_to_full_pipeline(monkeypatch):
 
 def test_fallback_still_heals(monkeypatch):
     ran = fake_executor(monkeypatch, {"healed-1"})
-    result, _, codegen = automate(saved_code="saved")
+    result, _, _, mender = automate(saved_code="saved")
 
     assert ran == ["saved", "generated", "healed-1"]
-    assert codegen.healed == 1
+    assert mender.calls == 1
     assert result["status"] == "passed"
     assert result["attempts"] == 3
     assert [(t["kind"], t["passed"], t["code"]) for t in result["tries"]] == [
@@ -105,7 +118,7 @@ def test_fallback_still_heals(monkeypatch):
 
 def test_without_saved_script_runs_full_pipeline(monkeypatch):
     ran = fake_executor(monkeypatch, {"generated"})
-    result, explorer, _ = automate()
+    result, explorer, _, _ = automate()
 
     assert ran == ["generated"]
     assert explorer.calls == 1
@@ -114,25 +127,26 @@ def test_without_saved_script_runs_full_pipeline(monkeypatch):
 
 def test_needs_review_after_all_attempts(monkeypatch):
     ran = fake_executor(monkeypatch, set())
-    result, _, codegen = automate(saved_code="saved")
+    result, _, _, mender = automate(saved_code="saved")
 
+    # The failed replay, then the generated script and Mender's runs: MAX_ATTEMPTS.
     assert len(ran) == 1 + runner.MAX_ATTEMPTS
-    assert codegen.healed == runner.MAX_ATTEMPTS - 1
+    assert mender.calls == 1
     assert result["status"] == "needs_review"
     assert result["last_output"] == "boom"
 
 
-def test_unfixable_failure_stops_healing(monkeypatch):
+def test_mender_stopping_ends_the_repair(monkeypatch):
     ran = fake_executor(monkeypatch, set())
-    explorer, codegen = FakeExplorer(), FakeCodegen(fixable=False)
-    result = runner.automate_test_case(CASE, "https://example.test", explorer, codegen)
+    mender = FakeMender(verdict="unclear_requirement")
+    result = runner.automate_test_case(CASE, "https://example.test", FakeExplorer(), FakeCodegen(), mender=mender)
 
-    assert ran == ["generated"]  # no healed script is run
-    assert codegen.healed == 1
+    assert ran == ["generated"]  # no repaired script is run
+    assert mender.calls == 1
     assert result["status"] == "needs_review"
     assert result["code"] == "generated"
     assert result["attempts"] == 1
-    assert result["last_output"].startswith("Healing stopped: page shows no message")
+    assert result["last_output"].startswith("Mender stopped (unclear requirement): page shows no message")
     assert "boom" in result["last_output"]
     assert result["tries"][-1]["stop_reason"] == "page shows no message"
 
@@ -269,21 +283,22 @@ class FailingCodegen(FakeCodegen):
             raise Boom("generate timed out")
         return super().generate(trace, test_case)
 
-    def heal(self, code, result, trace, test_case, attempt):
-        if self.fail_on == "heal":
-            raise Boom("heal timed out")
-        return super().heal(code, result, trace, test_case, attempt)
+
+
+class FailingMender:
+    def mend(self, *args, **kwargs):
+        raise Boom("Mender timed out")
 
 
 def test_failed_llm_call_stops_only_that_case(monkeypatch):
     fake_executor(monkeypatch, set())
     result = runner.automate_test_case(
-        CASE, "https://example.test", FakeExplorer(), FailingCodegen("heal"), saved_code="saved"
+        CASE, "https://example.test", FakeExplorer(), FakeCodegen(), saved_code="saved", mender=FailingMender()
     )
     assert result["status"] == "needs_review"
     assert result["code"] == "generated"  # the last script that ran
     assert result["attempts"] == 2  # failed replay + generated
-    assert result["last_output"].startswith("Automation stopped: Boom: heal timed out")
+    assert result["last_output"].startswith("Automation stopped: Boom: Mender timed out")
     assert "Last run before it stopped:\nboom" in result["last_output"]
 
 
