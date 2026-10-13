@@ -11,6 +11,7 @@ from app.agents.requirement_agent import RequirementAgent
 from app.automation import progress
 from app.automation.codegen_agent import CodegenAgent
 from app.automation.explorer_agent import ExplorerAgent
+from app.automation.mender_agent import MenderAgent
 from app.automation.runner import automate_test_case
 from app.llm.factory import get_llm_client
 
@@ -20,7 +21,13 @@ _requirement_agent = RequirementAgent(get_llm_client())
 _qa_agent = QAAgent(get_llm_client())
 _explorer_agent = ExplorerAgent(get_llm_client())
 _codegen_agent = CodegenAgent(get_llm_client())
+_mender_agent = MenderAgent(get_llm_client(), _explorer_agent)
 _report_agent = ReportAgent(get_llm_client())
+
+
+def mender() -> Optional[MenderAgent]:
+    """Mender when MENDER_AGENT is on; otherwise None, and the codegen healer repairs."""
+    return _mender_agent if config.MENDER_AGENT else None
 
 
 def automate_single_test_case(
@@ -43,6 +50,7 @@ def automate_single_test_case(
         test_case_total=1,
         saved_code=saved_code,
         start=start,
+        mender=mender(),
     )
 
 
@@ -150,6 +158,7 @@ def _automation_node(state: AutomationReportState) -> dict:
             test_case_total=total,
             saved_code=saved.get(tc["id"]),
             start=starts.get(tc["id"]),
+            mender=mender(),
         )
 
     saved = state.get("saved_scripts") or {}

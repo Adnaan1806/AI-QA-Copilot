@@ -78,6 +78,10 @@ def case_result(requirement, test_case, outcome, trace, seconds, calls=()):
         "stop_reason": next((t["stop_reason"] for t in tries if t.get("stop_reason")), None),
         "dead_ends": len(dead_ends),
         "dead_end_steps": [d.get("step_text", "") for d in dead_ends],
+        # Mender only: how many turns it took, why it stopped or which budget ran out.
+        "mender_turns": sum(len(t.get("turns") or []) for t in tries),
+        "verdict": next((t["verdict"] for t in tries if t.get("verdict")), None),
+        "mender_budget": next((t["budget"] for t in tries if t.get("budget")), None),
         # Timed out or crashed partway; see last_output.
         "stopped": (outcome.get("last_output") or "").startswith("Automation stopped"),
         "error": outcome.get("error"),
@@ -113,6 +117,12 @@ def summarize(cases, requirements=()):
         "stopped": sum(1 for c in cases if c.get("stopped")),
         "errors": sum(1 for c in cases if c["status"] == "error"),
         "healing_gave_up": sum(1 for c in cases if c["gave_up"]),
+        "mean_mender_turns": round(sum(c.get("mender_turns", 0) for c in cases) / total, 2),
+        "mender_out_of_budget": sum(1 for c in cases if c.get("mender_budget")),
+        "verdicts": {
+            v: sum(1 for c in cases if c.get("verdict") == v)
+            for v in sorted({c["verdict"] for c in cases if c.get("verdict")})
+        },
         "steps": steps,
         "assumptions": sum(c.get("assumptions", 0) for c in cases),
         "open_questions": sum(len(r.get("open_questions") or []) for r in requirements),
@@ -131,6 +141,7 @@ def summarize(cases, requirements=()):
 # Lower is better for these; higher is better for the rest except NEUTRAL.
 LOWER_IS_BETTER = {
     "needs_review", "stopped", "errors", "passed_despite_dead_ends", "healing_gave_up",
+    "mean_mender_turns", "mender_out_of_budget",
     "passed_despite_dead_ends_rate", "needs_review_rate",
     "dead_end_steps", "dead_end_rate", "mean_tries", "mean_seconds",
     "llm_calls", "mean_llm_calls", "mean_input_tokens", "mean_output_tokens", "cost_usd",
@@ -247,7 +258,7 @@ def run(project_name, mode, only, save=lambda result: None):
         explorer = RecordingExplorer(graph._explorer_agent)
         started = time.monotonic()
         try:
-            outcome = automate_test_case(test_case, base_url, explorer, graph._codegen_agent)
+            outcome = automate_test_case(test_case, base_url, explorer, graph._codegen_agent, mender=graph.mender())
             result = case_result(
                 requirement, test_case, outcome, explorer.trace, time.monotonic() - started, take_usage()
             )
@@ -263,6 +274,8 @@ def run(project_name, mode, only, save=lambda result: None):
     result = {
         "project": project_name,
         "mode": mode,
+        # Which repaired failing scripts: Mender (MENDER_AGENT) or the codegen healer.
+        "healer": "mender" if config.MENDER_AGENT else "codegen",
         "run_at": datetime.now().isoformat(timespec="seconds"),
         "requirements": [],
         "summary": {},
