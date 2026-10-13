@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { TriangleAlert } from "lucide-react";
+import { ChevronRight, TriangleAlert } from "lucide-react";
 import { cn } from "../../lib/utils";
 import { formatDate, plural } from "../../lib/qa";
 import { changedChecks, collapseUnchanged, diffStats, lineDiff } from "../../lib/lineDiff";
@@ -12,6 +12,71 @@ const KIND_LABEL = {
   generated: "Generated",
   healed: "Healed",
 };
+
+const VERDICT_LABEL = {
+  app_defect: "App defect",
+  unclear_requirement: "Unclear requirement",
+  environment: "Environment",
+};
+
+const TOOL_LABEL = {
+  look_at_page: "Looked at the page",
+  find_element: "Looked for an element",
+  reexplore_step: "Asked Scout to redo a step",
+  edit_script: "Edited the script",
+  run_test: "Ran the test",
+  stop: "Stopped",
+};
+
+function toolTarget({ tool, args = {} }) {
+  if (tool === "look_at_page") return args.line ? `before line ${args.line}` : "after the whole test";
+  if (tool === "find_element") return `"${args.text ?? ""}"${args.line ? ` before line ${args.line}` : ""}`;
+  if (tool === "reexplore_step") return `step ${args.step}`;
+  if (tool === "edit_script" && Array.isArray(args.edits)) {
+    return args.edits
+      .map((e) => (e.to < e.from ? `insert at line ${e.from}` : e.to === e.from ? `line ${e.from}` : `lines ${e.from}–${e.to}`))
+      .join(", ");
+  }
+  if (tool === "stop") return VERDICT_LABEL[args.verdict] ?? args.verdict ?? "";
+  return "";
+}
+
+// Mender's turns, in order: what it thought, what it did, and what it saw.
+function MenderSteps({ turns }) {
+  return (
+    <details className="group rounded-md border border-border bg-background text-xs">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-2.5 py-2 select-none [&::-webkit-details-marker]:hidden">
+        <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" />
+        <AgentAvatar agent="mender" size="xs" />
+        <span className="font-medium">Mender's steps</span>
+        <span className="text-muted-foreground">· {plural(turns.length, "step")}</span>
+      </summary>
+      <ol className="space-y-2.5 border-t border-border px-2.5 py-2.5">
+        {turns.map((turn, i) => (
+          <li key={i} className="flex gap-2.5">
+            <span className="tabular w-4 shrink-0 pt-px text-right text-muted-foreground">{i + 1}</span>
+            <div className="min-w-0 flex-1 space-y-1">
+              <p>
+                <span className="font-medium">{TOOL_LABEL[turn.tool] ?? turn.tool}</span>
+                {toolTarget(turn) && <span className="text-muted-foreground"> · {toolTarget(turn)}</span>}
+                {turn.seconds >= 1 && <span className="tabular text-muted-foreground"> · {Math.round(turn.seconds)}s</span>}
+              </p>
+              {turn.diagnosis && <p className="text-muted-foreground">{turn.diagnosis}</p>}
+              {turn.result && (
+                <details>
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">What it saw</summary>
+                  <pre className="mt-1 max-h-56 overflow-auto rounded border border-border/70 bg-muted/30 p-2 font-mono leading-relaxed whitespace-pre-wrap">
+                    {turn.result}
+                  </pre>
+                </details>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </details>
+  );
+}
 
 // The healed try is the one worth reading first: it shows what the healer changed.
 function defaultTry(tries) {
@@ -76,6 +141,7 @@ function TryDetail({ tries, index, currentCode }) {
           </span>
         </p>
       )}
+      {current.turns?.length > 0 && <MenderSteps turns={current.turns} />}
       {removedChecks.length > 0 && (
         <div className="flex gap-2 rounded-md border border-review/40 bg-review-wash p-2.5 text-xs">
           <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-review" />
@@ -126,7 +192,21 @@ function TryDetail({ tries, index, currentCode }) {
           <AgentAvatar agent="mender" size="xs" />
           <span className="pt-0.5">
             <span className="font-medium">Mender stopped. </span>
+            {current.verdict && (
+              <span className="mr-1.5 inline-flex rounded border border-review/40 bg-review-wash px-1.5 text-[11px] font-medium text-review">
+                {VERDICT_LABEL[current.verdict] ?? current.verdict}
+              </span>
+            )}
             {current.stop_reason}
+          </span>
+        </p>
+      )}
+      {current.budget && (
+        <p className="flex items-start gap-2 rounded-md border border-border bg-background p-2.5 text-xs">
+          <AgentAvatar agent="mender" size="xs" />
+          <span className="pt-0.5">
+            <span className="font-medium">Mender gave up: </span>
+            it {current.budget} without a passing run.
           </span>
         </p>
       )}
