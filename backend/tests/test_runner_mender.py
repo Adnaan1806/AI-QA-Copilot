@@ -155,3 +155,16 @@ def test_flag_picks_mender_or_the_healer(monkeypatch):
     assert graph.mender() is None
     monkeypatch.setattr(config, "MENDER_AGENT", True)
     assert graph.mender() is graph._mender_agent
+
+
+def test_tries_with_and_without_turns_fit_the_api_schema(ran):
+    from app.schemas.test_case import TryItem
+
+    def play(code, result, run_script):
+        return {"outcome": "stopped", "code": code, "result": result, "verdict": "environment",
+                "reason": "App down.", "turns": [TURN]}
+
+    item = TryItem(**automate(Mender(play))["tries"][-1])
+    assert item.verdict == "environment" and item.turns[0].tool == "look_at_page"
+    old = TryItem(kind="healed", passed=True, code="x")
+    assert old.turns == [] and old.verdict == "" and old.budget == ""

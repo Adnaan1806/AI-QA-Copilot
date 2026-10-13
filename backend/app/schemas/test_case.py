@@ -99,6 +99,15 @@ class AutomationRunItem(BaseModel):
     created_at: datetime
 
 
+class MenderTurn(BaseModel):
+    diagnosis: str = ""
+    tool: str
+    args: dict = {}
+    why: str = ""
+    result: str = ""  # trimmed
+    seconds: float = 0
+
+
 class TryItem(BaseModel):
     kind: str  # replayed | generated | healed
     passed: bool
@@ -107,6 +116,10 @@ class TryItem(BaseModel):
     reason: str = ""  # healed tries: what the healer fixed
     stop_reason: str = ""  # set when the healer declined to change this try
     review_reason: str = ""  # set when a passing try isn't counted as a pass
+    # Mender's turns leading to this try's run, or after it when Mender stopped there.
+    turns: list[MenderTurn] = []
+    verdict: str = ""  # Mender stopped here: app_defect | unclear_requirement | environment
+    budget: str = ""  # Mender gave up here: which budget ran out
 
 
 class RunTriesItem(BaseModel):
