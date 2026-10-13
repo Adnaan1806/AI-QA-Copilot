@@ -160,12 +160,12 @@ def test_drafting_context_holds_documents_rules_and_terms(monkeypatch):
     monkeypatch.setattr(drafting_service, "retrieve", retrieve)
     monkeypatch.setattr(drafting_service, "app_knowledge", lambda db, project, text: [])
     monkeypatch.setattr(drafting_service, "account_names", lambda project: [])
-    inputs = drafting_service.drafting_inputs(None, SimpleNamespace(id="p", base_url="", accounts=[]), "req")
+    inputs = drafting_service.drafting_inputs(None, SimpleNamespace(id="p"), "req")
 
     # Stated knowledge goes where expected results may come from; the app map doesn't.
     assert [c["source"] for c in inputs["context"]] == ["document", "rule", "term"]
-    # The Analyst can search the project's knowledge, but has no app to open.
-    assert not inputs["analyst_tools"].can_browse
+    # The Analyst searches the same project's knowledge.
+    assert inputs["analyst_tools"]._project_id == "p"
 
 
 def test_open_questions_are_listed_for_the_drafter_to_link():

@@ -268,14 +268,12 @@ function BreakdownCard({ requirement }) {
 
 const ANALYST_TOOL = {
   search_app_map: "Looked up the app map",
-  open_page: "Opened a page of the app",
   search_documents: "Searched your documents",
   search_team_knowledge: "Checked your team's rules and terms",
   finish: "Tried to finish",
 };
 
-function analystTarget({ tool, args = {} }) {
-  if (tool === "open_page") return args.path ?? "";
+function analystTarget({ args = {} }) {
   return args.query ? `"${args.query}"` : "";
 }
 

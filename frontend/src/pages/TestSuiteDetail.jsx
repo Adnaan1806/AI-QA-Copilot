@@ -100,7 +100,7 @@ function AddRequirementForm({ suiteId, onCancel, onCreated }) {
             Cancel
           </Button>
         )}
-        {submitting && <span className="text-sm text-muted-foreground">This usually takes a minute or two: the Analyst checks your app first.</span>}
+        {submitting && <span className="text-sm text-muted-foreground">This usually takes about a minute.</span>}
       </div>
 
       {submitting && progressKey && (

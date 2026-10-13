@@ -1,9 +1,9 @@
 """The Analyst: reads a requirement before any test case is written.
 
 With tools (AnalystTools) it works in turns, like Scout and Mender: each turn
-the model names one tool -- the app map, the live app, the project's documents
-or team knowledge -- the code runs it and shows the result, until the model
-finishes with its analysis. What it checks can turn up places where the
+the model names one search of what the project already knows -- its app map,
+documents or team knowledge -- the code runs it and shows the result, until the
+model finishes with its analysis. It never opens the app itself. What it checks can turn up places where the
 requirement and the app (or what the team stated) disagree; those come back as
 "app_differences", which become open questions. They never change the
 requirement or what a case expects: only a person settles who is right.
@@ -21,8 +21,8 @@ from app.llm.client import LLMClient
 
 logger = logging.getLogger(__name__)
 
-MAX_TURNS = 8
-TIME_BUDGET_SECONDS = 180
+MAX_TURNS = 6
+TIME_BUDGET_SECONDS = 120
 LLM_ATTEMPTS = 2
 RESULT_CHARS = 1500
 LATEST_RESULT_CHARS = 5000
@@ -53,15 +53,13 @@ Rules:
 
 AGENT_SYSTEM_PROMPT = f"""You are the Analyst, an experienced Business Analyst and QA Lead reviewing a \
 software requirement before any test case is written. You can check the requirement against what the \
-project knows and against the live app. You work in turns: each turn you call ONE tool and see its result \
-next turn, until you finish.
+project already knows about its app and its rules. You work in turns: each turn you call ONE tool and see \
+its result next turn, until you finish.
 
 Tools (args in brackets):
 - search_app_map {{"query": "..."}}: pages and flows the project has already seen in its app (from its \
-crawler and from tests that passed), each marked observed or proven.
-- open_page {{"path": "/some/page"}}: opens a page of the live app (read-only: nothing is clicked or typed) \
-and shows its title, a numbered list of its interactive elements -- dropdowns list their options -- and \
-its visible text. Only pages of the project's app; a path relative to the app URL is fine.
+crawler and from tests that passed) -- their headings, buttons, fields and dropdown options -- each marked \
+observed or proven.
 - search_documents {{"query": "..."}}: the project's uploaded documents (specs, guides, past stories).
 - search_team_knowledge {{"query": "..."}}: rules and terms the team stated, including answers to \
 earlier questions.
@@ -69,14 +67,13 @@ earlier questions.
 
 What to check:
 - Concrete claims about the app in the requirement -- a page, a control, a label, a dropdown option, a \
-message, where a link leads. Look them up in the app map first; open the page when the map doesn't settle \
-it or the claim is about something the map wouldn't show (like a dropdown's options).
+message, where a link leads: look them up in the app map.
 - Rules or terms the requirement relies on (limits, formats, who may do what): search team knowledge and \
 documents.
-- You can only read pages, not act on them. A page reached only by acting (submitting a form, adding to a \
-cart) can't be checked unless the app map knows it: then say nothing about it rather than guess.
-- Stop checking once the claims that matter are settled. A requirement with nothing concrete to check can \
-be finished straight away.
+- What the project doesn't know yet (a page the app map hasn't seen) can't be checked: say nothing about \
+it rather than guess.
+- Stop once the claims that matter are settled. A requirement with nothing concrete to check, or a project \
+that knows nothing about its app yet, can be finished straight away.
 
 The final analysis:
 {ANALYSIS_SHAPE[:-2]},
@@ -97,14 +94,14 @@ Each turn, respond with a JSON object matching exactly this shape:
 
 {{
   "thought": "one or two sentences: what you know so far and what this call will settle",
-  "tool": "search_app_map | open_page | search_documents | search_team_knowledge | finish",
+  "tool": "search_app_map | search_documents | search_team_knowledge | finish",
   "args": {{}}
 }}
 
 Do not include markdown, commentary, or text outside the JSON object.
 """
 
-TOOLS = ("search_app_map", "open_page", "search_documents", "search_team_knowledge", "finish")
+TOOLS = ("search_app_map", "search_documents", "search_team_knowledge", "finish")
 LIST_FIELDS = ("requirements", "risks", "missing_info", "testing_considerations", "app_differences")
 
 
@@ -160,8 +157,6 @@ class RequirementAgent:
         try:
             if tool == "search_app_map":
                 return tools.search_app_map(args.get("query"))
-            if tool == "open_page":
-                return tools.open_page(args.get("path"))
             if tool == "search_documents":
                 return tools.search_documents(args.get("query"))
             if tool == "search_team_knowledge":
@@ -169,7 +164,7 @@ class RequirementAgent:
         except ToolError as exc:
             return str(exc)
         except Exception as exc:
-            # A page that won't load costs the turn, not the analysis.
+            # A search that breaks costs the turn, not the analysis.
             logger.warning("Analyst tool %s failed: %r", tool, exc)
             return f"{tool} failed: {type(exc).__name__}: {str(exc).splitlines()[0][:300] if str(exc) else ''}"
         return f"Unknown tool {tool!r}. Use one of: {', '.join(TOOLS)}."
@@ -185,12 +180,9 @@ class RequirementAgent:
         ]
         prompt = {
             "requirement": requirement_text,
-            "setup": tools.describe(),
             "budget": {"turns_left": max(MAX_TURNS - len(turns), 0), "seconds_left": max(seconds_left, 0)},
             "turns_so_far": history,
         }
-        if not tools.can_browse:
-            prompt["note"] = "The project has no app URL: open_page is unavailable."
         if must_finish:
             prompt["note"] = "Your budget is used up: call finish now with the best analysis you have."
         error = None
@@ -231,8 +223,6 @@ def _turn(decision: dict, tool, args: dict, result: str, seconds: float) -> dict
 
 
 def _step_text(tool, args: dict) -> str:
-    if tool == "open_page":
-        return f"is opening {args.get('path') or 'a page'} in the app"
     if tool == "search_app_map":
         return f"is looking up \"{args.get('query') or ''}\" in the app map"
     if tool == "search_documents":
