@@ -2,7 +2,7 @@ import { Fragment, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronRight, Download, RotateCw } from "lucide-react";
 import { cn } from "../../lib/utils";
-import { caseLabel, formatDate, isFlaky, plural } from "../../lib/qa";
+import { CASE_STATE_LABEL, caseLabel, formatDate, isFlaky, plural, resultState } from "../../lib/qa";
 import { Button } from "../ui/button";
 import { StateChip } from "../QaChips";
 import CaseStrip from "../CaseStrip";
@@ -21,6 +21,12 @@ function Tally({ states, counts, flaky }) {
         <span className="size-2 rounded-full bg-pass" />
         {counts.passed} passed
       </span>
+      {counts.failed > 0 && (
+        <span className="flex items-center gap-1.5 text-fail">
+          <span className="size-2 rounded-full bg-fail" />
+          {counts.failed} failed
+        </span>
+      )}
       <span className="flex items-center gap-1.5 text-review">
         <span className="size-2 rounded-full bg-review" />
         {counts.needs_review} needs review
@@ -37,8 +43,11 @@ function Tally({ states, counts, flaky }) {
   );
 }
 
+const RESULT_DOT = { passed: "bg-pass", failed: "bg-fail", needs_review: "bg-review" };
+const RESULT_TEXT = { passed: undefined, failed: "text-fail", needs_review: "text-review" };
+
 function runLabel(run) {
-  const result = run.status === "passed" ? "Passed" : "Needs review";
+  const result = CASE_STATE_LABEL[resultState(run.status)];
   return `${result} on ${formatDate(run.created_at)}, ${plural(run.attempts, "try", "tries")}`;
 }
 
@@ -51,7 +60,7 @@ function RunDots({ runs }) {
         <span
           key={i}
           title={runLabel(run)}
-          className={cn("size-2 rounded-full", run.status === "passed" ? "bg-pass" : "bg-review")}
+          className={cn("size-2 rounded-full", RESULT_DOT[resultState(run.status)])}
         />
       ))}
     </span>
@@ -86,8 +95,8 @@ function RunHistory({ runs }) {
         <ol className="tabular space-y-0.5 pl-[18px] text-xs">
           {runs.map((run, i) => (
             <li key={i} className="flex items-center gap-2">
-              <span className={cn("size-2 rounded-full", run.status === "passed" ? "bg-pass" : "bg-review")} />
-              <span className={run.status === "passed" ? undefined : "text-review"}>{runLabel(run)}</span>
+              <span className={cn("size-2 rounded-full", RESULT_DOT[resultState(run.status)])} />
+              <span className={RESULT_TEXT[resultState(run.status)]}>{runLabel(run)}</span>
               {i === 0 && <span className="text-muted-foreground">(latest)</span>}
             </li>
           ))}
@@ -100,10 +109,17 @@ function RunHistory({ runs }) {
 function ScriptDetail({ testCaseId, script }) {
   return (
     <div className="space-y-3">
-      {script.status === "needs_review" && script.last_output && (
+      {script.status !== "passed" && script.last_output && (
         <div className="space-y-1.5">
-          <h4 className="text-xs font-medium text-review">Why the last run failed</h4>
-          <pre className="max-h-72 overflow-auto rounded-md border border-review/30 bg-review-wash p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+          <h4 className={cn("text-xs font-medium", script.status === "failed" ? "text-fail" : "text-review")}>
+            {script.status === "failed" ? "Why the case failed" : "Why the last run failed"}
+          </h4>
+          <pre
+            className={cn(
+              "max-h-72 overflow-auto rounded-md border p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap",
+              script.status === "failed" ? "border-fail/30 bg-fail-wash" : "border-review/30 bg-review-wash",
+            )}
+          >
             {script.last_output}
           </pre>
         </div>
@@ -138,7 +154,10 @@ export default function AutomationPanel({
   onOpenReview,
 }) {
   const cases = requirement.test_cases;
-  const firstFailing = cases.find((tc) => scriptsById.get(tc.id)?.status === "needs_review");
+  const firstFailing = cases.find((tc) => {
+    const status = scriptsById.get(tc.id)?.status;
+    return status !== undefined && status !== "passed";
+  });
   const [openId, setOpenId] = useState(firstFailing?.id ?? null);
   const hasResults = cases.some((tc, i) => states[i] !== "rejected" && scriptsById.has(tc.id));
   const flakyCount = cases.filter((tc, i) => states[i] !== "rejected" && isFlaky(scriptsById.get(tc.id)?.runs)).length;
@@ -274,7 +293,7 @@ export default function AutomationPanel({
                         </span>
                       ) : (
                         <span className="flex flex-wrap items-center gap-1.5">
-                          <StateChip state={script.status === "passed" ? "passed" : "needs_review"} />
+                          <StateChip state={resultState(script.status)} />
                           {isFlaky(script.runs) && (
                             <span
                               className="inline-flex h-5 items-center rounded-sm px-1.5 text-xs font-medium text-review ring-1 ring-review/40 ring-inset"

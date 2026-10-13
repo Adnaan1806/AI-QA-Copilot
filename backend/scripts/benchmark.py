@@ -113,6 +113,7 @@ def summarize(cases, requirements=()):
         # Passed although the Explorer couldn't carry out a step: the script
         # likely checks less than the case describes.
         "passed_despite_dead_ends": sum(1 for c in passed if c["dead_ends"]),
+        "failed": sum(1 for c in cases if c["status"] == "failed"),
         "needs_review": sum(1 for c in cases if c["status"] == "needs_review"),
         "stopped": sum(1 for c in cases if c.get("stopped")),
         "errors": sum(1 for c in cases if c["status"] == "error"),
@@ -148,7 +149,7 @@ LOWER_IS_BETTER = {
 }
 # Counts that follow the number of cases; their rates below are what to compare.
 NEUTRAL = {
-    "cases", "steps", "cases_per_criterion", "passed", "passed_first_try", "passed_after_healing", "llm_calls",
+    "cases", "failed", "steps", "cases_per_criterion", "passed", "passed_first_try", "passed_after_healing", "llm_calls",
     "assumptions", "open_questions",
 }
 
@@ -253,12 +254,14 @@ def run(project_name, mode, only, save=lambda result: None):
     project_id, base_url, requirements = load_requirements(project_name, only)
 
     def run_one(job):
-        requirement, test_case = job
+        requirement, test_case, requirement_text = job
         take_usage()  # this thread's calls from an earlier case
         explorer = RecordingExplorer(graph._explorer_agent)
         started = time.monotonic()
         try:
-            outcome = automate_test_case(test_case, base_url, explorer, graph._codegen_agent, mender=graph.mender())
+            outcome = automate_test_case(
+                test_case, base_url, explorer, graph._codegen_agent, mender=graph.mender(), requirement=requirement_text
+            )
             result = case_result(
                 requirement, test_case, outcome, explorer.trace, time.monotonic() - started, take_usage()
             )
@@ -298,7 +301,7 @@ def run(project_name, mode, only, save=lambda result: None):
             test_cases = requirement["cases"]
         entry["cases"] = len(test_cases)
         print(f"{requirement['name']}: {len(test_cases)} cases", flush=True)
-        jobs = [(requirement["name"], tc) for tc in test_cases]
+        jobs = [(requirement["name"], tc, requirement["content"]) for tc in test_cases]
         with ThreadPoolExecutor(max_workers=config.AUTOMATION_CONCURRENCY) as executor:
             result["cases"].extend(executor.map(run_one, jobs))
         result["summary"] = summarize(result["cases"], result["requirements"])

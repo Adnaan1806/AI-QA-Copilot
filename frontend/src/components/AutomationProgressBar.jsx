@@ -3,6 +3,7 @@ import { getAutomationProgress } from "../services/api";
 import Spinner from "../motion/Spinner";
 import AgentAvatar from "./AgentAvatar";
 import { CREW } from "../lib/crew";
+import { CASE_STATE_LABEL } from "../lib/qa";
 
 // Who is working, per real backend stage (see backend/app/automation/progress.py
 // and runner.py for where these are reported). Running a script isn't an agent.
@@ -13,7 +14,7 @@ const STAGES = {
   healing: { agent: "mender", verb: "is fixing" },
 };
 
-const DONE_STAGES = new Set(["passed", "needs_review"]);
+const DONE_STAGES = new Set(["passed", "failed", "needs_review"]);
 
 function formatElapsed(ms) {
   const totalSeconds = Math.floor(ms / 1000);
@@ -29,7 +30,7 @@ function ItemRow({ item }) {
           <span className={`size-2 rounded-full ${DOT[stage]}`} />
         </span>
         <span className="truncate text-muted-foreground">
-          {stage === "passed" ? "Passed" : "Needs review"}: {test_case_title}
+          {CASE_STATE_LABEL[stage]}: {test_case_title}
         </span>
       </li>
     );
@@ -53,7 +54,7 @@ function ItemRow({ item }) {
   );
 }
 
-const DOT = { passed: "bg-pass", needs_review: "bg-review" };
+const DOT = { passed: "bg-pass", failed: "bg-fail", needs_review: "bg-review" };
 
 // Polls the backend's per-test-case progress while a run is active. Test cases
 // automate concurrently, so this shows one row per case in flight.

@@ -30,6 +30,7 @@ RESULT_CHARS = 1500
 # The latest result is shown in full (up to this), since the next move depends on it.
 LATEST_RESULT_CHARS = 6000
 OUTPUT_TAIL_LINES = 50
+REQUIREMENT_CHARS = 4000
 
 VERDICTS = ("app_defect", "unclear_requirement", "environment")
 TOOLS = ("look_at_page", "find_element", "reexplore_step", "edit_script", "run_test", "stop")
@@ -38,8 +39,9 @@ MENDER_SYSTEM_PROMPT = """You are Mender, a Senior SDET repairing a failing pyte
 `page` fixture) for one approved manual test case. You work in turns: each turn you call ONE tool, and \
 you are shown its result next turn. Look at the real page before you change anything.
 
-Each turn you are shown the test case, the current script with line numbers, the output of the last run, \
-the grounded trace the script was generated from (locators Scout verified on the live app), your remaining \
+Each turn you are shown the requirement the test case was written from (with its acceptance criteria, \
+when it has them), the test case, the current script with line numbers, the output of the last run, the \
+grounded trace the script was generated from (locators Scout verified on the live app), your remaining \
 budget, and the turns so far with their results.
 
 Tools (args in brackets):
@@ -67,9 +69,12 @@ the expected_result says, it is doing its job by failing: stop.
 
 When to stop:
 - app_defect: the script reaches the right place, but the app doesn't show what expected_result \
-describes (you have looked at the page and the outcome is genuinely different).
-- unclear_requirement: the steps or expected_result don't match how the app works (a step names \
-something that doesn't exist, or the expected outcome is ambiguous), so no correct script can be written.
+describes (you have looked at the page and the outcome is genuinely different), and the requirement asks \
+for that outcome. Your reason names the acceptance criterion it breaks (e.g. "AC 4: ...") when there is one. \
+The case is then reported as failed, so be sure: look at the page before you say it.
+- unclear_requirement: the steps or expected_result don't match how the app works and the requirement \
+doesn't settle it (a step names something that doesn't exist, the expected outcome is ambiguous, or the \
+case expects something the requirement never asks for), so no correct script can be written.
 - environment: the app is down, too slow, or the failure is unrelated to the test (network, login lost).
 
 Working rules:
@@ -125,8 +130,10 @@ class MenderAgent:
         runs_left: int,
         base_url: str = "",
         start: Optional[dict] = None,
+        requirement: Optional[str] = None,
     ) -> dict:
-        """Repairs `code`, which just failed with `result`.
+        """Repairs `code`, which just failed with `result`. `requirement` is the
+        text the case was written from, for telling app defects from unclear cases.
 
         `run_script(code, reason, turns)` runs a script and records it as a try,
         with the turns that led to it. Returns {"outcome": passed | stopped |
@@ -154,7 +161,7 @@ class MenderAgent:
             if seconds_left <= 0:
                 return finish("gave_up", budget=f"used its {TIME_BUDGET_SECONDS // 60} minutes")
 
-            decision = self._decide(test_case, trace, state, seconds_left)
+            decision = self._decide(test_case, trace, state, seconds_left, requirement)
             tool, args = decision.get("tool"), decision.get("args")
             args = args if isinstance(args, dict) else {}
             turn = {
@@ -235,7 +242,9 @@ class MenderAgent:
             lines.append("- Scout found the step already done; it needed no action.")
         return "\n".join(lines)
 
-    def _decide(self, test_case: dict, trace: dict, state: "_State", seconds_left: int) -> dict:
+    def _decide(
+        self, test_case: dict, trace: dict, state: "_State", seconds_left: int, requirement: Optional[str] = None
+    ) -> dict:
         history = []
         for i, turn in enumerate(state.turns):
             latest = i == len(state.turns) - 1
@@ -249,6 +258,7 @@ class MenderAgent:
             )
         user_prompt = json.dumps(
             {
+                "requirement": _trim(requirement or "(not given)", REQUIREMENT_CHARS),
                 "test_case": {
                     "title": test_case.get("title", ""),
                     "steps": [f"{i}. {s}" for i, s in enumerate(test_case.get("steps", []), 1)],

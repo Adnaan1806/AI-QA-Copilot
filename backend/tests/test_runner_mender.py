@@ -50,13 +50,16 @@ class Mender:
         self.play = play
         self.runs_left = None
 
-    def mend(self, code, result, trace, test_case, run_script, runs_left, base_url="", start=None):
+    def mend(self, code, result, trace, test_case, run_script, runs_left, base_url="", start=None, requirement=None):
         self.runs_left = runs_left
+        self.requirement = requirement
         return self.play(code, result, run_script)
 
 
-def automate(mender, explorer=None, codegen=None):
-    return runner.automate_test_case(CASE, "https://shop.test", explorer or Explorer(), codegen or Codegen(), mender=mender)
+def automate(mender, explorer=None, codegen=None, requirement=None):
+    return runner.automate_test_case(
+        CASE, "https://shop.test", explorer or Explorer(), codegen or Codegen(), mender=mender, requirement=requirement
+    )
 
 
 def test_mender_fix_is_saved_as_a_healed_try_with_its_turns(ran):
@@ -77,13 +80,15 @@ def test_mender_fix_is_saved_as_a_healed_try_with_its_turns(ran):
     assert len(healed["turns"][0]["result"]) < 2000
 
 
-def test_mender_stop_keeps_its_verdict_on_the_last_try(ran):
+def test_an_app_defect_fails_the_case_and_keeps_the_verdict_on_the_last_try(ran):
     def play(code, result, run_script):
         return {"outcome": "stopped", "code": code, "result": result, "verdict": "app_defect",
                 "reason": "The page says Inventory, not Products.", "turns": [TURN]}
 
-    outcome = automate(Mender(play))
-    assert outcome["status"] == "needs_review" and outcome["attempts"] == 1
+    mender = Mender(play)
+    outcome = automate(mender, requirement="AC 1: the Products page is shown")
+    assert mender.requirement == "AC 1: the Products page is shown"
+    assert outcome["status"] == "failed" and outcome["attempts"] == 1
     last = outcome["tries"][-1]
     assert last["verdict"] == "app_defect" and last["stop_reason"] == "The page says Inventory, not Products."
     assert len(last["turns"]) == 1
@@ -168,3 +173,24 @@ def test_tries_with_and_without_turns_fit_the_api_schema(ran):
     assert item.verdict == "environment" and item.turns[0].tool == "look_at_page"
     old = TryItem(kind="healed", passed=True, code="x")
     assert old.turns == [] and old.verdict == "" and old.budget == ""
+
+
+@pytest.mark.parametrize("verdict", ["unclear_requirement", "environment"])
+def test_other_verdicts_leave_the_case_for_review(ran, verdict):
+    def play(code, result, run_script):
+        return {"outcome": "stopped", "code": code, "result": result, "verdict": verdict, "reason": "r", "turns": []}
+
+    assert automate(Mender(play))["status"] == "needs_review"
+
+
+def test_without_mender_a_stop_is_still_for_review(monkeypatch):
+    monkeypatch.setattr(
+        runner, "execute_script", lambda code, test_case_id=None, storage_state=None: {"passed": False, "output": "boom"}
+    )
+
+    class Unfixable(Codegen):
+        def heal(self, code, result, trace, test_case, attempt):
+            return {"fixable": False, "reason": "page shows no message", "code": ""}
+
+    outcome = runner.automate_test_case(CASE, "https://shop.test", Explorer(), Unfixable())
+    assert outcome["status"] == "needs_review"

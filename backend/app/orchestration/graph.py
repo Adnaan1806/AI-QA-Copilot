@@ -36,6 +36,7 @@ def automate_single_test_case(
     requirement_id: str,
     saved_code: Optional[str] = None,
     start: Optional[dict] = None,
+    requirement_text: Optional[str] = None,
 ) -> dict:
     """Rerun automation for one test case outside the full graph -- e.g. a
     targeted retry on a "needs_review" result, without re-running every other
@@ -51,6 +52,7 @@ def automate_single_test_case(
         saved_code=saved_code,
         start=start,
         mender=mender(),
+        requirement=requirement_text,
     )
 
 
@@ -159,6 +161,7 @@ def _automation_node(state: AutomationReportState) -> dict:
             saved_code=saved.get(tc["id"]),
             start=starts.get(tc["id"]),
             mender=mender(),
+            requirement=state.get("requirement_text"),
         )
 
     saved = state.get("saved_scripts") or {}

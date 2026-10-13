@@ -23,6 +23,7 @@ def automate_test_case(
     saved_code: Optional[str] = None,
     start: Optional[dict] = None,
     mender=None,
+    requirement: Optional[str] = None,
 ) -> dict:
     """Automate one approved test case.
 
@@ -35,6 +36,11 @@ def automate_test_case(
 
     With `mender` (a MenderAgent) a failing script is repaired by Mender's tool
     loop; without it, or if Mender itself fails, by the codegen healer.
+    `requirement` (its text, acceptance criteria included) lets Mender tell an
+    app defect from a case that asks for something the requirement doesn't.
+
+    Status: "passed"; "failed" when Mender saw the app not do what the case
+    expects (verdict app_defect); otherwise "needs_review" -- a person decides.
     """
     def report(stage: str, **extra):
         if requirement_id:
@@ -113,7 +119,8 @@ def automate_test_case(
             report("healing", attempt=len(tries))
             try:
                 mended = mender.mend(
-                    code, result, trace, test_case, run_for_mender, MAX_ATTEMPTS - runs_used(), base_url, start
+                    code, result, trace, test_case, run_for_mender, MAX_ATTEMPTS - runs_used(), base_url, start,
+                    requirement=requirement,
                 )
             except Exception:
                 if crashed:
@@ -148,7 +155,7 @@ def automate_test_case(
         report("needs_review", attempt=len(tries))
         return _stopped(test_case, exc, tries, saved_code)
 
-    report("passed" if result["passed"] else "needs_review", attempt=len(tries))
+    report(_status(result, tries), attempt=len(tries))
     return _outcome(test_case, code, result, tries, trace)
 
 
@@ -179,11 +186,19 @@ def _stopped(test_case: dict, exc: Exception, tries: list[dict], saved_code: Opt
     }
 
 
+def _status(result: dict, tries: list[dict]) -> str:
+    if result["passed"]:
+        return "passed"
+    if tries and tries[-1].get("verdict") == "app_defect":
+        return "failed"
+    return "needs_review"
+
+
 def _outcome(test_case: dict, code: str, result: dict, tries: list[dict], trace: Optional[dict]) -> dict:
     return {
         "test_case_id": test_case.get("id", ""),
         "code": code,
-        "status": "passed" if result["passed"] else "needs_review",
+        "status": _status(result, tries),
         "attempts": len(tries),
         "last_output": None if result["passed"] else result["output"],
         "trace_path": result.get("trace_path"),

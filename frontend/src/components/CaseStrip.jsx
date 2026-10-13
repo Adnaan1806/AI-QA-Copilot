@@ -6,6 +6,7 @@ const SEGMENT = {
   draft: "border-[1.5px] border-muted-foreground bg-transparent",
   approved: "bg-graphite",
   passed: "bg-pass",
+  failed: "bg-fail",
   needs_review: "bg-review",
   rejected:
     "border border-border bg-[linear-gradient(135deg,transparent_42%,var(--graphite-2)_42%_58%,transparent_58%)]",
@@ -27,7 +28,7 @@ function describe(counts) {
     .join(", ");
 }
 
-const SIGNED_OFF = new Set(["approved", "passed", "needs_review"]);
+const SIGNED_OFF = new Set(["approved", "passed", "failed", "needs_review"]);
 
 // Segments whose case was just signed off, each with a delay so a batch
 // approval pops one after another.

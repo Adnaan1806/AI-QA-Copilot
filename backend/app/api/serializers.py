@@ -34,6 +34,8 @@ def to_case_counts(requirement: Requirement) -> CaseCounts:
             counts.approved += 1
         elif tc.automation_script.status == "passed":
             counts.passed += 1
+        elif tc.automation_script.status == "failed":
+            counts.failed += 1
         else:
             counts.needs_review += 1
     return counts

@@ -193,7 +193,14 @@ function TryDetail({ tries, index, currentCode }) {
           <span className="pt-0.5">
             <span className="font-medium">Mender stopped. </span>
             {current.verdict && (
-              <span className="mr-1.5 inline-flex rounded border border-review/40 bg-review-wash px-1.5 text-[11px] font-medium text-review">
+              <span
+                className={cn(
+                  "mr-1.5 inline-flex rounded border px-1.5 text-[11px] font-medium",
+                  current.verdict === "app_defect"
+                    ? "border-fail/40 bg-fail-wash text-fail"
+                    : "border-review/40 bg-review-wash text-review",
+                )}
+              >
                 {VERDICT_LABEL[current.verdict] ?? current.verdict}
               </span>
             )}
@@ -236,7 +243,12 @@ function RunTries({ run, heading, currentCode }) {
                   : "border-border bg-background text-muted-foreground hover:text-foreground",
               )}
             >
-              <span className={cn("size-2 rounded-full", t.passed ? "bg-pass" : "bg-review")} />
+              <span
+                className={cn(
+                  "size-2 rounded-full",
+                  t.passed ? "bg-pass" : t.verdict === "app_defect" ? "bg-fail" : "bg-review",
+                )}
+              />
               <span className="tabular">Try {i + 1}</span>
               <span>· {KIND_LABEL[t.kind] ?? t.kind}</span>
               <span className="sr-only">{t.passed ? ", passed" : ", failed"}</span>

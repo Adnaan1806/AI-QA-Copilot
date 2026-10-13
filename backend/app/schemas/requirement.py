@@ -14,13 +14,15 @@ class RequirementUpdateRequest(BaseModel):
 
 class CaseCounts(BaseModel):
     """Where each test case of a requirement stands. Every case is in exactly one bucket:
-    approved means approved but not automated yet; passed/needs_review are approved
-    cases with an automation result."""
+    approved means approved but not automated yet; passed/failed/needs_review are
+    approved cases with an automation result (failed: the app was seen not to do
+    what the case expects)."""
 
     draft: int = 0
     approved: int = 0
     rejected: int = 0
     passed: int = 0
+    failed: int = 0
     needs_review: int = 0
 
 

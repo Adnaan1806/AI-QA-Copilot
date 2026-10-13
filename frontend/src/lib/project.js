@@ -47,7 +47,7 @@ export function projectSummary(project, requirements) {
   const own = requirements
     .filter((r) => r.project_id === project.id)
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  const counts = { draft: 0, approved: 0, rejected: 0, passed: 0, needs_review: 0 };
+  const counts = { draft: 0, approved: 0, rejected: 0, passed: 0, failed: 0, needs_review: 0 };
   for (const r of own) for (const k of Object.keys(counts)) counts[k] += r.case_counts[k] ?? 0;
   const reported = own.find((r) => r.release_recommendation || r.release_verdict);
   return {

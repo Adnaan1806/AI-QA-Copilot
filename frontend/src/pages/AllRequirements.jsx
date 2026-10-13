@@ -13,13 +13,13 @@ import {
   PageHeader,
 } from "../components/StatusMessages";
 import { cn } from "../lib/utils";
-import { readVerdict, requirementStage } from "../lib/qa";
+import { failingCount, readVerdict, requirementStage } from "../lib/qa";
 
 const FILTERS = [
   { key: "", label: "All" },
   { key: "review", label: "In review", test: (r) => r.case_counts.draft > 0 },
   { key: "ready", label: "Ready to automate", test: (r, stage) => stage.key === "ready" },
-  { key: "failing", label: "Failing scripts", test: (r) => r.case_counts.needs_review > 0 },
+  { key: "failing", label: "Failing scripts", test: (r) => failingCount(r.case_counts) > 0 },
   {
     key: "not-ready",
     label: "Not ready to release",

@@ -9,6 +9,7 @@ const STATE_STYLE = {
   approved: "bg-muted text-foreground",
   rejected: "text-muted-foreground line-through decoration-muted-foreground/60",
   passed: "bg-pass-wash text-pass",
+  failed: "bg-fail-wash text-fail",
   needs_review: "bg-review-wash text-review",
 };
 
