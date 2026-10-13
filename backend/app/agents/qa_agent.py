@@ -58,7 +58,7 @@ Respond with a JSON object matching exactly this shape:
 
 Rules:
 - Each test case must be independently executable -- steps must not assume another test ran first.
-- In a case's "questions", list each open question whose answer could change that case's steps or expected result: the analysis "missing_info" items and your own "open_questions", copied word for word. Leave it empty when no open question affects the case.
+- Link cases to open questions. The open questions are listed after the requirement (from the analysis) plus any you add to "open_questions". Go through them one by one and ask: if the product owner answered this, which cases would need a different step or expected result? Put the question, copied word for word, in the "questions" of every such case. For example, a question about how many promo code attempts are allowed belongs on the case about a rejected promo code; a question about payment methods belongs on the payment case. A case no question touches has an empty list.
 - Use the requirement's own wording for labels and messages; do not invent UI text it doesn't give.
 - priority reflects business/quality risk, not implementation difficulty.
 - If the project has test accounts (listed after the requirement), the browser starts logged in, so do not write login steps for a case that is not about logging in. Set "starts_logged_out" to true only for a case that must begin with no one logged in (e.g. what a visitor sees, or that a page requires login). A case whose steps log in starts logged out anyway.
@@ -99,6 +99,12 @@ class QAAgent:
             f"Requirement:\n{requirement_text}",
             f"Requirement Analysis:\n{json.dumps(analysis, indent=2)}",
         ]
+        missing = [str(q) for q in analysis.get("missing_info") or [] if str(q).strip()]
+        if missing:
+            listed = "\n".join(f"- {q}" for q in missing)
+            sections.append(
+                "Open questions (link each to the cases its answer would change, word for word):\n" + listed
+            )
         if account_names:
             others = ", ".join(account_names[1:])
             sections.append(

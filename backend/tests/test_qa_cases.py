@@ -164,3 +164,12 @@ def test_drafting_context_holds_documents_rules_and_terms(monkeypatch):
 
     # Stated knowledge goes where expected results may come from; the app map doesn't.
     assert [c["source"] for c in inputs["context"]] == ["document", "rule", "term"]
+
+
+def test_open_questions_are_listed_for_the_drafter_to_link():
+    prompt = qa_agent.QAAgent._build_user_prompt(
+        "Guest checkout", {"missing_info": ["Maximum number of promo code attempts allowed", " "]}, []
+    )
+    assert "Open questions (link each to the cases its answer would change, word for word):" in prompt
+    assert "- Maximum number of promo code attempts allowed" in prompt
+    assert "Open questions" not in qa_agent.QAAgent._build_user_prompt("Guest checkout", {"missing_info": []}, [])
