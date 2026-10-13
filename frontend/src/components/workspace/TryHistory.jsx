@@ -5,6 +5,7 @@ import { formatDate, plural } from "../../lib/qa";
 import { changedChecks, collapseUnchanged, diffStats, lineDiff } from "../../lib/lineDiff";
 import { getTestCaseTries } from "../../services/api";
 import Spinner from "../../motion/Spinner";
+import AgentAvatar from "../AgentAvatar";
 
 const KIND_LABEL = {
   replayed: "Replayed saved script",
@@ -67,9 +68,12 @@ function TryDetail({ tries, index, currentCode }) {
   return (
     <div className="space-y-2.5">
       {current.kind === "healed" && current.reason && (
-        <p className="text-xs">
-          <span className="text-muted-foreground">Healer's fix: </span>
-          {current.reason}
+        <p className="flex items-start gap-2 text-xs">
+          <AgentAvatar agent="mender" size="xs" />
+          <span className="pt-0.5">
+            <span className="text-muted-foreground">Mender's fix: </span>
+            {current.reason}
+          </span>
         </p>
       )}
       {removedChecks.length > 0 && (
@@ -118,9 +122,12 @@ function TryDetail({ tries, index, currentCode }) {
         </p>
       )}
       {current.stop_reason && (
-        <p className="rounded-md border border-border bg-background p-2.5 text-xs">
-          <span className="font-medium">Healing stopped. </span>
-          {current.stop_reason}
+        <p className="flex items-start gap-2 rounded-md border border-border bg-background p-2.5 text-xs">
+          <AgentAvatar agent="mender" size="xs" />
+          <span className="pt-0.5">
+            <span className="font-medium">Mender stopped. </span>
+            {current.stop_reason}
+          </span>
         </p>
       )}
     </div>

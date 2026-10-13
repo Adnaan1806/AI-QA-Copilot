@@ -9,6 +9,7 @@ import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Label } from "../components/ui/label";
 import RequirementTable from "../components/RequirementTable";
+import AnalysisProgress from "../components/AnalysisProgress";
 import {
   EmptyState,
   ErrorMessage,
@@ -22,14 +23,18 @@ function AddRequirementForm({ suiteId, onCancel, onCreated }) {
   const [text, setText] = useState("");
   const [file, setFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [progressKey, setProgressKey] = useState(null);
   const [error, setError] = useState(null);
 
   async function handleSubmit(e) {
     e.preventDefault();
+    // randomUUID needs a secure context (https or localhost).
+    const key = crypto.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setProgressKey(key);
     setSubmitting(true);
     setError(null);
     try {
-      const created = await createRequirement(suiteId, { text, file });
+      const created = await createRequirement(suiteId, { text, file, progressKey: key });
       onCreated(created.requirement_id);
     } catch (err) {
       setError(err.message);
@@ -95,12 +100,14 @@ function AddRequirementForm({ suiteId, onCancel, onCreated }) {
             Cancel
           </Button>
         )}
-        {submitting && (
-          <span className="text-sm text-muted-foreground">
-            Reading the requirement and drafting cases. This usually takes under a minute.
-          </span>
-        )}
+        {submitting && <span className="text-sm text-muted-foreground">This usually takes under a minute.</span>}
       </div>
+
+      {submitting && progressKey && (
+        <div className="border-t border-border pt-4">
+          <AnalysisProgress progressKey={progressKey} />
+        </div>
+      )}
     </form>
   );
 }

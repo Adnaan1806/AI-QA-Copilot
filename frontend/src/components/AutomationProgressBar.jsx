@@ -1,14 +1,16 @@
 import { useEffect, useState } from "react";
 import { getAutomationProgress } from "../services/api";
 import Spinner from "../motion/Spinner";
+import AgentAvatar from "./AgentAvatar";
+import { CREW } from "../lib/crew";
 
-// Verb shown per real backend stage (see backend/app/automation/progress.py
-// and runner.py for where these are reported).
-const STAGE_VERBS = {
-  exploring: "Exploring the app for",
-  generating_script: "Writing a Playwright script for",
-  running_tests: "Running the script for",
-  healing: "Fixing a failed run of",
+// Who is working, per real backend stage (see backend/app/automation/progress.py
+// and runner.py for where these are reported). Running a script isn't an agent.
+const STAGES = {
+  exploring: { agent: "scout", verb: "is exploring the app for" },
+  generating_script: { agent: "scripter", verb: "is writing the script for" },
+  running_tests: { verb: "Running the script for" },
+  healing: { agent: "mender", verb: "is fixing" },
 };
 
 const DONE_STAGES = new Set(["passed", "needs_review"]);
@@ -18,12 +20,37 @@ function formatElapsed(ms) {
   return `${Math.floor(totalSeconds / 60)}:${String(totalSeconds % 60).padStart(2, "0")}`;
 }
 
-function describeItem(item) {
+function ItemRow({ item }) {
   const { stage, test_case_title, attempt } = item;
-  if (stage === "passed") return `Passed: ${test_case_title}`;
-  if (stage === "needs_review") return `Needs review: ${test_case_title}`;
-  const verb = STAGE_VERBS[stage] || "Working on";
-  return `${verb} ${test_case_title}${attempt ? ` (attempt ${attempt})` : ""}`;
+  if (DONE_STAGES.has(stage)) {
+    return (
+      <li className="flex items-center gap-2.5">
+        <span className="grid size-7 shrink-0 place-items-center">
+          <span className={`size-2 rounded-full ${DOT[stage]}`} />
+        </span>
+        <span className="truncate text-muted-foreground">
+          {stage === "passed" ? "Passed" : "Needs review"}: {test_case_title}
+        </span>
+      </li>
+    );
+  }
+  const { agent, verb } = STAGES[stage] ?? { verb: "Working on" };
+  const what = stage === "healing" && attempt ? `try ${attempt} of ${test_case_title}` : test_case_title;
+  return (
+    <li className="flex items-center gap-2.5">
+      {agent ? (
+        <AgentAvatar agent={agent} state={stage === "healing" ? "warn" : "live"} />
+      ) : (
+        <span className="grid size-7 shrink-0 place-items-center">
+          <Spinner className="size-3.5 text-primary" />
+        </span>
+      )}
+      <span className="truncate">
+        {agent && <span className="font-medium">{CREW[agent].name} </span>}
+        <span className="text-muted-foreground">{verb}</span> {what}
+      </span>
+    </li>
+  );
 }
 
 const DOT = { passed: "bg-pass", needs_review: "bg-review" };
@@ -70,9 +97,9 @@ export default function AutomationProgressBar({ requirementId }) {
     <div className="space-y-3 rounded-lg border border-border bg-card p-4" role="status" aria-live="polite">
       <div className="flex items-center justify-between gap-3 text-sm">
         <span className="flex items-center gap-2 font-medium">
-          <Spinner className="size-4 text-primary" />
+          {progress?.report ? <AgentAvatar agent="judge" state="live" /> : <Spinner className="size-4 text-primary" />}
           {progress?.report
-            ? "Writing the release report"
+            ? "Judge is writing the release report"
             : total
               ? `Automating cases: ${doneCount} of ${total} finished`
               : "Starting up"}
@@ -90,16 +117,7 @@ export default function AutomationProgressBar({ requirementId }) {
       {items.length > 0 && (
         <ul className="space-y-1.5 text-sm">
           {items.map((item) => (
-            <li key={item.test_case_index} className="flex items-center gap-2.5">
-              {DONE_STAGES.has(item.stage) ? (
-                <span className={`size-2 shrink-0 rounded-full ${DOT[item.stage]}`} />
-              ) : (
-                <Spinner className="size-3 shrink-0 text-primary" />
-              )}
-              <span className={`truncate ${DONE_STAGES.has(item.stage) ? "text-muted-foreground" : ""}`}>
-                {describeItem(item)}
-              </span>
-            </li>
+            <ItemRow key={item.test_case_index} item={item} />
           ))}
         </ul>
       )}
