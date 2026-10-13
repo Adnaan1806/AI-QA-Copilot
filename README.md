@@ -19,7 +19,7 @@ Testwright AI turns a user story into reviewed test cases, real Playwright autom
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/review-dark.png">
-  <img alt="Reviewing AI-drafted test cases: the case list on the left, the selected case with numbered steps and Approve / Reject buttons on the right" src="docs/screenshots/review-light.png">
+  <img alt="Reviewing AI-drafted test cases: the cases to review on the left, the selected case with numbered steps and Approve / Reject in the middle, and open questions and risks on the right" src="docs/screenshots/review-light.png">
 </picture>
 
 <sub>Screenshots follow your GitHub theme. Switch between light and dark to see the other one.</sub>
@@ -56,7 +56,7 @@ Rejecting asks why, so you keep a record of where the drafts go wrong:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/reject-dark.png">
-  <img alt="Reject form with reason chips: Duplicate, Out of scope, Wrong expected result, Not testable, Other, and an optional note" src="docs/screenshots/reject-light.png" width="620">
+  <img alt="Reject form with reason chips: Duplicate, Out of scope, Wrong expected result, Not testable, Other, and an optional note" src="docs/screenshots/reject-light.png" width="426">
 </picture>
 
 Every approval and rejection records **who** made it and **when**. Editing an approved case warns you first, because the change sends it back to draft.
@@ -77,18 +77,18 @@ The release verdict comes first, in its own colour. Below it is every case: the 
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/verdict-dark.png">
-  <img alt="Automation tab: a red 'Not ready to release' verdict, a tally of passed, needs review and not automated cases, and a results table with run history and a Flaky flag" src="docs/screenshots/verdict-light.png">
+  <img alt="Automation tab: a red 'Not ready to release' verdict, a tally of passed, needs review and not automated cases, and and a results table with each case's result, tries and recent runs" src="docs/screenshots/verdict-light.png">
 </picture>
 
 The report agent returns a structured verdict (**Ready**, **Ready with risks** or **Not ready**) with a summary, coverage analysis and quality risks, grounded in exact case counts.
 
 ## 🗂️ Stay on top of everything
 
-The sidebar keeps a **Cases to review** queue with a live count, plus **Failing scripts** when any exist. The home page opens with what **needs attention** across every project:
+The sidebar keeps a **Review queue** with a live count, plus **Failing scripts** when any exist, and **Ctrl K** search jumps to any project, suite or requirement. Home opens with what's waiting for you: summary tiles, **your next steps** with a button to act on each, and every project as a card:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/projects-dark.png">
-  <img alt="Projects page with a Needs attention table showing each requirement's case strip, stage and verdict" src="docs/screenshots/projects-light.png">
+  <img alt="Home: a greeting with what is waiting, summary tiles for cases to review, scripts to check and releases not ready, a next steps list with Review buttons, and project cards with counts, a pass bar and the latest verdict" src="docs/screenshots/projects-light.png">
 </picture>
 
 <table>
