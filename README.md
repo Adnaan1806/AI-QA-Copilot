@@ -219,6 +219,8 @@ The benchmark runs the real agents on a project's requirements without saving an
 | **Gemini** (default) | Pay per token | Set `GEMINI_API_KEY` in `.env` |
 | **Claude** | Uses your Claude Code subscription | Log in to the `claude` CLI, then set `LLM_PROVIDER=claude` in `.env` |
 
+`GEMINI_API_KEY` is needed with either provider: the knowledge base uses Gemini embeddings to search documents and what the project has learned. A free key from [Google AI Studio](https://aistudio.google.com/apikey) is enough.
+
 ## 📚 More
 
 - [`docs/original-blueprint.md`](docs/original-blueprint.md): the original blueprint the project started from
