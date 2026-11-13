@@ -6,7 +6,7 @@ Adds columns needed for Automation Agent v2 (browser-grounded generation + self-
 Table creation in this project is Base.metadata.create_all() only (see
 app/main.py), which does not retrofit new columns onto existing tables --
 this one-off script does that via raw ALTER TABLE, following the same
-direct-engine-access pattern as scripts/reset_and_seed_test_data.py.
+direct-engine-access pattern as the other migrate_*.py scripts.
 
 Run from backend/ with the venv active:
     PYTHONPATH=. python scripts/migrate_automation_v2.py

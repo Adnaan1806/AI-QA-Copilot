@@ -244,8 +244,9 @@ The benchmark runs the real agents on a project's requirements without saving an
 
 ## 📚 More
 
-- [`AI-QA-COPILOT-ROADMAP.md`](AI-QA-COPILOT-ROADMAP.md): the original vision and what's still ahead
+- [`docs/original-blueprint.md`](docs/original-blueprint.md): the original blueprint the project started from
 - [`frontend/README.md`](frontend/README.md): frontend layout and design tokens
+- [`LICENSE`](LICENSE): MIT
 
 ---
 
