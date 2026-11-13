@@ -198,29 +198,6 @@ npm run dev
 Opens at **http://localhost:5173** and expects the backend at `http://localhost:8000` (override with `VITE_API_BASE_URL`).
 
 <details>
-<summary><b>Upgrading an existing database</b></summary>
-
-New tables are created automatically, but new columns on existing tables are not. If your database predates a feature, run the matching migration from `backend/` (each is safe to re-run):
-
-```bash
-PYTHONPATH=. python scripts/migrate_automation_v2.py   # project base URL, script status and attempts
-PYTHONPATH=. python scripts/migrate_trace_path.py      # Playwright trace downloads
-PYTHONPATH=. python scripts/migrate_review_audit.py    # reviewer, reject reasons, run history, verdicts
-PYTHONPATH=. python scripts/migrate_run_tries.py       # code and output of every try, for the try history
-PYTHONPATH=. python scripts/migrate_report_statuses.py # case statuses each report was written for
-PYTHONPATH=. python scripts/migrate_case_coverage.py   # criterion each case covers, suggested cases
-PYTHONPATH=. python scripts/migrate_knowledge_kind.py   # tag older knowledge chunks as documents
-PYTHONPATH=. python scripts/migrate_case_start.py       # whether each case starts logged in, and as which account
-PYTHONPATH=. python scripts/migrate_app_knowledge.py    # assumptions and open questions from drafting with the app map
-PYTHONPATH=. python scripts/migrate_flows.py            # merge workflows learned per test case into shared flows
-PYTHONPATH=. python scripts/migrate_case_questions.py   # which open questions each case depends on
-PYTHONPATH=. python scripts/migrate_analyst_turns.py    # how the Analyst checked each requirement
-PYTHONPATH=. python scripts/migrate_question_answers.py # which open questions were answered or dismissed
-```
-
-</details>
-
-<details>
 <summary><b>Tests and benchmark</b></summary>
 
 From `backend/`:
