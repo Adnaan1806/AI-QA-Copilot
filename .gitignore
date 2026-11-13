@@ -16,3 +16,7 @@ backend/traces/
 reference/
 .specclaw/
 .pytest_cache/
+
+# One-off local DB migrations, kept on disk only
+backend/scripts/migrate_*.py
+backend/scripts/clear_unscoped_knowledge.py
