@@ -1,5 +1,9 @@
 # AI QA Copilot Platform
 
+> [!NOTE]
+> This is the original blueprint the project started from, kept for history. The product is now **Testwright AI**, and the [README](../README.md) describes what it does today. Some choices here changed along the way: it runs on Gemini or Claude rather than OpenAI, and the performance-testing agent hasn't been built yet.
+
+
 ## Product Development Blueprint & Implementation Plan
 
 Version: 1.0
@@ -806,74 +810,6 @@ When writing code:
 6. Document APIs.
 
 7. Build production-ready code.
-
----
-
-# 14. Claude Code Instructions
-
-You are building an enterprise AI QA platform.
-
-Follow these rules:
-
-- Use Python FastAPI backend.
-- Use React frontend.
-- Use OpenAI API abstraction layer.
-- Implement RAG using LangChain + ChromaDB.
-- Create modular AI agents.
-- Keep each agent independent.
-- Use clean folder structure.
-- Write maintainable production-level code.
-
-Build incrementally.
-
-Start with:
-
-Phase 1:
-
-Requirement Analyzer Agent.
-
-Do not implement future phases until the current phase works.
-
----
-
-# 15. First Implementation Task
-
-Create:
-
-```
-AI QA Copilot v1
-```
-
-Features:
-
-1. User uploads requirement text/PDF
-
-2. Backend extracts content
-
-3. Requirement Agent analyzes it
-
-4. Returns:
-
-- Requirements
-- Risks
-- Missing information
-- Testing considerations
-
-Technology:
-
-Backend:
-FastAPI
-
-LLM:
-OpenAI API
-
-Frontend:
-React
-
-Database:
-PostgreSQL
-
-After completion move to RAG implementation.
 
 ---
 
