@@ -163,7 +163,7 @@ flowchart LR
 |---|---|
 | Frontend | React 19, Vite, Tailwind CSS v4, shadcn/ui, IBM Plex |
 | Backend | FastAPI, SQLAlchemy, PostgreSQL |
-| AI | Gemini or Claude, LangGraph orchestration, Chroma for RAG |
+| AI | Gemini or Claude, LangGraph orchestration, Chroma with local embeddings for RAG |
 | Automation | Playwright (exploration and execution), pytest-playwright |
 
 ## 🛠️ Run it locally
@@ -178,7 +178,7 @@ python3 -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 playwright install chromium
-cp .env.example .env             # fill in DATABASE_URL and GEMINI_API_KEY (or set LLM_PROVIDER=claude)
+cp .env.example .env             # fill in DATABASE_URL, and GEMINI_API_KEY or LLM_PROVIDER=claude
 uvicorn app.main:app --reload
 ```
 
@@ -218,6 +218,8 @@ The benchmark runs the real agents on a project's requirements without saving an
 |---|---|---|
 | **Gemini** (default) | Pay per token | Set `GEMINI_API_KEY` in `.env` |
 | **Claude** | Uses your Claude Code subscription | Log in to the `claude` CLI, then set `LLM_PROVIDER=claude` in `.env` |
+
+With Claude, no API key is needed at all. Knowledge search runs on a small embedding model on your own machine (downloaded once, about 80 MB), whichever provider you pick, so documents never leave it.
 
 ## 📚 More
 
