@@ -35,11 +35,6 @@ action's locator with <locator>.wait_for(timeout=<first_wait_timeout_ms>) before
 - If the trace's "starts_logged_in_as" names an account, the test setup has already logged the browser in \
 as it (through the `page` fixture's storage state). Do not write login steps and never put credentials in \
 the script; start from the page the case is about.
-- Canvas apps (Power Apps) change screens without changing the URL. The trace's "start_screen" and each \
-action's "resulting_screen" give the screen shown ({"name", "locator"}). After an action that moves to a \
-different screen, assert it with expect(<resulting_screen.locator>).to_be_visible(timeout=60000), using \
-the locator verbatim -- canvas screens can take well over the default 5s to switch. When the \
-expected_result is about which screen is shown, this is the assertion to make.
 - Slow apps (the trace's "first_wait_timeout_ms" is set) keep talking to their servers in the background \
 and never reach "networkidle": never use page.wait_for_load_state("networkidle") in them; give expect() \
 assertions timeout=60000 instead.

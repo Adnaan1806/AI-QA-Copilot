@@ -89,10 +89,10 @@ PAGES = {
     "app.test/two-step": TWO_STEP,
     "app.test/home": "<h1>Welcome</h1>",
     "app.test/nothing": "<p>Hello</p>",
-    # An app with a sign-in button, and one (like Power Apps) that sends you straight to the provider.
+    # An app with a sign-in button, and one that sends you straight to the provider.
     "app.test/sso": "<h1>Firm Manager</h1><button onclick=\"location='https://idp.test/authorize'\">Sign in with Microsoft</button>",
     "app.test/play": "<script>location.replace('https://idp.test/authorize')</script>",
-    # Loads its scripts first, then redirects, like Power Apps does.
+    # Loads its scripts first, then redirects.
     "app.test/slow": "<script>setTimeout(() => location.replace('https://idp.test/authorize'), 7000)</script>",
     "app.test/picker": "<script>location.replace('https://idp.test/pick')</script>",
     "idp.test/authorize": IDP_SIGN_IN,

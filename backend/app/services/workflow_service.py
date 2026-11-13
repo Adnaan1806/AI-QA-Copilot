@@ -36,8 +36,6 @@ def _target(strategy: str, value: str) -> str:
         return f'"{value}"'
     if strategy == "text":
         return f'the text "{value}"'
-    if strategy == "control":
-        return f'the control "{value}"'
     return "an element"
 
 
