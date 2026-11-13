@@ -4,7 +4,7 @@ agent can be judged against numbers instead of a feeling.
 
 Two modes:
   approved  Automate each requirement's approved test cases from scratch (no
-            saved script is replayed). Measures the Explorer, Codegen and Healer.
+            saved script is replayed). Measures the Explorer, Codegen and Mender.
   fresh     Analyse each requirement and generate new test cases (not saved),
             then automate all of them. Measures the whole pipeline, including
             how well the QA agent's steps match the real app.

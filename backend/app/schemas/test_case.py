@@ -113,8 +113,8 @@ class TryItem(BaseModel):
     passed: bool
     code: str
     output: str = ""  # tail of the pytest output, failing tries only
-    reason: str = ""  # healed tries: what the healer fixed
-    stop_reason: str = ""  # set when the healer declined to change this try
+    reason: str = ""  # healed tries: what Mender fixed
+    stop_reason: str = ""  # set when Mender declined to change this try
     review_reason: str = ""  # set when a passing try isn't counted as a pass
     # Mender's turns leading to this try's run, or after it when Mender stopped there.
     turns: list[MenderTurn] = []

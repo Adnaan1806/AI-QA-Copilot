@@ -5,8 +5,8 @@ from typing import Optional
 class LLMClient(ABC):
     """Provider-agnostic interface for LLM calls.
 
-    Swapping providers (Gemini -> Claude/OpenAI) means adding a new
-    implementation of this interface, not touching agent code.
+    Adding a provider means a new implementation of this interface, not
+    touching agent code.
     """
 
     @abstractmethod

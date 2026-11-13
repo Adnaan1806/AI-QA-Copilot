@@ -2,10 +2,9 @@
 elements. The LLM only ever picks an index from this list -- it never emits a selector
 itself, which is the anti-hallucination mechanism the explorer relies on.
 
-Elements inside frames are listed too: a Power Apps canvas app draws every
-screen inside an iframe on another site. Each frame is read in one call --
-such apps have thousands of elements, and asking about them one by one took
-minutes. Listed elements are marked with a data attribute so the Explorer can
+Elements inside iframes are listed too (embedded forms and widgets). Each frame
+is read in one call, since asking about elements one by one is slow on large
+pages. Listed elements are marked with a data attribute so the Explorer can
 act on the one the LLM picked.
 """
 
@@ -33,9 +32,6 @@ _READ_FRAME = """([selector, mark, start, budget]) => {
     const placeholder = text(el.getAttribute('placeholder'));
     const buttonValue = ['submit', 'button', 'reset'].includes(type) ? text(el.value) : '';
     const name = ariaLabel || innerText || buttonValue || placeholder || text(el.getAttribute('title'));
-    // Canvas apps name every control (data-control-name); a nameless button
-    // (a gallery row's click target) is known by its control and the row's text.
-    const control = el.closest('[data-control-name]');
     let context = '';
     if (!name) {
       for (let a = el.parentElement; a && a !== document.body; a = a.parentElement) {
@@ -49,7 +45,7 @@ _READ_FRAME = """([selector, mark, start, budget]) => {
     el.setAttribute(mark, String(start + found.length));
     found.push({
       tag: el.tagName.toLowerCase(), type, role: el.getAttribute('role') || '', name, ariaLabel, innerText,
-      placeholder, control: control ? control.getAttribute('data-control-name') : '', context, options,
+      placeholder, context, options,
     });
   }
   return found;
@@ -81,8 +77,6 @@ def _describe(index: int, info: dict) -> str:
         parts.append(f'in "{info["context"][:60]}"')
     if info["role"]:
         parts.append(f"(role={info['role']})")
-    if info["control"]:
-        parts.append(f"(control {info['control']})")
     if info.get("options"):
         parts.append("options: " + " | ".join(info["options"]))
     return " ".join(parts)
@@ -98,24 +92,7 @@ def _strategy(index: int, info: dict) -> tuple[str, str]:
         return "label", info["ariaLabel"]
     if info["innerText"]:
         return "text", info["innerText"]
-    if info["control"]:
-        return "control", info["control"]
     return "nth", str(index)
-
-
-def active_screen(page):
-    """A canvas app's current screen as (name, frame), or None for other apps.
-    Power Apps marks the screen being shown with the class activeScreen."""
-    for frame in _visible_frames(page):
-        try:
-            name = frame.evaluate(
-                "() => document.querySelector('.activeScreen[data-control-name]')?.getAttribute('data-control-name')"
-            )
-        except Exception:
-            continue
-        if name:
-            return name, frame
-    return None
 
 
 def serialize_page(page, max_elements: int = 80):
@@ -141,10 +118,6 @@ def serialize_page(page, max_elements: int = 80):
                 }
             )
 
-    header = [f"URL: {page.url}", f"Title: {page.title()}"]
-    screen = active_screen(page)
-    if screen:
-        header.append(f"Screen: {screen[0]}")
-    header.append("")
+    header = [f"URL: {page.url}", f"Title: {page.title()}", ""]
     body = [e["description"] for e in elements]
     return "\n".join(header + body), elements

@@ -309,7 +309,7 @@ class KnowledgeFact(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     project_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
-    # "page" for now; "workflow", "rule", "term", ... as other sources arrive.
+    # "page", "workflow", "rule" or "term".
     kind: Mapped[str] = mapped_column(Text, nullable=False)
     # Identifies the fact within its kind, so seeing it again updates it (a page's URL).
     key: Mapped[str] = mapped_column(Text, nullable=False)

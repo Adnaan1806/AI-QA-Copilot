@@ -78,7 +78,7 @@ function MenderSteps({ turns }) {
   );
 }
 
-// The healed try is the one worth reading first: it shows what the healer changed.
+// The healed try is the one worth reading first: it shows what Mender changed.
 function defaultTry(tries) {
   const healed = tries.map((t, i) => (t.kind === "healed" ? i : -1)).filter((i) => i >= 0);
   return healed.length ? healed[healed.length - 1] : tries.length - 1;

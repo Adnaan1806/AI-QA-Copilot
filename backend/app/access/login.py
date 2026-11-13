@@ -16,7 +16,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 STEP_TIMEOUT_MS = 15000
-# Opening the app: Power Apps can take over 15s before its page even starts.
+# Opening the app: a slow one can take over 15s before its page even starts.
 PAGE_OPEN_TIMEOUT_MS = 60000
 # Pages a login may pass through, e.g. app -> provider email -> password -> stay signed in -> app.
 MAX_TURNS = 10
@@ -215,7 +215,7 @@ def log_in(page, login_url: str, username: str, password: str) -> LoginResult:
             break
         else:
             # Nothing to do yet: the page may still be loading or redirecting
-            # (Power Apps loads its scripts before sending you to Microsoft).
+            # (some apps load their scripts before sending you to the provider).
             page.wait_for_timeout(POLL_MS)
             idle_ms += POLL_MS
             continue

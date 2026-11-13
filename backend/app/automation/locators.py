@@ -8,10 +8,9 @@ scoped to the smallest container that tells them apart, named by its own text.
 Only when nothing else is unique does it fall back to a position, among
 matches of a specific locator, and say so.
 
-Power Apps canvas apps name every control (data-control-name), which works
-like a test id; a nameless button inside one -- a gallery row's click target --
-is found through it. An element inside an iframe gets a locator that goes
-through page.frame_locator(...).
+A nameless element (an icon button) inside a container with a test id is
+found through that container. An element inside an iframe gets a locator that
+goes through page.frame_locator(...).
 """
 
 import json
@@ -19,8 +18,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 
-TEST_ID_ATTRS = ("data-test", "data-testid", "data-test-id", "data-qa", "data-cy", "data-control-name")
-# How far up to look for a named control that owns a nameless element.
+TEST_ID_ATTRS = ("data-test", "data-testid", "data-test-id", "data-qa", "data-cy")
+# How far up to look for a container with a test id that owns a nameless element.
 OWNER_DEPTH = 4
 
 # Ids that frameworks generate (":r1:", "input-1234", uuids) change between builds.
@@ -75,7 +74,7 @@ class Candidate:
     method: str
     args: tuple
     kwargs: dict = field(default_factory=dict)
-    # Calls applied to this one's result, e.g. a control, then the button inside it.
+    # Calls applied to this one's result, e.g. a container, then the button inside it.
     then: Optional["Candidate"] = None
 
     def on(self, root):
@@ -133,7 +132,7 @@ def candidates(info: dict) -> list[Candidate]:
     if info["innerText"] and len(info["innerText"]) <= 80:
         found.append(Candidate("get_by_text", (info["innerText"],), {"exact": True}))
     if info["owner"]:
-        # Through the named control that holds it: by role + name if it has them, else by tag.
+        # Through the container that holds it: by role + name if it has them, else by tag.
         owner = info["owner"]
         inner = [c for c in found if c.method == "get_by_role"] or [Candidate("locator", (info["tag"],))]
         for c in inner:

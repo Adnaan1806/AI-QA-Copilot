@@ -23,7 +23,7 @@ export function initials(name) {
   return (words[0] ?? "?").slice(0, 2).toUpperCase();
 }
 
-// The app's host, without the long path some apps (Power Apps) carry.
+// The app's host, without the long path some apps carry.
 export function appHost(baseUrl) {
   if (!baseUrl) return null;
   try {

@@ -15,7 +15,6 @@ function target(strategy, value) {
   if (strategy === "placeholder") return `the field "${value}"`;
   if (strategy === "label") return `"${value}"`;
   if (strategy === "text") return `the text "${value}"`;
-  if (strategy === "control") return `the control "${value}"`;
   return "an element";
 }
 
