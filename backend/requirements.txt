@@ -17,6 +17,7 @@ chromadb
 langgraph
 bcrypt
 pyjwt
+cryptography
 pydantic[email]
 playwright
 pytest
