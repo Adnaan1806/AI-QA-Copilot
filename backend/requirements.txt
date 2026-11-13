@@ -12,7 +12,6 @@ pydantic==2.10.4
 langchain-core
 langchain-text-splitters
 langchain-chroma
-langchain-google-genai
 chromadb
 langgraph
 bcrypt
