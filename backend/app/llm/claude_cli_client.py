@@ -30,10 +30,8 @@ _FENCE_RE = re.compile(r"^```[a-zA-Z]*\n(.*)\n```$", re.DOTALL)
 class ClaudeCliClient(LLMClient):
     """Shells out to the locally-authenticated `claude` CLI in print mode.
 
-    Usage rides on this machine's Claude Code subscription (Pro/Max/Team)
-    instead of a separate pay-per-token Anthropic API key. Requires the
-    `claude` CLI to be installed and already logged into an account here --
-    it will not work on a machine without that local OAuth session.
+    Billed to this machine's Claude Code subscription instead of an API key,
+    so the `claude` CLI must be installed and logged in here.
     """
 
     def generate_json(self, system_prompt: str, user_prompt: str, timeout_s: Optional[int] = None) -> dict:

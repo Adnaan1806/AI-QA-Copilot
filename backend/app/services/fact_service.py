@@ -1,7 +1,7 @@
-"""The project's growing knowledge about its app. Every source (the crawler
-today; passing scripts, the healer, reviewers and chat later) adds facts
-through record_fact(), which updates a fact it has seen before instead of
-duplicating it, and keeps the fact's text in the vector store for retrieval."""
+"""The project's growing knowledge about its app. Every source (the crawler,
+passing runs and the team) adds facts through record_fact(), which updates a
+fact it has seen before instead of duplicating it, and keeps the fact's text in
+the vector store for retrieval."""
 
 import uuid
 from datetime import datetime, timezone

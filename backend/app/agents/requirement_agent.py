@@ -8,7 +8,7 @@ requirement and the app (or what the team stated) disagree; those come back as
 "app_differences", which become open questions. They never change the
 requirement or what a case expects: only a person settles who is right.
 
-Without tools (no project context) it is one LLM call, as before.
+Without tools (no project context) it is one LLM call.
 """
 
 import json

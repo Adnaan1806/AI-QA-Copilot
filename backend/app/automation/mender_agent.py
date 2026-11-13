@@ -1,9 +1,8 @@
 """Mender: repairs a failing test script by looking before it edits.
 
-The old healer rewrote the whole script blind, from the error text and Scout's
-old trace. Mender works in turns instead, like Scout: each turn the model
-names one tool, the code runs it and shows the result, until the test passes,
-Mender stops with a verdict, or a budget runs out.
+Mender works in turns, like Scout: each turn the model names one tool, the
+code runs it and shows the result, until the test passes, Mender stops with a
+verdict, or a budget runs out.
 
 What code enforces, not the prompt: the budgets (turns, script runs, time),
 and that an edit never removes or loosens a check (script_edits.check_edit).
@@ -102,7 +101,7 @@ Do not include markdown, commentary, or text outside the JSON object.
 
 
 class MenderError(RuntimeError):
-    """Mender couldn't work (its LLM calls kept failing); the runner falls back to the old healer."""
+    """Mender couldn't work (its LLM calls kept failing); the runner stops the case like any other agent failure."""
 
 
 def _trim(text: str, limit: int) -> str:
